@@ -93,3 +93,19 @@ def test_qc_length_stats_flag_the_tails():
     assert stats["n"] == 2
     assert stats["very_short_lt80"] == 1
     assert stats["very_long_gt800"] == 1
+
+
+def test_compact_metadata_handles_numpy_arrays_from_parquet():
+    """Parquet returns list columns as ndarrays, where `or []` raises."""
+    import numpy as np
+
+    row = record(
+        vector_types=np.array(["Bacterial Expression"], dtype=object),
+        insert_species=np.array([], dtype=object),
+        annotation_features=np.array(["AmpR", "ori"], dtype=object),
+    )
+    compact = prompts.compact_metadata(row)
+    assert compact["vector_types"] == ["Bacterial Expression"]
+    assert compact["features"] == ["AmpR", "ori"]
+    assert "insert_species" not in compact  # empty array is dropped, not kept
+    assert prompts.input_hash(row) == prompts.input_hash(record())

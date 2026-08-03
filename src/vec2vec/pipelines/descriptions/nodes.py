@@ -200,15 +200,22 @@ def check_descriptions(
 ) -> tuple[dict[str, Any], pd.DataFrame]:
     """Profile the generated descriptions and flag unsupported specificity.
 
+    Descriptions with no current source record are reported and skipped rather
+    than treated as an error: a published description set is generally built
+    from an older snapshot and legitimately covers plasmids this run excludes.
+    Pairing is where an unmatched description actually matters, and
+    :func:`vec2vec.pipelines.dataset.nodes.assemble_pairs` inner-joins there.
+
     Returns:
         The QC report, and the full table of flagged records for review.
     """
     rows = _prompt_rows(metadata, features)
     joined = descriptions.merge(rows, on="sequence_id", how="inner", suffixes=("", "_record"))
-    if len(joined) < len(descriptions):
-        raise ValueError(
-            f"{len(descriptions) - len(joined)} descriptions have no matching source record"
-        )
+    orphaned = len(descriptions) - len(joined)
+    if orphaned:
+        logger.warning("Skipping %s descriptions with no matching source record", f"{orphaned:,}")
+    if joined.empty:
+        raise ValueError("no description matches a source record; check the inputs")
 
     texts = joined["description"].astype(str).tolist()
     records = (
@@ -221,6 +228,8 @@ def check_descriptions(
     )
 
     report = {
+        "described": len(texts),
+        "orphaned_descriptions": orphaned,
         "length": qc.length_stats(texts),
         "field_coverage": qc.field_coverage(list(zip(texts, records, strict=True))),
         "duplicates": qc.duplicate_stats(texts),

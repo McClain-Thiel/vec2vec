@@ -148,9 +148,21 @@ def test_qc_reports_coverage_duplicates_and_invented_origins(metadata, features)
     assert "addgene_1" in set(flagged["sequence_id"])
 
 
-def test_qc_rejects_a_description_without_a_source_record(metadata, features):
+def test_qc_skips_and_reports_descriptions_without_a_source_record(metadata, features):
+    mixed = pd.DataFrame(
+        {
+            "sequence_id": ["addgene_1", "addgene_999"],
+            "description": ["An Ampicillin plasmid.", "An orphan."],
+        }
+    )
+    report, _ = nodes.check_descriptions(mixed, metadata, features, {})
+    assert report["described"] == 1
+    assert report["orphaned_descriptions"] == 1
+
+
+def test_qc_rejects_input_where_nothing_matches(metadata, features):
     orphan = pd.DataFrame({"sequence_id": ["addgene_999"], "description": ["x"]})
-    with pytest.raises(ValueError, match="no matching source record"):
+    with pytest.raises(ValueError, match="no description matches"):
         nodes.check_descriptions(orphan, metadata, features, {})
 
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from vec2vec.lib.text import sha256_text
+from vec2vec.lib.text import as_list, sha256_text
 
 PROMPT_VERSION = "desc-v2"
 
@@ -75,7 +75,7 @@ def compact_metadata(row: dict[str, Any]) -> dict[str, Any]:
     *row* is a processed record (see :data:`vec2vec.lib.addgene.RECORD_SCHEMA`)
     optionally carrying an ``annotation_features`` list.
     """
-    features = list(row.get("annotation_features") or [])[:MAX_FEATURES]
+    features = as_list(row.get("annotation_features"))[:MAX_FEATURES]
     values: dict[str, Any] = {
         "source": row.get("source", "addgene"),
         "length_bp": row.get("length_bp"),
@@ -89,9 +89,9 @@ def compact_metadata(row: dict[str, Any]) -> dict[str, Any]:
         "plasmid_copy": row.get("plasmid_copy"),
         "growth_strain": row.get("growth_strain"),
         "origin": row.get("origin"),
-        "vector_types": list(row.get("vector_types") or []),
+        "vector_types": as_list(row.get("vector_types")),
         "backbone": row.get("backbone"),
-        "insert_species": list(row.get("insert_species") or []),
+        "insert_species": as_list(row.get("insert_species")),
         "features": features,
         "accession": row.get("accession") or row.get("addgene_id"),
     }
