@@ -1,50 +1,23 @@
-"""Project settings. There is no need to edit this file unless you want to change values
-from the Kedro defaults. For further information, including these default values, see
-https://docs.kedro.org/en/stable/configure/configuration_basics/#configuration"""
+"""Project settings.
 
-# Instantiated project hooks.
-# For example, after creating a hooks.py and defining a ProjectHooks class there, do
-# from vec2vec.hooks import ProjectHooks
-# Hooks are executed in a Last-In-First-Out (LIFO) order.
-# HOOKS = (ProjectHooks(),)
+See https://docs.kedro.org/en/stable/configure/configuration_basics/ for the
+full set of options and their defaults.
+"""
 
-# Installed plugins for which to disable hook auto-registration.
-# DISABLE_HOOKS_FOR_PLUGINS = ("kedro-viz",)
+from omegaconf.resolvers import oc
 
-# Class that manages the KedroSession.
-# from kedro.framework.session import KedroSession
-# SESSION_CLASS = KedroSession
-
-# Class that manages storing KedroSession data.
-# from kedro.framework.session.store import BaseSessionStore
-# SESSION_STORE_CLASS = BaseSessionStore
-# Keyword arguments to pass to the `SESSION_STORE_CLASS` constructor.
-# SESSION_STORE_ARGS = {
-#     "path": "./sessions"
-# }
-
-# Directory that holds configuration.
-# CONF_SOURCE = "conf"
-
-# Class that manages how configuration is loaded.
-# from kedro.config import OmegaConfigLoader
-
-# CONFIG_LOADER_CLASS = OmegaConfigLoader
-
-# Keyword arguments to pass to the `CONFIG_LOADER_CLASS` constructor.
+# Keyword arguments passed to the configuration loader.
+#
+# ``globals.yml`` holds the storage roots every catalog entry is built from, and
+# the ``oc.env`` resolver lets ``parameters.yml`` read the OpenRouter key from
+# the environment instead of keeping a secret in a file.
 CONFIG_LOADER_ARGS = {
     "base_env": "base",
     "default_run_env": "local",
-    # "config_patterns": {
-    #     "spark" : ["spark*/"],
-    #     "parameters": ["parameters*", "parameters*/**", "**/parameters*"],
-    # }
+    "config_patterns": {
+        "globals": ["globals*", "globals*/**"],
+    },
+    "custom_resolvers": {
+        "oc.env": oc.env,
+    },
 }
-
-# Class that manages Kedro's library components.
-# from kedro.framework.context import KedroContext
-# CONTEXT_CLASS = KedroContext
-
-# Class that manages the Data Catalog.
-# from kedro.io import DataCatalog
-# DATA_CATALOG_CLASS = DataCatalog

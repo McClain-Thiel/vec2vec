@@ -1,0 +1,7 @@
+# Smaller batches, so the smoke run exercises chunking and partitioning.
+addgene:
+  chunk_size: 2
+
+descriptions:
+  batch_size: 2
+  cost_cap_usd: 0.01

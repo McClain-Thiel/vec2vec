@@ -1,0 +1,14 @@
+# Storage locations shared by every catalog entry.
+#
+# `raw` points at the existing upstream drops and is only ever read.
+# `lake` is this project's own output prefix, laid out by Kedro data layer.
+# Point them at another bucket by changing these two values and nothing else.
+bucket: plasmidclip
+raw: s3://plasmidclip/data/raw
+lake: s3://plasmidclip/kedro
+
+plsdb_version: 2024_05_31_v2
+
+# Already-generated descriptions, adopted by the `import_descriptions` pipeline
+# so the paid generation step does not have to be repeated.
+published_paired_dataset: hf://datasets/UCL-CSSB/plasmidclip-addgene-158k/data
