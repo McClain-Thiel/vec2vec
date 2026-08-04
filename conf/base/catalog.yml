@@ -1,4 +1,194 @@
-# Here you can define all your datasets by using simple YAML syntax.
+# Every dataset the pipelines read or write.
 #
-# Documentation for this file format can be found in "The Data Catalog"
-# Link: https://docs.kedro.org/en/stable/catalog-data/introduction/#data-catalog
+# Layers follow the Kedro data-engineering convention:
+#   01_raw           upstream drops, read-only, never written by this project
+#   02_intermediate  canonical records and annotations
+#   03_primary       generated descriptions and the assembled pairs
+#   04_feature       the retrieval dataset used for modelling
+#   08_reporting     audits and QC reports, written for humans
+
+# S3 authentication is left to the standard boto3 chain (environment variables,
+# ~/.aws/credentials, an instance or SSO role), so no credentials file is needed
+# and none can be committed by accident.
+
+# Written whole, by a node that returns a DataFrame.
+_parquet: &parquet
+  type: pandas.ParquetDataset
+  save_args:
+    compression: zstd
+
+# Written incrementally, by a node that streams chunks out of a much larger source.
+_streamed_parquet: &streamed_parquet
+  type: vec2vec.datasets.ChunkedParquetDataset
+  save_args:
+    compression: zstd
+
+_report: &report
+  type: json.JSONDataset
+  save_args:
+    indent: 2
+    sort_keys: true
+
+# ---------------------------------------------------------------- 01_raw
+
+addgene_raw:
+  type: vec2vec.datasets.JSONStreamDataset
+  filepath: ${globals:raw}/addgene/clean/raw/addgene_plasmids.json
+  prefix: plasmids.item
+
+plannotate_raw:
+  type: pandas.ParquetDataset
+  filepath: ${globals:raw}/addgene/clean/annotations/plannotate_annotations.parquet
+  load_args:
+    columns: [plasmid_id, Feature, Type, Description, qstart, qend, sframe, pident]
+
+plasmidkit_raw:
+  type: pandas.ParquetDataset
+  filepath: ${globals:raw}/addgene/clean/annotations/plasmidkit_annotations.parquet
+  load_args:
+    columns: [plasmid_id, Feature, Type, method, start, end, strand, confidence]
+
+# ------------------------------------------------------- 02_intermediate
+
+addgene_records@full:
+  <<: *streamed_parquet
+  filepath: ${globals:lake}/02_intermediate/addgene_records.parquet
+
+# A narrow view of the table above: same file, no multi-kilobase sequence
+# column. Everything that only needs metadata reads through this entry.
+# Transcoded (`@`) rather than separately named, so Kedro knows the writer of
+# `addgene_records` must run before anything that reads this view.
+addgene_records@metadata:
+  <<: *parquet
+  filepath: ${globals:lake}/02_intermediate/addgene_records.parquet
+  load_args:
+    columns:
+      - sequence_id
+      - addgene_id
+      - sequence_kind
+      - length_bp
+      - name
+      - description
+      - bacterial_resistance
+      - plasmid_copy
+      - growth_strain
+      - growth_temp
+      - origin
+      - backbone
+      - vector_types
+      - insert_species
+
+addgene_annotations:
+  <<: *parquet
+  filepath: ${globals:lake}/02_intermediate/addgene_annotations.parquet
+
+addgene_annotation_features:
+  <<: *parquet
+  filepath: ${globals:lake}/02_intermediate/addgene_annotation_features.parquet
+
+
+# ------------------------------------------------------------ 03_primary
+
+# Description generation writes batch by batch so a paid, interrupted run
+# resumes cheaply, and reads its own output back to know what to skip. That
+# needs two catalog names for one prefix: a single transcoded name would make
+# the node both producer and consumer of the same dataset, which Kedro rejects
+# as a cycle. The shared anchor keeps the two pointing at the same place —
+# if they ever drifted, the resume would silently stop resuming and the run
+# would pay to regenerate everything.
+_description_partitions: &description_partitions
+  path: ${globals:lake}/03_primary/description_partitions
+  filename_suffix: .parquet
+
+description_partitions:
+  <<: *description_partitions
+  type: partitions.PartitionedDataset
+  dataset:
+    type: pandas.ParquetDataset
+    save_args:
+      compression: zstd
+
+# The same partitions, read as {} before the first run has written any.
+description_partitions_completed:
+  <<: *description_partitions
+  type: vec2vec.datasets.OptionalPartitionedDataset
+  dataset:
+    type: pandas.ParquetDataset
+
+# The published PlasmidCLIP dataset, read for its descriptions only. Needs an
+# `HF_TOKEN` in the environment; the repository is private.
+published_paired_dataset:
+  type: pandas.ParquetDataset
+  filepath: ${globals:published_paired_dataset}
+
+plasmid_descriptions:
+  <<: *parquet
+  filepath: ${globals:lake}/03_primary/plasmid_descriptions.parquet
+
+plasmid_pairs:
+  <<: *parquet
+  filepath: ${globals:lake}/03_primary/plasmid_pairs.parquet
+
+# ------------------------------------------------------------ 04_feature
+
+retrieval_dataset@full:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+
+# The audit only reads structured metadata, so it skips the sequence column —
+# by far the widest in the table. Transcoded so Kedro still orders the writer
+# before this reader.
+retrieval_dataset@audit:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence_sha256
+      - description
+      - annotations
+      - length_bp
+      - split_grouped
+      - backbone
+      - vector_types
+      - bacterial_resistance
+      - insert_species
+      - plasmid_copy
+      - growth_strain
+      - insert_genes
+      - insert_mutations
+      - insert_tags
+      - insert_promoters
+
+# ---------------------------------------------------------- 08_reporting
+
+addgene_processing_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/addgene_processing_report.json
+
+description_qc_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/description_qc_report.json
+
+description_qc_flagged:
+  type: pandas.ParquetDataset
+  filepath: ${globals:lake}/08_reporting/description_qc_flagged.parquet
+
+retrieval_dataset_audit:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/retrieval_dataset_audit.json
+  versioned: true
+
+hard_negative_yield:
+  type: pandas.ParquetDataset
+  filepath: ${globals:lake}/08_reporting/hard_negative_yield.parquet
+
+hard_negative_examples:
+  type: pandas.ParquetDataset
+  filepath: ${globals:lake}/08_reporting/hard_negative_examples.parquet
+
+hard_negative_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/hard_negative_summary.json

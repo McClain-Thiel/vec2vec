@@ -71,8 +71,14 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repo root: `src/vec2vec/lib/` is source, not a build artifact.
+/lib/
+/lib64/
+
+# Resolved dependency lock. Nothing in this project installs from it -- the
+# environment is built with `uv pip install -e .` against pyproject.toml -- and
+# it added 3.3k lines of generated noise to every diff.
+uv.lock
 parts/
 sdist/
 var/
