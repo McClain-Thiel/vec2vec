@@ -54,6 +54,33 @@ s3://<bucket>/kedro/
 └── 08_reporting/      processing report, description QC, dataset audit, hard-negative audit
 ```
 
+## Current state
+
+Built from the Addgene release on 2026-08-04, with descriptions imported from
+the published dataset rather than regenerated:
+
+| Artifact | Rows | Size |
+| --- | --- | --- |
+| `addgene_records` | 115,120 plasmids | 63 MB |
+| `addgene_annotations` | 5,936,251 annotations | 53 MB |
+| `addgene_annotation_features` | 141,089 sequences | 6 MB |
+| `plasmid_descriptions` | 158,331 imported, 115,120 matched | 15 MB |
+| `retrieval_dataset` | 115,120 pairs | 93 MB |
+
+- **Splits:** 92,097 / 11,515 / 11,508 over 14,157 leakage components, with
+  **zero** components straddling a grouped split.
+- **Constraints:** the median description surfaces 6 functional constraint
+  groups; 216 of 115,120 rows surface none.
+- **Descriptions:** 393 chars mean, ~3 sentences, 22 duplicate groups, and 6
+  invented replication origins across the whole set (0.005%).
+- **Supervision:** 276,168 structured queries over the train split; median 5
+  provably-contradicting hard negatives per query, rising 1 → 6 → 12 with query
+  order as alternative positives fall 24 → 12 → 6.
+
+The 115,120 figure independently matches both the upstream project's cleaned
+index and the `rows` field in its phase-2 cache manifest, which is the check
+that the port reproduces the original.
+
 ## Setup
 
 ```bash
@@ -79,9 +106,10 @@ HF_TOKEN=... kedro run --pipeline import_descriptions
 
 Only run the paid generation pipeline for plasmids the import did not cover.
 
-> The published repository is private and the owning organization is currently
-> over its Hugging Face private-storage quota, so downloads return
-> `403 Forbidden` until that is resolved.
+The published repository is private, so `HF_TOKEN` must be set. Note that a
+Hugging Face private-storage overage on the *owning namespace* returns
+`403 Forbidden` on every private repo in it, not just the one over quota —
+worth checking first if a download suddenly stops working.
 
 ### Description generation costs money
 
@@ -101,6 +129,29 @@ or a Ctrl-C costs at most one batch. The prompt is frozen in
 `vec2vec.lib.prompts`; every row records the prompt hash and the hash of the
 metadata payload that produced it.
 
+## Two Kedro details worth knowing before you edit config
+
+**Transcoded dataset names are load-bearing.** `addgene_records@full` /
+`@metadata` and `retrieval_dataset@full` / `@audit` are the same file read
+through different `load_args.columns` projections. The `@` suffix is not
+cosmetic: Kedro resolves the dependency graph on the part *before* it, which is
+what guarantees the node writing `addgene_records` runs before every node
+reading a narrowed view of it. Renaming them to two independent names silently
+removes that ordering guarantee.
+
+The one place two independent names *are* correct is
+`description_partitions` / `description_partitions_completed`, because
+generation both writes and reads that prefix — a single transcoded name would
+make one node its own upstream, which Kedro rejects as a cycle. They share a
+YAML anchor so their paths cannot drift apart.
+
+**Kedro replaces a top-level parameter key across environments, it does not
+deep-merge it.** Overriding `addgene.chunk_size` in `conf/test/parameters.yml`
+deletes `addgene.include_partial` and `addgene.limit`. Each environment must
+restate the whole block. This silently broke the test environment once; nodes
+now index `params[...]` directly rather than defaulting with `.get()`, so a
+dropped key fails loudly instead of quietly running a different config.
+
 ## Leakage-aware splits
 
 73% of Addgene plasmids share a backbone with ten or more near-siblings, and
@@ -115,10 +166,13 @@ is how much of a retrieval score is scaffold memorization.
 A generated description states requirements that several plasmids can
 legitimately satisfy, so scoring only the paired sequence as correct mislabels
 genuine matches as errors. `vec2vec.lib.relevance` extracts only the metadata
-values that appear *literally* in a description, treats a candidate as relevant
-when it satisfies all of them, and treats metadata a candidate does not record
-as unknown rather than as a contradiction. Those constraints are stored on every
-row as `surfaced_constraints_json` and `structured_constraints_json`.
+values that appear *literally* in a description and stores them on every row as
+`surfaced_constraints_json` and `structured_constraints_json`.
+
+The rule that makes this usable is three-way, not two-way: a candidate whose
+metadata records a different value **contradicts** a constraint, but one that
+records *nothing* for that field is **unknown** and must never be counted as a
+negative. `partition_candidates_by_field` returns those three buckets.
 
 The `audit` pipeline then checks that this supervision is actually usable:
 it builds the nested query curriculum for every eligible row and counts the
