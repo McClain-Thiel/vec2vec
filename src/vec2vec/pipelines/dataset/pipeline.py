@@ -24,7 +24,7 @@ def create_pipeline(**kwargs) -> Pipeline:
             node(
                 func=nodes.add_splits_and_constraints,
                 inputs=["plasmid_pairs", "params:dataset"],
-                outputs=["retrieval_dataset", "retrieval_dataset_audit"],
+                outputs=["retrieval_dataset@full", "retrieval_dataset_audit"],
                 name="add_splits_and_constraints",
             ),
         ]

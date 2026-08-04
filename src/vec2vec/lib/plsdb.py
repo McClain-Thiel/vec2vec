@@ -12,6 +12,7 @@ from typing import Any
 import pyarrow as pa
 
 from vec2vec.lib.sequences import clean_sequence
+from vec2vec.lib.text import clean_text
 
 RECORD_SCHEMA = pa.schema(
     [
@@ -53,13 +54,6 @@ def parse_accession(header: str) -> str:
     return header.split()[0] if header.strip() else ""
 
 
-def _text(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
-
-
 def _float(value: Any) -> float | None:
     try:
         return float(value)
@@ -92,12 +86,15 @@ def to_record(
         "sequence": cleaned,
         "length_bp": len(cleaned),
         "header": header,
-        "description": _text(nuccore.get("NUCCORE_Description")),
-        "completeness": _text(nuccore.get("NUCCORE_Completeness")),
-        "genome": _text(nuccore.get("NUCCORE_Genome")),
+        "description": clean_text(nuccore.get("NUCCORE_Description")),
+        "completeness": clean_text(nuccore.get("NUCCORE_Completeness")),
+        "genome": clean_text(nuccore.get("NUCCORE_Genome")),
         "gc_content": _float(nuccore.get("NUCCORE_GC")),
-        "source_db": _text(nuccore.get("NUCCORE_Source")),
-        "topology": _text(nuccore.get("NUCCORE_Topology")) or "unknown",
-        "organism": _text(taxonomy.get("TAXONOMY_taxon_name")),
-        **{f"taxonomy_{rank}": _text(taxonomy.get(f"TAXONOMY_{rank}")) for rank in _TAXONOMY_RANKS},
+        "source_db": clean_text(nuccore.get("NUCCORE_Source")),
+        "topology": clean_text(nuccore.get("NUCCORE_Topology")) or "unknown",
+        "organism": clean_text(taxonomy.get("TAXONOMY_taxon_name")),
+        **{
+            f"taxonomy_{rank}": clean_text(taxonomy.get(f"TAXONOMY_{rank}"))
+            for rank in _TAXONOMY_RANKS
+        },
     }

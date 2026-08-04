@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from vec2vec.lib import relevance, splits
+from vec2vec.lib import qc, relevance, splits
 from vec2vec.lib.sequences import sequence_sha256
 from vec2vec.lib.text import as_list, normalize_values
 
@@ -105,21 +105,43 @@ def assemble_pairs(
 
 
 def _constraint_columns(
-    pairs: pd.DataFrame, fields: tuple[str, ...]
-) -> tuple[list[str], np.ndarray]:
-    """Serialize the constraints each description surfaces over *fields*."""
-    serialized: list[str] = []
-    group_counts: list[int] = []
-    for row in pairs.itertuples(index=False):
-        constraints = relevance.extract_surface_constraints(
-            str(row.description),
-            {field: normalize_values(getattr(row, field)) for field in fields},
-            normalize_values(row.annotations),
-            int(row.length_bp),
-        )
-        serialized.append(json.dumps(constraints.to_dict(), sort_keys=True, separators=(",", ":")))
-        group_counts.append(constraints.group_count)
-    return serialized, np.asarray(group_counts, dtype=np.int16)
+    pairs: pd.DataFrame,
+    field_sets: dict[str, tuple[str, ...]],
+) -> dict[str, tuple[list[str], np.ndarray]]:
+    """Serialize the constraints each description surfaces, per named field set.
+
+    Every field set is resolved in one pass. The field sets overlap — the
+    structured set is a superset of the functional one — so normalizing each
+    column once up front and walking the rows once avoids re-normalizing the
+    same values, and the same annotation lists, for each set in turn.
+    """
+    needed = sorted({field for fields in field_sets.values() for field in fields})
+    normalized = {field: pairs[field].map(normalize_values).tolist() for field in needed}
+    features = pairs["annotations"].map(normalize_values).tolist()
+    descriptions = pairs["description"].astype(str).tolist()
+    lengths = pairs["length_bp"].astype(int).tolist()
+
+    results: dict[str, tuple[list[str], np.ndarray]] = {
+        name: ([], [])
+        for name in field_sets  # type: ignore[misc]
+    }
+    for index in range(len(pairs)):
+        for name, fields in field_sets.items():
+            constraints = relevance.extract_surface_constraints(
+                descriptions[index],
+                {field: normalized[field][index] for field in fields},
+                features[index],
+                lengths[index],
+            )
+            serialized, counts = results[name]
+            serialized.append(
+                json.dumps(constraints.to_dict(), sort_keys=True, separators=(",", ":"))
+            )
+            counts.append(constraints.group_count)
+    return {
+        name: (serialized, np.asarray(counts, dtype=np.int16))
+        for name, (serialized, counts) in results.items()
+    }
 
 
 def add_splits_and_constraints(
@@ -136,10 +158,10 @@ def add_splits_and_constraints(
         The retrieval dataset, and an audit of how it was built.
     """
     fractions = splits.SplitFractions(
-        train=float(params.get("train_fraction", 0.8)),
-        val=float(params.get("val_fraction", 0.1)),
+        train=float(params["train_fraction"]),
+        val=float(params["val_fraction"]),
     )
-    seed = int(params.get("seed", 42))
+    seed = int(params["seed"])
 
     dataset = pairs.reset_index(drop=True).copy()
     components = splits.leakage_components(
@@ -154,11 +176,14 @@ def add_splits_and_constraints(
     if impure:
         raise RuntimeError(f"{impure} leakage components straddle a grouped split")
 
-    for prefix, fields in (
-        ("surfaced", relevance.FUNCTIONAL_FIELDS),
-        ("structured", relevance.STRUCTURED_FIELDS),
-    ):
-        serialized, counts = _constraint_columns(dataset, fields)
+    constraints = _constraint_columns(
+        dataset,
+        {
+            "surfaced": relevance.FUNCTIONAL_FIELDS,
+            "structured": relevance.STRUCTURED_FIELDS,
+        },
+    )
+    for prefix, (serialized, counts) in constraints.items():
         dataset[f"{prefix}_constraints_json"] = serialized
         dataset[f"{prefix}_constraint_groups"] = counts
 
@@ -176,12 +201,7 @@ def add_splits_and_constraints(
         "split_grouped": dataset["split_grouped"].value_counts().to_dict(),
         "split_random": dataset["split_random"].value_counts().to_dict(),
         "components_straddling_grouped_split": impure,
-        "sequence_length_bp": {
-            "min": int(dataset["length_bp"].min()),
-            "median": float(dataset["length_bp"].median()),
-            "max": int(dataset["length_bp"].max()),
-            "under_1kb": int((dataset["length_bp"] < 1000).sum()),
-        },
+        "sequence_length_bp": qc.sequence_length_summary(dataset["length_bp"]),
         "surfaced_constraint_groups": _histogram(dataset["surfaced_constraint_groups"]),
         "structured_constraint_groups": _histogram(dataset["structured_constraint_groups"]),
     }

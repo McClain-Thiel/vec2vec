@@ -4,26 +4,12 @@ from __future__ import annotations
 
 import json
 
+from tests.conftest import processed_record
 from vec2vec.lib import prompts, qc
 
 
 def record(**overrides):
-    base = {
-        "sequence_id": "addgene_1",
-        "addgene_id": 1,
-        "length_bp": 1200,
-        "name": "pTest",
-        "description": "A test construct",
-        "bacterial_resistance": "Ampicillin",
-        "plasmid_copy": "High Copy",
-        "growth_strain": None,
-        "origin": None,
-        "backbone": "pUC19",
-        "vector_types": ["Bacterial Expression"],
-        "insert_species": [],
-        "annotation_features": ["AmpR", "ori"],
-    }
-    return {**base, **overrides}
+    return processed_record(1, **{"annotation_features": ["AmpR", "ori"], **overrides})
 
 
 def test_compact_metadata_drops_empty_fields_and_keeps_field_order():

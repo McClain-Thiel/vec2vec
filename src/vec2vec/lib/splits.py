@@ -20,7 +20,9 @@ from typing import Any
 
 import numpy as np
 
-SPLIT_LABELS = ("train", "val", "test")
+from vec2vec.lib.text import clean_text
+
+SPLIT_LABELS = TRAIN, VAL, TEST = ("train", "val", "test")
 
 _NAME_PREFIX = re.compile(r"[_\d]")
 
@@ -43,13 +45,6 @@ class SplitFractions:
         return 1.0 - self.train - self.val
 
 
-def _clean(value: Any) -> str:
-    """Render a possibly-missing metadata value as trimmed text."""
-    if value is None or (isinstance(value, float) and np.isnan(value)):
-        return ""
-    return str(value).strip()
-
-
 def family_key(backbone: Any, name: Any, fallback_id: str) -> str:
     """Cluster key for grouped splitting.
 
@@ -57,10 +52,10 @@ def family_key(backbone: Any, name: Any, fallback_id: str) -> str:
     the plasmid name (which captures vector families such as ``pLKO``), and
     finally isolates the row under its own identifier.
     """
-    cleaned_backbone = _clean(backbone)
+    cleaned_backbone = clean_text(backbone) or ""
     if cleaned_backbone and cleaned_backbone.casefold() != "unknown":
         return f"backbone::{cleaned_backbone}"
-    prefix = _NAME_PREFIX.split(_clean(name))[0]
+    prefix = _NAME_PREFIX.split(clean_text(name) or "")[0]
     if len(prefix) >= 3:
         return f"name::{prefix}"
     return f"id::{fallback_id}"
@@ -133,7 +128,7 @@ def assign_grouped_split(
     placed = 0
     for component in order.tolist():
         rows = members[component]
-        label = "train" if placed < train_target else ("val" if placed < val_target else "test")
+        label = TRAIN if placed < train_target else (VAL if placed < val_target else TEST)
         for position in rows:
             labels[position] = label
         placed += len(rows)
@@ -150,9 +145,9 @@ def assign_random_split(size: int, fractions: SplitFractions, seed: int) -> np.n
     ranks[np.random.default_rng(seed).permutation(size)] = np.arange(size)
     train_target = int(size * fractions.train)
     val_target = train_target + int(size * fractions.val)
-    return np.where(
-        ranks < train_target, "train", np.where(ranks < val_target, "val", "test")
-    ).astype(object)
+    return np.where(ranks < train_target, TRAIN, np.where(ranks < val_target, VAL, TEST)).astype(
+        object
+    )
 
 
 def split_purity(components: np.ndarray, labels: np.ndarray) -> int:

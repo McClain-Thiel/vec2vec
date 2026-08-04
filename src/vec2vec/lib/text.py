@@ -23,9 +23,16 @@ def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def collapse_whitespace(value: str) -> str:
-    """Collapse runs of whitespace into single spaces and strip the result."""
-    return _WHITESPACE.sub(" ", value).strip()
+def clean_text(value: Any) -> str | None:
+    """Render a possibly-missing scalar as trimmed text, or None when absent.
+
+    NaN counts as absent: pandas represents a missing string cell as a float,
+    which ``str()`` would happily render as the literal ``"nan"``.
+    """
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def normalize_phrase(value: Any) -> str:

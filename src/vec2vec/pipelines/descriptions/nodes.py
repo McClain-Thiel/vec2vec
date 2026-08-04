@@ -72,7 +72,7 @@ def _describe_batch(
 ) -> pd.DataFrame:
     """Generate one batch of descriptions concurrently and return its partition."""
     model = str(settings["model"])
-    concurrency = int(settings.get("concurrency", 6))
+    concurrency = int(settings["concurrency"])
     generated: list[dict[str, Any]] = []
     failures = 0
 
@@ -85,9 +85,9 @@ def _describe_batch(
                 prompts.build_messages(row),
                 model=model,
                 api_key=api_key,
-                max_tokens=int(settings.get("max_tokens", 256)),
-                temperature=float(settings.get("temperature", 0.2)),
-                provider=settings.get("provider"),
+                max_tokens=int(settings["max_tokens"]),
+                temperature=float(settings["temperature"]),
+                provider=settings["provider"],
             )
         except Exception as error:  # noqa: BLE001 - one plasmid must not sink the batch
             return row, None, f"{type(error).__name__}: {error}"
@@ -143,12 +143,12 @@ def generate_descriptions(
     rows = _prompt_rows(metadata, features)
     done = _completed_ids(completed)
     pending = rows.loc[~rows["sequence_id"].isin(done)]
-    limit = params.get("limit")
+    limit = params["limit"]
     if limit is not None:
         pending = pending.head(int(limit))
 
-    batch_size = int(params.get("batch_size", 2_000))
-    budget = _Budget(cap_usd=params.get("cost_cap_usd"))
+    batch_size = int(params["batch_size"])
+    budget = _Budget(cap_usd=params["cost_cap_usd"])
     records = pending.to_dict("records")
     logger.info(
         "Descriptions: %s already generated, %s pending, %s batches of %s",
@@ -237,7 +237,7 @@ def check_descriptions(
             "n_flagged": len(flagged),
             "frac_flagged": round(len(flagged) / max(len(texts), 1), 4),
             "n_with_invented_origin": sum(1 for flag in flagged if flag["invented_origins"]),
-            "examples": flagged[: int(params.get("report_examples", 10))],
+            "examples": flagged[: int(params["report_examples"])],
         },
     }
     logger.info(

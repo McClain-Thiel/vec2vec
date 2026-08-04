@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from kedro.io import DatasetError
 from kedro_datasets.partitions import PartitionedDataset
 
 
@@ -20,10 +19,13 @@ class OptionalPartitionedDataset(PartitionedDataset):
     """
 
     def load(self) -> dict[str, Callable[[], Any]]:
-        """Return the partition loaders, or ``{}`` when the prefix is empty."""
-        try:
-            return super().load()
-        except DatasetError as error:
-            if "No partitions found" in str(error):
-                return {}
-            raise
+        """Return the partition loaders, or ``{}`` when the prefix is empty.
+
+        Asks whether any partition exists rather than inferring it from the
+        wording of the base class's error, so a rephrased message upstream
+        cannot turn a first run into a crash.
+        """
+        self._invalidate_caches()
+        if not self._list_partitions():
+            return {}
+        return super().load()

@@ -57,6 +57,16 @@ def candidate_entities(text: str) -> set[str]:
     }
 
 
+def sequence_length_summary(lengths: Any) -> dict[str, float | int]:
+    """Distribution of plasmid lengths, shared by the processing and dataset reports."""
+    return {
+        "min": int(lengths.min()),
+        "median": float(lengths.median()),
+        "max": int(lengths.max()),
+        "under_1kb": int((lengths < 1000).sum()),
+    }
+
+
 def length_stats(descriptions: list[str]) -> dict[str, float]:
     """Character and sentence distributions across all descriptions."""
     lengths = [len(text) for text in descriptions]

@@ -18,6 +18,7 @@ import re
 from collections import defaultdict
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Any
 
 import numpy as np
@@ -54,9 +55,15 @@ _LENGTH_PATTERN = re.compile(
 )
 
 
-def _is_surfaced(description: str, value: str) -> bool:
-    """True when a normalized phrase appears as whole words in a description."""
-    return f" {value} " in f" {normalize_phrase(description)} "
+def _haystack(description: str) -> str:
+    """Normalize a description once into a space-padded search target.
+
+    Padding lets a plain substring test act as a whole-phrase match, and hoisting
+    the normalization out of the per-value loop matters: a row is checked against
+    tens of field values and annotation names, and normalizing is the single most
+    expensive step in building the dataset.
+    """
+    return f" {normalize_phrase(description)} "
 
 
 def _surfaced_length(description: str, expected_length: int | None) -> int | None:
@@ -115,13 +122,14 @@ def extract_surface_constraints(
     length_bp: int | None,
 ) -> SurfaceConstraints:
     """Keep only the source metadata values that appear literally in *description*."""
+    haystack = _haystack(description)
     surfaced = (
-        (field, frozenset(value for value in values if _is_surfaced(description, value)))
+        (field, frozenset(value for value in values if f" {value} " in haystack))
         for field, values in field_values.items()
     )
     return SurfaceConstraints(
         fields=tuple((field, values) for field, values in surfaced if values),
-        features=frozenset(feature for feature in features if _is_surfaced(description, feature)),
+        features=frozenset(feature for feature in features if f" {feature} " in haystack),
         length_bp=_surfaced_length(description, length_bp),
     )
 
@@ -195,39 +203,20 @@ class RelevanceIndex:
             field: tuple(normalize_values(value) for value in columns[field])
             for field in self.fields
         }
-        self.features = tuple(
-            normalize_values(value) for value in columns.get("annotations", [()] * size)
-        )
+        self._raw_features = tuple(columns.get("annotations", [()] * size))
         self.lengths = tuple(
             None
             if value is None or (isinstance(value, float) and math.isnan(value))
             else int(value)
             for value in columns.get("length_bp", [None] * size)
         )
-        self.constraints = tuple(
-            extract_surface_constraints(
-                str(descriptions[index]),
-                {field: self.field_values[field][index] for field in self.fields},
-                self.features[index],
-                self.lengths[index],
-            )
-            for index in range(size)
-        )
-
-        # Sorted length index, so a tolerance window is two binary searches.
-        pairs = sorted(
-            (length, index) for index, length in enumerate(self.lengths) if length is not None
-        )
-        self._sorted_lengths = np.array([length for length, _ in pairs], dtype=np.int64)
-        self._length_order = np.array([index for _, index in pairs], dtype=np.int64)
+        self._descriptions = tuple(str(value) for value in descriptions)
 
         self._exact: dict[str, set[int]] = defaultdict(set)
         self._field_inverted: dict[str, dict[str, set[int]]] = {
             field: defaultdict(set) for field in self.fields
         }
         self._field_known: dict[str, set[int]] = {field: set() for field in self.fields}
-        self._feature_inverted: dict[str, set[int]] = defaultdict(set)
-        self._feature_known: set[int] = set()
         for index in range(size):
             self._exact[self.sequence_hashes[index]].add(index)
             for field in self.fields:
@@ -236,10 +225,51 @@ class RelevanceIndex:
                     self._field_known[field].add(index)
                 for value in values:
                     self._field_inverted[field][value].add(index)
-            if self.features[index]:
-                self._feature_known.add(index)
-            for feature in self.features[index]:
-                self._feature_inverted[feature].add(index)
+
+    # The constraint, feature and length indexes below serve the judging API.
+    # Callers that only partition candidates by field — the hard-negative audit —
+    # never touch them, and building them eagerly costs a full pass over every
+    # description, so they are deferred until something actually asks.
+
+    @cached_property
+    def features(self) -> tuple[frozenset[str], ...]:
+        """Normalized annotation feature names per row."""
+        return tuple(normalize_values(value) for value in self._raw_features)
+
+    @cached_property
+    def constraints(self) -> tuple[SurfaceConstraints, ...]:
+        """The constraints each row's description surfaces."""
+        return tuple(
+            extract_surface_constraints(
+                self._descriptions[index],
+                {field: self.field_values[field][index] for field in self.fields},
+                self.features[index],
+                self.lengths[index],
+            )
+            for index in range(len(self._descriptions))
+        )
+
+    @cached_property
+    def _feature_index(self) -> tuple[dict[str, set[int]], set[int]]:
+        inverted: dict[str, set[int]] = defaultdict(set)
+        known: set[int] = set()
+        for index, features in enumerate(self.features):
+            if features:
+                known.add(index)
+            for feature in features:
+                inverted[feature].add(index)
+        return inverted, known
+
+    @cached_property
+    def _length_index(self) -> tuple[np.ndarray, np.ndarray]:
+        """Sorted lengths, so a tolerance window is two binary searches."""
+        pairs = sorted(
+            (length, index) for index, length in enumerate(self.lengths) if length is not None
+        )
+        return (
+            np.array([length for length, _ in pairs], dtype=np.int64),
+            np.array([index for _, index in pairs], dtype=np.int64),
+        )
 
     @classmethod
     def from_frame(
@@ -249,15 +279,28 @@ class RelevanceIndex:
         fields: Sequence[str] = FUNCTIONAL_FIELDS,
         **kwargs: Any,
     ) -> RelevanceIndex:
-        """Build an index from the paired dataset's DataFrame columns."""
-        missing = {"description", "sequence", *fields}.difference(frame.columns)
+        """Build an index from the paired dataset's DataFrame columns.
+
+        ``sequence`` may be omitted when the frame already carries
+        ``sequence_sha256``: the sequences themselves are only ever hashed, and
+        they are by far the widest column in the dataset.
+        """
+        required = {"description", *fields}
+        if "sequence_sha256" not in frame.columns:
+            required.add("sequence")
+        missing = required.difference(frame.columns)
         if missing:
             raise ValueError(f"missing relevance columns: {sorted(missing)}")
         optional = {"annotations", "length_bp", "sequence_sha256"}.intersection(frame.columns)
         columns = {name: frame[name].tolist() for name in (*fields, *sorted(optional))}
+        sequences = (
+            frame["sequence"].astype(str).tolist()
+            if "sequence" in frame.columns
+            else [""] * len(frame)
+        )
         return cls(
             frame["description"].astype(str).tolist(),
-            frame["sequence"].astype(str).tolist(),
+            sequences,
             columns,
             fields=fields,
             **kwargs,
@@ -274,9 +317,10 @@ class RelevanceIndex:
 
     def _length_candidates(self, query_length: int) -> set[int]:
         tolerance = self._length_tolerance(query_length)
-        start = int(np.searchsorted(self._sorted_lengths, query_length - tolerance, "left"))
-        stop = int(np.searchsorted(self._sorted_lengths, query_length + tolerance, "right"))
-        return set(self._length_order[start:stop].tolist())
+        sorted_lengths, order = self._length_index
+        start = int(np.searchsorted(sorted_lengths, query_length - tolerance, "left"))
+        stop = int(np.searchsorted(sorted_lengths, query_length + tolerance, "right"))
+        return set(order[start:stop].tolist())
 
     def compatible_candidates(self, constraints: SurfaceConstraints) -> set[int]:
         """Return candidates satisfying every supplied structured constraint."""
@@ -291,7 +335,7 @@ class RelevanceIndex:
                 matches = self._field_inverted[field].get(value, set())
                 compatible = set(matches) if compatible is None else compatible & matches
         for feature in constraints.features:
-            matches = self._feature_inverted.get(feature, set())
+            matches = self._feature_index[0].get(feature, set())
             compatible = set(matches) if compatible is None else compatible & matches
         if constraints.length_bp is not None:
             matches = self._length_candidates(constraints.length_bp)

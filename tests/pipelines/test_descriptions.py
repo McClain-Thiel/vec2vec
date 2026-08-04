@@ -5,30 +5,28 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from tests.conftest import record_frame
 from vec2vec.lib import openrouter
 from vec2vec.pipelines.descriptions import nodes
 
-PARAMS = {"model": "test/model", "concurrency": 2, "batch_size": 2, "cost_cap_usd": None}
+# Mirrors the full `descriptions` block in conf/base/parameters.yml: nodes index
+# params directly so the config file stays the only source of defaults.
+PARAMS = {
+    "model": "test/model",
+    "provider": None,
+    "max_tokens": 256,
+    "temperature": 0.2,
+    "concurrency": 2,
+    "batch_size": 2,
+    "cost_cap_usd": None,
+    "limit": None,
+}
+QC_PARAMS = {"report_examples": 5}
 
 
 @pytest.fixture
 def metadata() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "sequence_id": [f"addgene_{index}" for index in range(1, 6)],
-            "addgene_id": list(range(1, 6)),
-            "length_bp": [1000] * 5,
-            "name": [f"pTest{index}" for index in range(1, 6)],
-            "description": ["a construct"] * 5,
-            "bacterial_resistance": ["Ampicillin"] * 5,
-            "plasmid_copy": ["High Copy"] * 5,
-            "growth_strain": [None] * 5,
-            "origin": [None] * 5,
-            "backbone": ["pUC19"] * 5,
-            "vector_types": [["Bacterial Expression"]] * 5,
-            "insert_species": [[]] * 5,
-        }
-    )
+    return record_frame(5)
 
 
 @pytest.fixture
@@ -138,9 +136,7 @@ def test_qc_reports_coverage_duplicates_and_invented_origins(metadata, features)
             ],
         }
     )
-    report, flagged = nodes.check_descriptions(
-        descriptions, metadata, features, {"report_examples": 5}
-    )
+    report, flagged = nodes.check_descriptions(descriptions, metadata, features, QC_PARAMS)
     assert report["length"]["n"] == 3
     assert report["duplicates"]["duplicate_groups"] == 1
     assert report["field_coverage"]["bacterial_resistance"] == 1.0
@@ -155,7 +151,7 @@ def test_qc_skips_and_reports_descriptions_without_a_source_record(metadata, fea
             "description": ["An Ampicillin plasmid.", "An orphan."],
         }
     )
-    report, _ = nodes.check_descriptions(mixed, metadata, features, {})
+    report, _ = nodes.check_descriptions(mixed, metadata, features, QC_PARAMS)
     assert report["described"] == 1
     assert report["orphaned_descriptions"] == 1
 
@@ -163,7 +159,7 @@ def test_qc_skips_and_reports_descriptions_without_a_source_record(metadata, fea
 def test_qc_rejects_input_where_nothing_matches(metadata, features):
     orphan = pd.DataFrame({"sequence_id": ["addgene_999"], "description": ["x"]})
     with pytest.raises(ValueError, match="no description matches"):
-        nodes.check_descriptions(orphan, metadata, features, {})
+        nodes.check_descriptions(orphan, metadata, features, QC_PARAMS)
 
 
 def test_merge_ignores_empty_partitions():

@@ -79,3 +79,35 @@ def annotations() -> pd.DataFrame:
             "confidence": [0.99, 0.9, 0.99, 0.8],
         }
     )
+
+
+def processed_record(index: int = 1, **overrides: Any) -> dict[str, Any]:
+    """One row shaped like the processed record table, for prompt and QC tests.
+
+    Keeps the four test modules that need record-shaped input from each
+    hand-rolling their own column set and drifting apart from
+    :data:`vec2vec.lib.addgene.RECORD_SCHEMA`.
+    """
+    return {
+        "sequence_id": f"addgene_{index}",
+        "addgene_id": index,
+        "length_bp": 1000,
+        "name": f"pTest{index}",
+        "description": "a construct",
+        "bacterial_resistance": "Ampicillin",
+        "plasmid_copy": "High Copy",
+        "growth_strain": None,
+        "growth_temp": None,
+        "origin": None,
+        "backbone": "pUC19",
+        "vector_types": ["Bacterial Expression"],
+        "insert_species": [],
+        **overrides,
+    }
+
+
+def record_frame(count: int = 5, **overrides: Any) -> pd.DataFrame:
+    """A metadata frame of *count* processed records."""
+    return pd.DataFrame([processed_record(index) for index in range(1, count + 1)]).assign(
+        **overrides
+    )

@@ -13,7 +13,7 @@ from typing import Any
 import pyarrow as pa
 
 from vec2vec.lib.sequences import clean_sequence
-from vec2vec.lib.text import split_delimited, unique_preserving_order
+from vec2vec.lib.text import clean_text, split_delimited, unique_preserving_order
 
 FULL_SEQUENCE_KEY = "public_addgene_full_sequences"
 PARTIAL_SEQUENCE_KEY = "public_addgene_partial_sequences"
@@ -77,14 +77,6 @@ def _as_list(value: Any, context: str) -> list[Any]:
     if not isinstance(value, list):
         raise TypeError(f"{context} must be a JSON array, got {type(value).__name__}")
     return value
-
-
-def _text(value: Any) -> str | None:
-    """Render a scalar metadata value as trimmed text, or None when absent."""
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
 
 
 def extract_sequence(record: dict[str, Any], *, include_partial: bool = False) -> tuple[str, str]:
@@ -169,17 +161,17 @@ def to_record(record: dict[str, Any], *, include_partial: bool = False) -> dict[
         "sequence": sequence,
         "sequence_kind": sequence_kind,
         "length_bp": len(sequence),
-        "name": _text(record.get("name")),
-        "description": _text(record.get("description")),
-        "bacterial_resistance": _text(record.get("bacterial_resistance")),
-        "plasmid_copy": _text(record.get("plasmid_copy")),
-        "growth_strain": _text(record.get("growth_strain")),
-        "growth_temp": _text(record.get("growth_temp")),
-        "origin": _text(record.get("origin")),
-        "backbone": _text(cloning.get("backbone")),
+        "name": clean_text(record.get("name")),
+        "description": clean_text(record.get("description")),
+        "bacterial_resistance": clean_text(record.get("bacterial_resistance")),
+        "plasmid_copy": clean_text(record.get("plasmid_copy")),
+        "growth_strain": clean_text(record.get("growth_strain")),
+        "growth_temp": clean_text(record.get("growth_temp")),
+        "origin": clean_text(record.get("origin")),
+        "backbone": clean_text(cloning.get("backbone")),
         "vector_types": split_delimited(cloning.get("vector_types")),
-        "article_doi": _text(article.get("doi")),
-        "article_pubmed_id": _text(article.get("pubmed_id")),
+        "article_doi": clean_text(article.get("doi")),
+        "article_pubmed_id": clean_text(article.get("pubmed_id")),
         "url": f"https://www.addgene.org/{addgene_id}/",
         **extract_insert_fields(record),
     }

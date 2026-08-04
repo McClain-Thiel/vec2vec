@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 import pyarrow as pa
 
-from vec2vec.lib import addgene, plsdb
+from vec2vec.lib import addgene, plsdb, qc
 from vec2vec.lib import annotations as annotations_lib
 
 logger = logging.getLogger(__name__)
@@ -51,8 +51,8 @@ def process_addgene_records(
     dropped and counted; ``include_partial`` decides whether fragment sequences
     count as usable.
     """
-    include_partial = bool(params.get("include_partial", False))
-    limit = params.get("limit")
+    include_partial = bool(params["include_partial"])
+    limit = params["limit"]
 
     def rows() -> Iterator[dict[str, Any]]:
         kept = 0
@@ -77,7 +77,7 @@ def process_addgene_records(
     return _chunks(
         rows(),
         addgene.RECORD_SCHEMA,
-        int(params.get("chunk_size", 10_000)),
+        int(params["chunk_size"]),
         None if limit is None else int(limit),
     )
 
@@ -93,7 +93,7 @@ def process_plsdb_records(
     The metadata tables are small enough to index in memory; the FASTA is not,
     so it stays a stream.
     """
-    limit = params.get("limit")
+    limit = params["limit"]
     nuccore_index = nuccore.set_index("NUCCORE_ACC").to_dict("index")
     taxonomy_index = taxonomy.set_index("TAXONOMY_UID").to_dict("index")
     logger.info(
@@ -133,7 +133,7 @@ def process_plsdb_records(
     return _chunks(
         rows(),
         plsdb.RECORD_SCHEMA,
-        int(params.get("chunk_size", 10_000)),
+        int(params["chunk_size"]),
         None if limit is None else int(limit),
     )
 
@@ -160,7 +160,7 @@ def build_annotation_features(
     params: dict[str, Any],
 ) -> pd.DataFrame:
     """Reduce annotations to one de-duplicated feature-name list per sequence."""
-    max_features = params.get("max_features")
+    max_features = params["max_features"]
     features = annotations_lib.feature_lists(
         annotations, max_features=None if max_features is None else int(max_features)
     )
@@ -174,18 +174,12 @@ def summarize_records(
     features: pd.DataFrame,
 ) -> dict[str, Any]:
     """Profile the processed tables so a run can be checked without loading them."""
-    lengths = records["length_bp"]
     return {
         "records": {
             "rows": len(records),
             "unique_sequence_ids": int(records["sequence_id"].nunique()),
             "sequence_kind": records["sequence_kind"].value_counts().to_dict(),
-            "length_bp": {
-                "min": int(lengths.min()),
-                "median": float(lengths.median()),
-                "max": int(lengths.max()),
-                "under_1kb": int((lengths < 1000).sum()),
-            },
+            "length_bp": qc.sequence_length_summary(records["length_bp"]),
             "null_fraction": {
                 column: round(float(records[column].isna().mean()), 4)
                 for column in ("name", "backbone", "bacterial_resistance", "plasmid_copy")

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import copy
 from collections.abc import Iterable, Iterator
 from typing import Any
 
 import fsspec
-from kedro.io import AbstractDataset, DatasetError
+from kedro.io import AbstractDataset
+
+from vec2vec.datasets._base import ReadOnlyDataset
 
 
 def parse_fasta(lines: Iterable[str]) -> Iterator[tuple[str, str]]:
@@ -32,13 +33,11 @@ def parse_fasta(lines: Iterable[str]) -> Iterator[tuple[str, str]]:
         yield header, "".join(chunks)
 
 
-class FastaDataset(AbstractDataset[None, Iterator[tuple[str, str]]]):
+class FastaDataset(ReadOnlyDataset, AbstractDataset[None, Iterator[tuple[str, str]]]):
     """Stream ``(header, sequence)`` pairs from a FASTA file.
 
     PLSDB publishes its sequences as a single bzip2-compressed FASTA of several
     gigabytes, so records are yielded lazily rather than materialized.
-
-    Read-only: this dataset describes an upstream source of truth.
 
     Example catalog entry:
 
@@ -48,7 +47,6 @@ class FastaDataset(AbstractDataset[None, Iterator[tuple[str, str]]]):
           type: vec2vec.datasets.FastaDataset
           filepath: s3://plasmidclip/data/raw/plsdb/2024_05_31_v2/sequences.fasta.bz2
           compression: bz2
-          credentials: s3
     """
 
     def __init__(
@@ -60,13 +58,10 @@ class FastaDataset(AbstractDataset[None, Iterator[tuple[str, str]]]):
         fs_args: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        self._filepath = filepath
+        super().__init__(
+            filepath=filepath, credentials=credentials, fs_args=fs_args, metadata=metadata
+        )
         self._compression = compression
-        self._storage_options: dict[str, Any] = {
-            **(copy.deepcopy(fs_args) or {}),
-            **(copy.deepcopy(credentials) or {}),
-        }
-        self.metadata = metadata
 
     def load(self) -> Iterator[tuple[str, str]]:
         """Yield each ``(header, sequence)`` pair in file order."""
@@ -83,12 +78,5 @@ class FastaDataset(AbstractDataset[None, Iterator[tuple[str, str]]]):
 
         return stream()
 
-    def save(self, data: None) -> None:
-        raise DatasetError(f"{self.__class__.__name__} is read-only")
-
-    def _exists(self) -> bool:
-        filesystem, path = fsspec.core.url_to_fs(self._filepath, **self._storage_options)
-        return bool(filesystem.exists(path))
-
     def _describe(self) -> dict[str, Any]:
-        return {"filepath": self._filepath, "compression": self._compression}
+        return {**super()._describe(), "compression": self._compression}

@@ -6,17 +6,18 @@ import copy
 from collections.abc import Iterable
 from typing import Any
 
-import fsspec
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from kedro.io import AbstractDataset, DatasetError
 
+from vec2vec.datasets._base import FsspecDataset
+
 Chunk = pd.DataFrame | pa.Table
 Saveable = Chunk | Iterable[Chunk]
 
 
-class ChunkedParquetDataset(AbstractDataset[Saveable, pd.DataFrame]):
+class ChunkedParquetDataset(FsspecDataset, AbstractDataset[Saveable, pd.DataFrame]):
     """Write one Parquet file from an iterable of chunks; read it as a frame.
 
     Ingestion nodes turn multi-gigabyte sources into tables that are far smaller
@@ -57,14 +58,11 @@ class ChunkedParquetDataset(AbstractDataset[Saveable, pd.DataFrame]):
         fs_args: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        self._filepath = filepath
+        super().__init__(
+            filepath=filepath, credentials=credentials, fs_args=fs_args, metadata=metadata
+        )
         self._load_args = copy.deepcopy(load_args) or {}
         self._save_args = {**self.DEFAULT_SAVE_ARGS, **(copy.deepcopy(save_args) or {})}
-        self._storage_options: dict[str, Any] = {
-            **(copy.deepcopy(fs_args) or {}),
-            **(copy.deepcopy(credentials) or {}),
-        }
-        self.metadata = metadata
 
     def load(self) -> pd.DataFrame:
         """Read the Parquet file into a DataFrame, honouring ``load_args``."""
@@ -80,7 +78,7 @@ class ChunkedParquetDataset(AbstractDataset[Saveable, pd.DataFrame]):
             raise DatasetError(f"refusing to write an empty dataset to {self._filepath}")
 
         table = _as_table(first)
-        filesystem, path = fsspec.core.url_to_fs(self._filepath, **self._storage_options)
+        filesystem, path = self._resolve()
         parent, _, _ = path.rpartition("/")
         if parent:
             filesystem.makedirs(parent, exist_ok=True)
@@ -90,13 +88,9 @@ class ChunkedParquetDataset(AbstractDataset[Saveable, pd.DataFrame]):
                 for chunk in chunks:
                     writer.write_table(_as_table(chunk).cast(table.schema))
 
-    def _exists(self) -> bool:
-        filesystem, path = fsspec.core.url_to_fs(self._filepath, **self._storage_options)
-        return bool(filesystem.exists(path))
-
     def _describe(self) -> dict[str, Any]:
         return {
-            "filepath": self._filepath,
+            **super()._describe(),
             "load_args": self._load_args,
             "save_args": self._save_args,
         }

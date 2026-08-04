@@ -76,3 +76,18 @@ def test_feature_lists_deduplicate_and_order_by_source(annotations):
 def test_feature_lists_respect_a_cap(annotations):
     features = annotations_lib.feature_lists(annotations, max_features=1)
     assert all(len(value) <= 1 for value in features["annotation_features"])
+
+
+def test_feature_lists_returns_plain_python_lists(annotations):
+    """Grouping a pyarrow-backed string column can yield a pyarrow list dtype.
+
+    Parquet writing and the list-coercion helpers both reject that, and it only
+    shows up once a frame round-trips through the catalog.
+    """
+    features = annotations_lib.feature_lists(
+        annotations.assign(feature=annotations["feature"].astype("string"))
+    )
+    values = features["annotation_features"]
+    assert values.dtype == object
+    assert all(isinstance(value, list) for value in values)
+    assert all(isinstance(item, str) for value in values for item in value)

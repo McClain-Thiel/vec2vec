@@ -109,11 +109,20 @@ plsdb_records:
 
 # ------------------------------------------------------------ 03_primary
 
-# Written batch by batch so a paid, interrupted generation run resumes cheaply.
-description_partitions:
-  type: partitions.PartitionedDataset
+# Description generation writes batch by batch so a paid, interrupted run
+# resumes cheaply, and reads its own output back to know what to skip. That
+# needs two catalog names for one prefix: a single transcoded name would make
+# the node both producer and consumer of the same dataset, which Kedro rejects
+# as a cycle. The shared anchor keeps the two pointing at the same place —
+# if they ever drifted, the resume would silently stop resuming and the run
+# would pay to regenerate everything.
+_description_partitions: &description_partitions
   path: ${globals:lake}/03_primary/description_partitions
   filename_suffix: .parquet
+
+description_partitions:
+  <<: *description_partitions
+  type: partitions.PartitionedDataset
   dataset:
     type: pandas.ParquetDataset
     save_args:
@@ -121,9 +130,8 @@ description_partitions:
 
 # The same partitions, read as {} before the first run has written any.
 description_partitions_completed:
+  <<: *description_partitions
   type: vec2vec.datasets.OptionalPartitionedDataset
-  path: ${globals:lake}/03_primary/description_partitions
-  filename_suffix: .parquet
   dataset:
     type: pandas.ParquetDataset
 
@@ -143,10 +151,36 @@ plasmid_pairs:
 
 # ------------------------------------------------------------ 04_feature
 
-retrieval_dataset:
+retrieval_dataset@full:
   <<: *parquet
   filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
   versioned: true
+
+# The audit only reads structured metadata, so it skips the sequence column —
+# by far the widest in the table. Transcoded so Kedro still orders the writer
+# before this reader.
+retrieval_dataset@audit:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence_sha256
+      - description
+      - annotations
+      - length_bp
+      - split_grouped
+      - backbone
+      - vector_types
+      - bacterial_resistance
+      - insert_species
+      - plasmid_copy
+      - growth_strain
+      - insert_genes
+      - insert_mutations
+      - insert_tags
+      - insert_promoters
 
 # ---------------------------------------------------------- 08_reporting
 

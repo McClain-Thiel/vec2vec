@@ -25,17 +25,6 @@ def clean_sequence(sequence: str) -> str:
     return "".join(char for char in normalize_sequence(sequence) if char in DNA_ALPHABET)
 
 
-def validate_sequence(sequence: str) -> str:
-    """Normalize a sequence and reject empty or non-IUPAC input."""
-    normalized = normalize_sequence(sequence)
-    if not normalized:
-        raise ValueError("sequence must be non-empty")
-    invalid = sorted(set(normalized) - DNA_ALPHABET)
-    if invalid:
-        raise ValueError(f"sequence contains unsupported DNA symbols: {''.join(invalid)}")
-    return normalized
-
-
 def sequence_sha256(sequence: str) -> str:
     """Return a stable exact-sequence family identifier."""
     return hashlib.sha256(sequence.encode("ascii")).hexdigest()

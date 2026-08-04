@@ -54,9 +54,9 @@ def audit_hard_negatives(
     Returns:
         Per-query pool sizes, the richest example queries per order, and a summary.
     """
-    split = str(params.get("split", "train"))
-    max_order = int(params.get("max_order", 3))
-    seed = int(params.get("seed", 17))
+    split = str(params["split"])
+    max_order = int(params["max_order"])
+    seed = int(params["seed"])
 
     frame = dataset.reset_index(drop=True)
     fields = ("backbone", *queries.QUERY_FIELDS)
@@ -68,14 +68,16 @@ def audit_hard_negatives(
     source_indices = frame.index[frame["split_grouped"].eq(split)].tolist()
     if not source_indices:
         raise ValueError(f"split {split!r} contains no rows")
-    eligible = set(source_indices)
+    eligible = frozenset(source_indices)
 
     records: list[dict[str, Any]] = []
     for source_index in source_indices:
+        # One pool per source row, shared by every order of its query family.
+        negatives = queries.SourceNegatives(relevance, source_index, eligible)
         for query in queries.build_query_family(
             relevance, source_index, max_order=max_order, seed=seed
         ):
-            pools = queries.same_backbone_hard_negatives(relevance, query, eligible)
+            pools = negatives.pools(query)
             constraints = {field: sorted(values)[0] for field, values in query.constraints.fields}
             records.append(
                 {
@@ -105,7 +107,7 @@ def audit_hard_negatives(
             ascending=[False, False, True],
         )
         .groupby("order", sort=True)
-        .head(int(params.get("examples_per_order", 20)))
+        .head(int(params["examples_per_order"]))
         .reset_index(drop=True)
     )
     summary = {

@@ -13,7 +13,7 @@ def create_pipeline(**kwargs) -> Pipeline:
         [
             node(
                 func=nodes.audit_hard_negatives,
-                inputs=["retrieval_dataset", "params:audit"],
+                inputs=["retrieval_dataset@audit", "params:audit"],
                 outputs=[
                     "hard_negative_yield",
                     "hard_negative_examples",

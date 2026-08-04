@@ -30,16 +30,6 @@ class Completion:
     cost_usd: float
 
 
-def _is_retryable(exc: Exception) -> bool:
-    """True for transport errors and 429/5xx responses."""
-    if isinstance(exc, httpx.TransportError):
-        return True
-    if isinstance(exc, httpx.HTTPStatusError):
-        status = exc.response.status_code
-        return status == 429 or status >= 500
-    return False
-
-
 def _backoff(attempt: int, retry_after: str | None = None) -> float:
     """Exponential backoff with jitter, honouring a ``Retry-After`` header."""
     if retry_after:
@@ -117,8 +107,10 @@ def complete(
                 continue
             response.raise_for_status()
             return _extract(response.json())
-        except (httpx.TransportError, httpx.HTTPStatusError) as exc:
-            if attempt < max_retries and _is_retryable(exc):
+        except httpx.TransportError:
+            # Retryable statuses are handled above, before raise_for_status, so
+            # only transport failures can reach here as worth another attempt.
+            if attempt < max_retries:
                 time.sleep(_backoff(attempt))
                 continue
             raise

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pyarrow as pa
@@ -15,6 +16,7 @@ import pyarrow.parquet as pq
 import pytest
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
+from kedro.io import DataCatalog
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -70,62 +72,76 @@ def lake(tmp_path, monkeypatch, raw_plasmids, annotations) -> Path:
     return tmp_path / "lake"
 
 
-def run(pipeline: str | None = None) -> dict:
+def run(pipeline: str | None = None, **runtime_params: Any) -> DataCatalog:
+    """Run a pipeline in the `test` environment and return its catalog.
+
+    Assertions read results back through the catalog by dataset name, so the
+    tests never restate a filepath, a layer name, or Kedro's versioned-directory
+    layout — that all stays in conf/base/catalog.yml where it belongs.
+    """
     bootstrap_project(PROJECT_ROOT)
-    with KedroSession.create(project_path=PROJECT_ROOT, env="test") as session:
-        return session.run(pipeline_name=pipeline)
+    with KedroSession.create(
+        project_path=PROJECT_ROOT, env="test", runtime_params=runtime_params or None
+    ) as session:
+        context = session.load_context()
+        session.run(pipeline_name=pipeline)
+        return context.catalog
 
 
-def seed_descriptions(lake: Path, sequence_ids: list[str]) -> None:
+def seed_descriptions(catalog: DataCatalog, sequence_ids: list[str]) -> None:
     """Stand in for the paid generation step with deterministic descriptions."""
-    directory = lake / "03_primary"
-    directory.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(
-        {
-            "sequence_id": sequence_ids,
-            "description": [
-                "An Ampicillin High Copy plasmid propagated in DH5alpha with an AmpR feature."
-                for _ in sequence_ids
-            ],
-            "generation_model": "fixture/model",
-            "prompt_version": "desc-v2",
-            "prompt_hash": "fixturehash",
-            "input_hash": [f"input-{sequence_id}" for sequence_id in sequence_ids],
-            "cost_usd": 0.0,
-        }
-    ).to_parquet(directory / "plasmid_descriptions.parquet", index=False)
+    catalog.save(
+        "plasmid_descriptions",
+        pd.DataFrame(
+            {
+                "sequence_id": sequence_ids,
+                "description": [
+                    "An Ampicillin High Copy plasmid propagated in DH5alpha with an AmpR feature."
+                    for _ in sequence_ids
+                ],
+                "generation_model": "fixture/model",
+                "prompt_version": "desc-v2",
+                "prompt_hash": "fixturehash",
+                "input_hash": [f"input-{sequence_id}" for sequence_id in sequence_ids],
+                "cost_usd": 0.0,
+            }
+        ),
+    )
 
 
 def test_processing_produces_records_annotations_and_a_report(lake):
-    run("processing")
+    catalog = run("processing")
 
-    records = pd.read_parquet(lake / "02_intermediate" / "addgene_records.parquet")
+    records = catalog.load("addgene_records@full")
     assert len(records) == 5  # the fragment-only plasmid is excluded
     assert set(records["sequence_kind"]) == {"full"}
     assert records["sequence_id"].is_unique
 
-    annotations = pd.read_parquet(lake / "02_intermediate" / "addgene_annotations.parquet")
+    annotations = catalog.load("addgene_annotations")
     assert set(annotations["source"]) == {"plannotate", "plasmidkit"}
 
-    features = pd.read_parquet(lake / "02_intermediate" / "addgene_annotation_features.parquet")
-    assert dict(zip(features["sequence_id"], features["annotation_features"], strict=True))[
-        "addgene_1"
-    ].tolist() == ["AmpR", "GFP"]
+    features = catalog.load("addgene_annotation_features")
+    by_id = dict(zip(features["sequence_id"], features["annotation_features"], strict=True))
+    assert list(by_id["addgene_1"]) == ["AmpR", "GFP"]
 
-    report = json.loads((lake / "08_reporting" / "addgene_processing_report.json").read_text())
+    report = catalog.load("addgene_processing_report")
     assert report["records"]["rows"] == 5
     assert report["annotations"]["annotated_sequences"] == 2
 
 
+def test_the_metadata_view_projects_away_the_sequence_column(lake):
+    catalog = run("processing")
+    assert "sequence" not in catalog.load("addgene_records@metadata").columns
+    assert "sequence" in catalog.load("addgene_records@full").columns
+
+
 def test_dataset_and_audit_produce_a_leakage_safe_retrieval_set(lake):
-    run("processing")
-    records = pd.read_parquet(lake / "02_intermediate" / "addgene_records.parquet")
-    seed_descriptions(lake, records["sequence_id"].tolist())
+    catalog = run("processing")
+    seed_descriptions(catalog, catalog.load("addgene_records@metadata")["sequence_id"].tolist())
 
-    run("dataset")
+    catalog = run("dataset")
 
-    versions = sorted((lake / "04_feature" / "retrieval_dataset.parquet").iterdir())
-    dataset = pd.read_parquet(versions[-1] / "retrieval_dataset.parquet")
+    dataset = catalog.load("retrieval_dataset@full")
     assert len(dataset) == 5
     assert {"split_grouped", "split_random", "surfaced_constraints_json"} <= set(dataset.columns)
 
@@ -138,33 +154,24 @@ def test_dataset_and_audit_produce_a_leakage_safe_retrieval_set(lake):
     assert surfaced["fields"]["bacterial_resistance"] == ["ampicillin"]
     assert surfaced["group_count"] >= 2
 
-    audit_versions = sorted((lake / "08_reporting" / "retrieval_dataset_audit.json").iterdir())
-    audit = json.loads((audit_versions[-1] / "retrieval_dataset_audit.json").read_text())
+    audit = catalog.load("retrieval_dataset_audit")
     assert audit["rows"] == 5
     assert audit["components_straddling_grouped_split"] == 0
 
 
 def test_audit_measures_hard_negative_yield(lake):
-    run("processing")
-    records = pd.read_parquet(lake / "02_intermediate" / "addgene_records.parquet")
-    seed_descriptions(lake, records["sequence_id"].tolist())
-    run("dataset")
+    catalog = run("processing")
+    seed_descriptions(catalog, catalog.load("addgene_records@metadata")["sequence_id"].tolist())
+    catalog = run("dataset")
 
     # The fixture is small, so audit whichever split the seed actually filled.
-    versions = sorted((lake / "04_feature" / "retrieval_dataset.parquet").iterdir())
-    dataset = pd.read_parquet(versions[-1] / "retrieval_dataset.parquet")
-    split = dataset["split_grouped"].value_counts().idxmax()
+    split = catalog.load("retrieval_dataset@full")["split_grouped"].value_counts().idxmax()
+    catalog = run("audit", **{"audit.split": split})
 
-    bootstrap_project(PROJECT_ROOT)
-    with KedroSession.create(
-        project_path=PROJECT_ROOT, env="test", runtime_params={"audit.split": split}
-    ) as session:
-        session.run(pipeline_name="audit")
-
-    summary = json.loads((lake / "08_reporting" / "hard_negative_summary.json").read_text())
+    summary = catalog.load("hard_negative_summary")
     assert summary["split"] == split
     assert summary["overall"]["queries"] > 0
 
-    yields = pd.read_parquet(lake / "08_reporting" / "hard_negative_yield.parquet")
+    yields = catalog.load("hard_negative_yield")
     assert (yields["order"] >= 1).all()
     assert (yields["known_hard_negative_count"] >= 0).all()

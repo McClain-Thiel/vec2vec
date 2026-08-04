@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from vec2vec.lib.text import unique_preserving_order
-
 #: Annotation sources in the order their features are surfaced to consumers.
 ANNOTATION_SOURCES = ("plannotate", "plasmidkit")
 
@@ -106,15 +104,33 @@ def feature_lists(annotations: pd.DataFrame, *, max_features: int | None = None)
         A frame indexed by position with ``sequence_id`` and
         ``annotation_features`` columns.
     """
-    ordered = annotations.assign(
-        _source_rank=annotations["source"].map(
-            {source: rank for rank, source in enumerate(ANNOTATION_SOURCES)}
-        )
-    ).sort_values(["sequence_id", "_source_rank"], kind="stable")
+    ranks = {source: rank for rank, source in enumerate(ANNOTATION_SOURCES)}
+    ordered = (
+        annotations.loc[annotations["feature"].notna(), ["sequence_id", "source", "feature"]]
+        .assign(_rank=lambda frame: frame["source"].map(ranks))
+        .sort_values("_rank", kind="stable")
+    )
 
-    grouped = ordered.groupby("sequence_id", sort=True)["feature"].apply(
-        lambda values: unique_preserving_order(
-            value for value in values.tolist() if isinstance(value, str)
-        )[:max_features]
+    # De-duplicate case-insensitively across the whole table at once; groupby
+    # preserves within-group order, so the first-seen spelling per sequence wins
+    # without a Python callback per group.
+    ordered = ordered.loc[
+        ~pd.DataFrame(
+            {
+                "sequence_id": ordered["sequence_id"],
+                "key": ordered["feature"].str.strip().str.casefold(),
+            }
+        ).duplicated()
+    ]
+    if max_features is not None:
+        ordered = ordered.loc[ordered.groupby("sequence_id", sort=False).cumcount() < max_features]
+
+    # astype(object) before aggregating: grouping a pyarrow-backed string column
+    # yields a pyarrow list dtype, which the Parquet writer and the downstream
+    # coercion helpers do not accept. Plain Python lists are what consumers expect.
+    grouped = (
+        ordered.assign(feature=ordered["feature"].astype(object))
+        .groupby("sequence_id", sort=True)["feature"]
+        .agg(list)
     )
     return grouped.rename("annotation_features").reset_index()

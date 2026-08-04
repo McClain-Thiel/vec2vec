@@ -2,5 +2,5 @@
 #
 # `VEC2VEC_TEST_ROOT` is set by the test suite (and can be set by hand to run
 # the pipelines against a small local fixture: `kedro run --env test`).
-raw: ${oc.env:VEC2VEC_TEST_ROOT}/raw
-lake: ${oc.env:VEC2VEC_TEST_ROOT}/lake
+raw: ${oc.env:VEC2VEC_TEST_ROOT,/tmp/vec2vec-test}/raw
+lake: ${oc.env:VEC2VEC_TEST_ROOT,/tmp/vec2vec-test}/lake
