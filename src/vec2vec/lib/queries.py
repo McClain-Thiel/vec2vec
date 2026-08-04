@@ -232,25 +232,3 @@ def _combine(
         known_hard_negatives=tuple(sorted(hard_negatives)),
         strict_near_misses=tuple(sorted(near_misses)),
     )
-
-
-def sample_hard_negatives(
-    pools: HardNegativePools,
-    *,
-    count: int,
-    seed: int,
-    epoch: int,
-    source_index: int,
-) -> tuple[int, ...]:
-    """Choose strict near misses first, then other proven contradictions."""
-    if count < 1:
-        raise ValueError("count must be positive")
-    strict = sorted(
-        pools.strict_near_misses,
-        key=lambda index: _stable_key(seed, epoch, source_index, f"strict:{index}"),
-    )
-    other = sorted(
-        set(pools.known_hard_negatives).difference(pools.strict_near_misses),
-        key=lambda index: _stable_key(seed, epoch, source_index, f"known:{index}"),
-    )
-    return tuple((strict + other)[:count])

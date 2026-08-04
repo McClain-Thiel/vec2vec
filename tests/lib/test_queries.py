@@ -15,8 +15,7 @@ FIELDS = ("backbone", *queries.QUERY_FIELDS)
 def index() -> RelevanceIndex:
     frame = pd.DataFrame(
         {
-            "description": ["ignored"] * 4,
-            "sequence": ["ACGT", "TTTT", "GGGG", "CCCC"],
+            "sequence_sha256": ["seq-a", "seq-b", "seq-c", "seq-d"],
             "backbone": ["pET28a"] * 4,
             "vector_types": [["Bacterial Expression"]] * 4,
             "bacterial_resistance": ["Ampicillin", "Ampicillin", "Kanamycin", None],
@@ -29,7 +28,7 @@ def index() -> RelevanceIndex:
             "insert_promoters": [[]] * 4,
         }
     )
-    return RelevanceIndex.from_frame(frame, fields=FIELDS, min_constraint_groups=1)
+    return RelevanceIndex.from_frame(frame, fields=FIELDS)
 
 
 def test_render_query_uses_only_supplied_requirements():
@@ -82,29 +81,11 @@ def test_hard_negatives_require_contradicting_evidence(index):
     assert 1 in pools.alternative_positives
 
 
-def test_sampling_prefers_strict_near_misses():
-    pools = queries.HardNegativePools(
-        same_backbone=(1, 2, 3),
-        alternative_positives=(),
-        known_hard_negatives=(1, 2, 3),
-        strict_near_misses=(3,),
-    )
-    assert queries.sample_hard_negatives(pools, count=1, seed=1, epoch=0, source_index=0) == (3,)
-    assert len(queries.sample_hard_negatives(pools, count=3, seed=1, epoch=0, source_index=0)) == 3
-
-
 def test_rows_without_a_backbone_yield_no_pools(index):
     query = queries.build_query_family(index, 0, max_order=1, seed=5)[0]
     empty = RelevanceIndex.from_frame(
-        pd.DataFrame(
-            {
-                "description": ["x"],
-                "sequence": ["ACGT"],
-                **{field: [None] for field in FIELDS},
-            }
-        ),
+        pd.DataFrame({"sequence_sha256": ["seq-a"], **{field: [None] for field in FIELDS}}),
         fields=FIELDS,
-        min_constraint_groups=1,
     )
     assert queries.same_backbone_hard_negatives(empty, query, {0}) == queries.HardNegativePools(
         (), (), (), ()

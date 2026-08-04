@@ -64,7 +64,7 @@ def audit_hard_negatives(
     if missing:
         raise ValueError(f"dataset is missing audit columns: {sorted(missing)}")
 
-    relevance = RelevanceIndex.from_frame(frame, fields=fields, min_constraint_groups=1)
+    relevance = RelevanceIndex.from_frame(frame, fields=fields)
     source_indices = frame.index[frame["split_grouped"].eq(split)].tolist()
     if not source_indices:
         raise ValueError(f"split {split!r} contains no rows")
