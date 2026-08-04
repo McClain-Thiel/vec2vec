@@ -33,20 +33,16 @@ def index() -> RelevanceIndex:
 
 def test_render_query_uses_only_supplied_requirements():
     values = {"bacterial_resistance": "ampicillin", "plasmid_copy": "high copy"}
-    direct = queries.render_query(values, "direct")
-    assert direct == (
+    assert queries.render_query(values) == (
         "Find a plasmid supporting ampicillin bacterial selection, with high copy copy number."
     )
-    assert queries.render_query(values, "requirements").startswith("Retrieve a construct")
 
 
-def test_render_query_rejects_unknown_fields_and_variants():
+def test_render_query_rejects_unknown_fields_and_empty_requirements():
     with pytest.raises(ValueError, match="unsupported structured-query field"):
-        queries.render_query({"nope": "x"}, "direct")
-    with pytest.raises(ValueError, match="unknown query variant"):
-        queries.render_query({"plasmid_copy": "high copy"}, "poetic")
+        queries.render_query({"nope": "x"})
     with pytest.raises(ValueError, match="at least one requirement"):
-        queries.render_query({}, "direct")
+        queries.render_query({})
 
 
 def test_query_family_is_nested_and_reproducible(index):
@@ -74,7 +70,7 @@ def test_hard_negatives_require_contradicting_evidence(index):
         for query in queries.build_query_family(index, 0, max_order=5, seed=5)
         if "bacterial_resistance" in query.field_names and query.order == 1
     )
-    pools = queries.same_backbone_hard_negatives(index, query, {0, 1, 2, 3})
+    pools = queries.SourceNegatives(index, query.source_index, {0, 1, 2, 3}).pools(query)
     # Row 2 records a different resistance; row 3 records none and stays unknown.
     assert 2 in pools.known_hard_negatives
     assert 3 not in pools.known_hard_negatives
@@ -87,6 +83,6 @@ def test_rows_without_a_backbone_yield_no_pools(index):
         pd.DataFrame({"sequence_sha256": ["seq-a"], **{field: [None] for field in FIELDS}}),
         fields=FIELDS,
     )
-    assert queries.same_backbone_hard_negatives(empty, query, {0}) == queries.HardNegativePools(
+    assert queries.SourceNegatives(empty, 0, {0}).pools(query) == queries.HardNegativePools(
         (), (), (), ()
     )

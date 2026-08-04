@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 import pyarrow as pa
 
-from vec2vec.lib import addgene, plsdb, qc
+from vec2vec.lib import addgene, qc
 from vec2vec.lib import annotations as annotations_lib
 
 logger = logging.getLogger(__name__)
@@ -77,62 +77,6 @@ def process_addgene_records(
     return _chunks(
         rows(),
         addgene.RECORD_SCHEMA,
-        int(params["chunk_size"]),
-        None if limit is None else int(limit),
-    )
-
-
-def process_plsdb_records(
-    sequences: Iterator[tuple[str, str]],
-    nuccore: pd.DataFrame,
-    taxonomy: pd.DataFrame,
-    params: dict[str, Any],
-) -> Iterator[pa.Table]:
-    """Join the PLSDB FASTA stream to its metadata and taxonomy tables.
-
-    The metadata tables are small enough to index in memory; the FASTA is not,
-    so it stays a stream.
-    """
-    limit = params["limit"]
-    nuccore_index = nuccore.set_index("NUCCORE_ACC").to_dict("index")
-    taxonomy_index = taxonomy.set_index("TAXONOMY_UID").to_dict("index")
-    logger.info(
-        "Indexed %s nuccore rows and %s taxonomy rows",
-        f"{len(nuccore_index):,}",
-        f"{len(taxonomy_index):,}",
-    )
-
-    def rows() -> Iterator[dict[str, Any]]:
-        kept = 0
-        unmatched = 0
-        for header, sequence in sequences:
-            metadata = nuccore_index.get(plsdb.parse_accession(header))
-            if metadata is None:
-                unmatched += 1
-                continue
-            try:
-                row = plsdb.to_record(
-                    header,
-                    sequence,
-                    metadata,
-                    taxonomy_index.get(metadata.get("TAXONOMY_UID")),
-                )
-            except LookupError:
-                unmatched += 1
-                continue
-            kept += 1
-            if kept % 25_000 == 0:
-                logger.info("Flattened %s PLSDB records", f"{kept:,}")
-            yield row
-        logger.info(
-            "PLSDB records: %s kept, %s dropped for missing metadata or sequence",
-            f"{kept:,}",
-            f"{unmatched:,}",
-        )
-
-    return _chunks(
-        rows(),
-        plsdb.RECORD_SCHEMA,
         int(params["chunk_size"]),
         None if limit is None else int(limit),
     )

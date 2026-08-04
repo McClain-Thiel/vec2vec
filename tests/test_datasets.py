@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import bz2
 import json
 
 import pandas as pd
@@ -12,11 +11,9 @@ from kedro.io import DatasetError
 
 from vec2vec.datasets import (
     ChunkedParquetDataset,
-    FastaDataset,
     JSONStreamDataset,
     OptionalPartitionedDataset,
 )
-from vec2vec.datasets.fasta import parse_fasta
 
 
 def test_json_stream_yields_objects_under_the_prefix(tmp_path):
@@ -38,20 +35,6 @@ def test_json_stream_rejects_non_objects(tmp_path):
 def test_json_stream_is_read_only(tmp_path):
     with pytest.raises(DatasetError, match="read-only"):
         JSONStreamDataset(filepath=str(tmp_path / "x.json")).save([{"id": 1}])
-    with pytest.raises(DatasetError, match="read-only"):
-        FastaDataset(filepath=str(tmp_path / "x.fasta")).save([("acc", "ACGT")])
-
-
-def test_parse_fasta_joins_wrapped_sequence_lines():
-    lines = [">one desc", "ACGT", "TTTT", "", ">two", "GGGG"]
-    assert list(parse_fasta(lines)) == [("one desc", "ACGTTTTT"), ("two", "GGGG")]
-
-
-def test_fasta_dataset_reads_compressed_files(tmp_path):
-    path = tmp_path / "sequences.fasta.bz2"
-    path.write_bytes(bz2.compress(b">acc1 first\nACGT\n>acc2\nTTTT\n"))
-    dataset = FastaDataset(filepath=str(path), compression="bz2")
-    assert list(dataset.load()) == [("acc1 first", "ACGT"), ("acc2", "TTTT")]
 
 
 def test_chunked_parquet_writes_one_file_from_many_chunks(tmp_path):

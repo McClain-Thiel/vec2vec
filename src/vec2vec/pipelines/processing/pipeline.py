@@ -41,22 +41,3 @@ def create_pipeline(**kwargs) -> Pipeline:
             ),
         ]
     )
-
-
-def create_plsdb_pipeline(**kwargs) -> Pipeline:
-    """Flatten the PLSDB release into records.
-
-    Registered separately: PLSDB backs encoder benchmarking rather than the
-    paired retrieval dataset, and its FASTA is large enough that you rarely want
-    it in the same run.
-    """
-    return Pipeline(
-        [
-            node(
-                func=nodes.process_plsdb_records,
-                inputs=["plsdb_sequences", "plsdb_nuccore", "plsdb_taxonomy", "params:plsdb"],
-                outputs="plsdb_records",
-                name="process_plsdb_records",
-            )
-        ]
-    )

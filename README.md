@@ -4,7 +4,7 @@
 
 The PlasmidCLIP data pipeline, rebuilt on Kedro with an S3 data catalog.
 
-It turns the raw Addgene and PLSDB releases into a paired
+It turns the raw Addgene release into a paired
 **(plasmid DNA sequence, natural-language description)** dataset with
 leakage-aware splits, constraint-based relevance labels, and the audits needed
 to trust both. Modelling is not part of this repository yet.
@@ -18,7 +18,6 @@ to trust both. Modelling is not part of this repository yet.
 | `audit` | Builds the structured-query curriculum and measures how many provable hard negatives it yields. | yes |
 | `descriptions` | Generates descriptions through OpenRouter, merges the partitions, and quality-checks them. | **no — paid** |
 | `import_descriptions` | Adopts the already-published descriptions instead of regenerating them. | no |
-| `plsdb` | Streams the PLSDB release into canonical records. | no |
 
 ```bash
 kedro run                          # processing -> dataset -> audit
@@ -141,7 +140,7 @@ tests/
 ```
 
 ```bash
-pytest              # ~70 tests, all offline
+pytest              # 80 tests, all offline
 ruff check . && ruff format --check .
 ```
 
@@ -180,4 +179,7 @@ substantive changes:
   paths despite taking "URI" arguments.
 
 Left for the modelling phase, deliberately: in-batch relevance masks,
-embedding-based retrieval metrics, and Hugging Face publication.
+embedding-based retrieval metrics, and Hugging Face publication. PLSDB
+ingestion and the constraint-judging API were written and then removed once it
+was clear nothing consumed them — both are in this branch's history if the
+encoder bake-off or a relevance evaluator brings them back.

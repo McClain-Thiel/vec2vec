@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from kedro.pipeline import Node, Pipeline, node
 
-from vec2vec.pipelines.descriptions import import_nodes, nodes
+from vec2vec.pipelines.descriptions import nodes
 
 
 def _qc_node() -> Node:
@@ -63,7 +63,7 @@ def create_import_pipeline(**kwargs) -> Pipeline:
     return Pipeline(
         [
             node(
-                func=import_nodes.import_published_descriptions,
+                func=nodes.import_published_descriptions,
                 inputs=[
                     "published_paired_dataset",
                     "addgene_records@metadata",

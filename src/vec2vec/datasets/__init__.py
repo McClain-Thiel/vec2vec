@@ -5,13 +5,11 @@ whole, or a step needs to resume without re-doing paid work.
 """
 
 from vec2vec.datasets.chunked_parquet import ChunkedParquetDataset
-from vec2vec.datasets.fasta import FastaDataset
 from vec2vec.datasets.json_stream import JSONStreamDataset
 from vec2vec.datasets.optional_partitioned import OptionalPartitionedDataset
 
 __all__ = [
     "ChunkedParquetDataset",
-    "FastaDataset",
     "JSONStreamDataset",
     "OptionalPartitionedDataset",
 ]

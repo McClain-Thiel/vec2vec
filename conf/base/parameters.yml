@@ -10,10 +10,6 @@ addgene:
   # Stop after this many records, for smoke runs. null processes the whole release.
   limit: null
 
-plsdb:
-  chunk_size: 10000
-  limit: null
-
 annotations:
   # Cap on feature names kept per plasmid. null keeps them all; the prompt
   # separately shows only the first `MAX_FEATURES` of them.

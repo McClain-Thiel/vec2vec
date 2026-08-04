@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from vec2vec.pipelines.descriptions.import_nodes import import_published_descriptions
+from vec2vec.pipelines.descriptions.nodes import import_published_descriptions
 
 
 def published(**overrides) -> pd.DataFrame:

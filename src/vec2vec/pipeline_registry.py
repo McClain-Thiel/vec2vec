@@ -15,11 +15,9 @@ def register_pipelines() -> dict[str, Pipeline]:
 
     - ``descriptions`` calls a paid API once per plasmid.
     - ``import_descriptions`` adopts already-published descriptions instead.
-    - ``plsdb`` processes a separate release the paired dataset does not use.
     """
     pipelines = {
         "processing": processing.create_pipeline(),
-        "plsdb": processing.create_plsdb_pipeline(),
         "descriptions": descriptions.create_pipeline(),
         "import_descriptions": descriptions.create_import_pipeline(),
         "dataset": dataset.create_pipeline(),

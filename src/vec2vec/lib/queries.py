@@ -14,7 +14,7 @@ always yields the same queries and the same negatives.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 
@@ -34,8 +34,6 @@ QUERY_TEMPLATES: Mapping[str, str] = {
 }
 QUERY_FIELDS = tuple(QUERY_TEMPLATES)
 
-QUERY_VARIANTS = ("direct", "requirements")
-
 
 @dataclass(frozen=True)
 class StructuredQuery:
@@ -47,7 +45,6 @@ class StructuredQuery:
     constraints: SurfaceConstraints
     field_names: tuple[str, ...]
     order: int
-    variant: str
 
 
 @dataclass(frozen=True)
@@ -60,7 +57,7 @@ class HardNegativePools:
     strict_near_misses: tuple[int, ...]
 
 
-def render_query(values: Mapping[str, str], variant: str) -> str:
+def render_query(values: Mapping[str, str]) -> str:
     """Render one controlled query without adding unsupported requirements."""
     if not values:
         raise ValueError("a structured query needs at least one requirement")
@@ -68,15 +65,7 @@ def render_query(values: Mapping[str, str], variant: str) -> str:
         clauses = [QUERY_TEMPLATES[field].format(value=value) for field, value in values.items()]
     except KeyError as exc:
         raise ValueError(f"unsupported structured-query field: {exc.args[0]}") from exc
-    if variant == "direct":
-        return "Find a plasmid " + ", ".join(clauses) + "."
-    if variant == "requirements":
-        return (
-            "Retrieve a construct satisfying these requirements: "
-            + "; ".join(reversed(clauses))
-            + "."
-        )
-    raise ValueError(f"unknown query variant: {variant}; expected one of {QUERY_VARIANTS}")
+    return "Find a plasmid " + ", ".join(clauses) + "."
 
 
 def _stable_key(seed: int, epoch: int, source_index: int, value: str) -> bytes:
@@ -92,7 +81,6 @@ def build_query_family(
     max_order: int,
     seed: int,
     epoch: int = 0,
-    variants: Sequence[str] = ("direct",),
 ) -> list[StructuredQuery]:
     """Build a reproducible nested query curriculum for one source row.
 
@@ -101,8 +89,6 @@ def build_query_family(
     """
     if max_order < 1:
         raise ValueError("max_order must be positive")
-    if not variants:
-        raise ValueError("variants cannot be empty")
 
     available = sorted(
         (
@@ -123,19 +109,16 @@ def build_query_family(
     queries: list[StructuredQuery] = []
     for order in range(1, len(available) + 1):
         values = {field: chosen[field] for field in available[:order]}
-        constraints = constraints_from_values(values)
-        for variant in variants:
-            queries.append(
-                StructuredQuery(
-                    query_id=f"source-{source_index}-epoch-{epoch}-order-{order}-{variant}",
-                    source_index=source_index,
-                    text=render_query(values, variant),
-                    constraints=constraints,
-                    field_names=tuple(values),
-                    order=order,
-                    variant=variant,
-                )
+        queries.append(
+            StructuredQuery(
+                query_id=f"source-{source_index}-epoch-{epoch}-order-{order}",
+                source_index=source_index,
+                text=render_query(values),
+                constraints=constraints_from_values(values),
+                field_names=tuple(values),
+                order=order,
             )
+        )
     return queries
 
 
@@ -184,25 +167,6 @@ class SourceNegatives:
         for field, required in query.constraints.fields:
             matches_by_field[field], mismatches_by_field[field] = self._partition(field, required)
         return _combine(self.same_backbone, matches_by_field, mismatches_by_field)
-
-
-def same_backbone_hard_negatives(
-    relevance: RelevanceIndex,
-    query: StructuredQuery,
-    eligible_indices: Collection[int],
-) -> HardNegativePools:
-    """Partition same-backbone peers without calling missing metadata negative.
-
-    ``strict_near_misses`` are the most valuable negatives: peers that match
-    every requirement except exactly one.
-
-    Computes the source row's pool from scratch. To evaluate a whole query
-    family, build one :class:`SourceNegatives` instead and reuse it.
-    """
-    eligible = (
-        eligible_indices if isinstance(eligible_indices, AbstractSet) else set(eligible_indices)
-    )
-    return SourceNegatives(relevance, query.source_index, eligible).pools(query)
 
 
 def _combine(

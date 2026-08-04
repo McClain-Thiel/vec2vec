@@ -48,23 +48,6 @@ plasmidkit_raw:
   load_args:
     columns: [plasmid_id, Feature, Type, method, start, end, strand, confidence]
 
-plsdb_sequences:
-  type: vec2vec.datasets.FastaDataset
-  filepath: ${globals:raw}/plsdb/${globals:plsdb_version}/sequences.fasta.bz2
-  compression: bz2
-
-plsdb_nuccore:
-  type: pandas.CSVDataset
-  filepath: ${globals:raw}/plsdb/${globals:plsdb_version}/nuccore.csv
-  load_args:
-    dtype: str
-
-plsdb_taxonomy:
-  type: pandas.CSVDataset
-  filepath: ${globals:raw}/plsdb/${globals:plsdb_version}/taxonomy.csv
-  load_args:
-    dtype: str
-
 # ------------------------------------------------------- 02_intermediate
 
 addgene_records@full:
@@ -103,9 +86,6 @@ addgene_annotation_features:
   <<: *parquet
   filepath: ${globals:lake}/02_intermediate/addgene_annotation_features.parquet
 
-plsdb_records:
-  <<: *streamed_parquet
-  filepath: ${globals:lake}/02_intermediate/plsdb_records.parquet
 
 # ------------------------------------------------------------ 03_primary
 
