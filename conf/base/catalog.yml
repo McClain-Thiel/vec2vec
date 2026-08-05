@@ -82,6 +82,16 @@ addgene_annotations:
   <<: *parquet
   filepath: ${globals:lake}/02_intermediate/addgene_annotations.parquet
 
+# Primary annotation view for research measurements. The source column stays in
+# the projection so nodes can verify that the filter did not admit another source.
+addgene_annotations@plannotate:
+  <<: *parquet
+  filepath: ${globals:lake}/02_intermediate/addgene_annotations.parquet
+  load_args:
+    filters:
+      - [source, "==", plannotate]
+    columns: [sequence_id, source, feature, feature_type, start, end, strand, confidence]
+
 addgene_annotation_features:
   <<: *parquet
   filepath: ${globals:lake}/02_intermediate/addgene_annotation_features.parquet
@@ -162,6 +172,52 @@ retrieval_dataset@audit:
       - insert_tags
       - insert_promoters
 
+# E00 profile view: excludes the sequence and description columns, which are not
+# used by the current semantics, split, or annotation-coverage measurements.
+retrieval_dataset@semantics:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence_sha256
+      - family_key
+      - leakage_component
+      - split_grouped
+      - length_bp
+      - vector_types
+      - bacterial_resistance
+      - insert_species
+      - plasmid_copy
+      - growth_strain
+      - growth_temp
+      - insert_genes
+      - insert_mutations
+      - insert_tags
+      - insert_promoters
+
+# Narrow view for the frozen manual audit. It carries the raw metadata and the
+# two descriptions that a reviewer needs, but not the plasmid sequence.
+retrieval_dataset@facet_audit:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence_sha256
+      - addgene_id
+      - url
+      - description
+      - source_description
+      - leakage_component
+      - split_grouped
+      - plasmid_copy
+      - growth_temp
+      - bacterial_resistance
+      - vector_types
+
 # ---------------------------------------------------------- 08_reporting
 
 addgene_processing_report:
@@ -192,3 +248,138 @@ hard_negative_examples:
 hard_negative_summary:
   <<: *report
   filepath: ${globals:lake}/08_reporting/hard_negative_summary.json
+
+# E00 benchmark-feasibility profiles. All are versioned because they support
+# scientific decisions and must remain traceable to one input artifact.
+e00_constraint_field_profile:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/constraint_field_profile.parquet
+  versioned: true
+
+e00_constraint_value_profile:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/constraint_value_profile.parquet
+  versioned: true
+
+e00_split_component_profile:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/split_component_profile.parquet
+  versioned: true
+
+e00_split_profile:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/split_profile.json
+  versioned: true
+
+e00_plannotate_profile:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/plannotate_profile.json
+  versioned: true
+
+# Proposed manual-review inputs. These outputs do not contain accepted labels.
+e00_facet_audit_sample:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/facet_audit_sample.parquet
+  versioned: true
+
+e00_facet_audit_vocabulary:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/facet_audit_vocabulary.parquet
+  versioned: true
+
+e00_facet_audit_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/facet_audit_manifest.json
+  versioned: true
+
+# Model-free review export. Model conclusions are kept in separate datasets.
+e00_facet_audit_decision_template:
+  type: pandas.CSVDataset
+  filepath: ${globals:lake}/08_reporting/e00/facet_audit_decisions.csv
+  versioned: true
+  save_args:
+    index: false
+
+# Agent-assisted review artifacts. Valid decisions remain proposals until a
+# scientist reviews them; raw invalid responses and request errors are retained.
+e00_agent_judge_pilot_packets:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_pilot_packets.parquet
+  versioned: true
+
+e00_agent_judge_pilot_decisions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_pilot_decisions.parquet
+  versioned: true
+
+e00_agent_judge_pilot_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_pilot_summary.json
+  versioned: true
+
+# Independent stronger-model validation of the exact pilot packets.
+e00_agent_validator_decisions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_validator_decisions.parquet
+  versioned: true
+
+e00_agent_validator_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/agent_validator_summary.json
+  versioned: true
+
+e00_agent_judge_comparison:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_comparison.parquet
+  versioned: true
+
+e00_agent_judge_comparison_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_comparison_summary.json
+  versioned: true
+
+e00_agent_judge_smoke_packets:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_smoke_packets.parquet
+  versioned: true
+
+e00_agent_judge_smoke_decisions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_smoke_decisions.parquet
+  versioned: true
+
+e00_agent_judge_smoke_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_smoke_summary.json
+  versioned: true
+
+# Two-axis semantic and benchmark-scope check for the revised v0.2 rules.
+e00_agent_judge_targeted_packets:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_packets.parquet
+  versioned: true
+
+e00_agent_judge_targeted_decisions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_decisions.parquet
+  versioned: true
+
+e00_agent_judge_targeted_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_summary.json
+  versioned: true
+
+e00_agent_judge_targeted_smoke_packets:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_smoke_packets.parquet
+  versioned: true
+
+e00_agent_judge_targeted_smoke_decisions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_smoke_decisions.parquet
+  versioned: true
+
+e00_agent_judge_targeted_smoke_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_smoke_summary.json
+  versioned: true

@@ -28,6 +28,64 @@ class Completion:
 
     text: str
     cost_usd: float
+    generation_id: str | None = None
+    upstream_model: str | None = None
+    upstream_provider: str | None = None
+
+
+class ResponseExtractionError(ValueError):
+    """A charged response that could not be converted into a completion."""
+
+    def __init__(
+        self, message: str, *, cost_usd: float = 0.0, generation_id: str | None = None
+    ) -> None:
+        super().__init__(message)
+        self.cost_usd = cost_usd
+        self.generation_id = generation_id
+        self.upstream_model: str | None = None
+        self.upstream_provider: str | None = None
+
+
+class APIResponseError(RuntimeError):
+    """A non-retryable OpenRouter HTTP response with a bounded error detail."""
+
+    def __init__(self, status_code: int, detail: str, *, request_id: str | None = None) -> None:
+        super().__init__(f"OpenRouter HTTP {status_code}: {detail}")
+        self.status_code = status_code
+        self.request_id = request_id
+
+
+def _http_error(response: httpx.Response) -> APIResponseError:
+    """Preserve an API error message without copying a complete response body."""
+    try:
+        payload = response.json()
+    except ValueError:
+        detail = response.text.strip()[:1000] or "empty response body"
+    else:
+        error = payload.get("error") if isinstance(payload, dict) else None
+        if isinstance(error, dict):
+            message = error.get("message")
+            code = error.get("code")
+            detail = f"{code}: {message}" if code is not None else str(message)
+            metadata = error.get("metadata")
+            if isinstance(metadata, dict):
+                provider = metadata.get("provider_name")
+                error_type = metadata.get("error_type")
+                provider_code = metadata.get("provider_code")
+                raw = metadata.get("raw")
+                fields = [
+                    f"provider={provider}" if provider else None,
+                    f"error_type={error_type}" if error_type else None,
+                    f"provider_code={provider_code}" if provider_code else None,
+                    f"provider_detail={str(raw)[:500]}" if raw else None,
+                ]
+                suffix = "; ".join(field for field in fields if field)
+                if suffix:
+                    detail = f"{detail}; {suffix}"
+        else:
+            detail = str(payload)[:1000]
+    request_id = response.headers.get("x-request-id")
+    return APIResponseError(response.status_code, detail, request_id=request_id)
 
 
 def _backoff(attempt: int, retry_after: str | None = None) -> float:
@@ -44,18 +102,49 @@ def _extract(payload: Any) -> Completion:
     """Pull the message text and cost out of an OpenRouter response body."""
     if not isinstance(payload, dict):
         raise TypeError("OpenRouter response must be a JSON object")
-    choices = payload.get("choices")
-    if not isinstance(choices, list) or not choices:
-        raise ValueError("OpenRouter response has no choices")
-    message = choices[0].get("message") if isinstance(choices[0], dict) else None
-    content = message.get("content") if isinstance(message, dict) else None
-    if not isinstance(content, str):
-        raise TypeError("OpenRouter response content must be a string")
+    generation_id = payload.get("id") if isinstance(payload.get("id"), str) else None
+    upstream_model = payload.get("model") if isinstance(payload.get("model"), str) else None
+    upstream_provider = (
+        payload.get("provider") if isinstance(payload.get("provider"), str) else None
+    )
     usage = payload.get("usage")
     cost = usage.get("cost", 0.0) if isinstance(usage, dict) else 0.0
     if not isinstance(cost, int | float | str):
-        raise TypeError("OpenRouter usage.cost must be numeric")
-    return Completion(text=content.strip(), cost_usd=float(cost))
+        error = ResponseExtractionError(
+            "OpenRouter usage.cost must be numeric", generation_id=generation_id
+        )
+        error.upstream_model = upstream_model
+        error.upstream_provider = upstream_provider
+        raise error
+    cost_usd = float(cost)
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        error = ResponseExtractionError(
+            "OpenRouter response has no choices",
+            cost_usd=cost_usd,
+            generation_id=generation_id,
+        )
+        error.upstream_model = upstream_model
+        error.upstream_provider = upstream_provider
+        raise error
+    message = choices[0].get("message") if isinstance(choices[0], dict) else None
+    content = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(content, str):
+        error = ResponseExtractionError(
+            "OpenRouter response content must be a string",
+            cost_usd=cost_usd,
+            generation_id=generation_id,
+        )
+        error.upstream_model = upstream_model
+        error.upstream_provider = upstream_provider
+        raise error
+    return Completion(
+        text=content.strip(),
+        cost_usd=cost_usd,
+        generation_id=generation_id,
+        upstream_model=upstream_model,
+        upstream_provider=upstream_provider,
+    )
 
 
 def complete(
@@ -65,8 +154,12 @@ def complete(
     model: str,
     api_key: str,
     max_tokens: int = 256,
-    temperature: float = 0.2,
+    temperature: float | None = 0.2,
     provider: str | None = None,
+    seed: int | None = None,
+    reasoning: dict[str, Any] | None = None,
+    response_format: dict[str, Any] | None = None,
+    require_parameters: bool = False,
     max_retries: int = 6,
     timeout: float = 90.0,
 ) -> Completion:
@@ -83,13 +176,25 @@ def complete(
         "model": model,
         "messages": messages,
         "max_tokens": max_tokens,
-        "temperature": temperature,
         "usage": {"include": True},
     }
-    if provider:
-        body["provider"] = {"order": [provider], "allow_fallbacks": False}
-    if any(model.startswith(prefix) for prefix in REASONING_MODELS):
+    if temperature is not None:
+        body["temperature"] = temperature
+    if seed is not None:
+        body["seed"] = seed
+    if provider or require_parameters:
+        body["provider"] = {
+            "allow_fallbacks": False,
+            "require_parameters": require_parameters,
+        }
+        if provider:
+            body["provider"]["order"] = [provider]
+    if reasoning is not None:
+        body["reasoning"] = reasoning
+    elif any(model.startswith(prefix) for prefix in REASONING_MODELS):
         body["reasoning"] = {"enabled": False}
+    if response_format is not None:
+        body["response_format"] = response_format
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -105,7 +210,8 @@ def complete(
             ):
                 time.sleep(_backoff(attempt, response.headers.get("Retry-After")))
                 continue
-            response.raise_for_status()
+            if response.is_error:
+                raise _http_error(response)
             return _extract(response.json())
         except httpx.TransportError:
             # Retryable statuses are handled above, before raise_for_status, so

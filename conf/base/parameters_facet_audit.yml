@@ -1,0 +1,160 @@
+# Frozen E00 manual-review sampling protocol. These mappings are proposals.
+# The pipeline samples them for human review; it does not accept labels.
+facet_audit:
+  audit_version: e00-facet-audit-v0.2
+  sampling_key: e00-facet-audit-v0.2
+  input_retrieval_version: 2026-08-04T09.02.10.007Z
+  eligible_splits: [train, val]
+  second_review_modulus: 5
+
+  copy_class:
+    rule_id: addgene_copy_class.v0_1
+    facet: addgene_copy_class
+    relation: reported_as
+    included:
+      High Copy: [high]
+      Low Copy: [low]
+    missing_exact: [Unknown]
+    target_per_value: 75
+    missing_target: 75
+
+  growth_temperature:
+    rule_id: addgene_growth_temperature.v0_2
+    facet: addgene_growth_temperature
+    relation: reported_for_propagation_at
+    included:
+      "30": [30_c]
+      "37": [37_c]
+    reviewed_mappings:
+      "23":
+        canonical_values: [room_temperature]
+        interpretation: >-
+          Reviewed Addgene source pages display Room Temperature for records stored locally as 23.
+          This is a categorical mapping and must not be reported as exactly 23 degrees Celsius.
+    held_out: {}
+    missing_exact: []
+    target_per_value: 75
+    sample_all_held_out: true
+    sample_all_missing: true
+
+  bacterial_selection:
+    rule_id: bacterial_selection_marker.v0_2
+    facet: bacterial_selection_marker
+    relation: reported_selection_includes
+    included:
+      Ampicillin: [ampicillin]
+      Kanamycin: [kanamycin]
+      Spectinomycin: [spectinomycin]
+      Chloramphenicol: [chloramphenicol]
+      Chloramphenicol and Ampicillin: [chloramphenicol, ampicillin]
+      Gentamicin: [gentamicin]
+      Tetracycline: [tetracycline]
+      Ampicillin and Kanamycin: [ampicillin, kanamycin]
+      Bleocin (Zeocin): [bleocin_zeocin]
+      Chloramphenicol and Kanamycin: [chloramphenicol, kanamycin]
+      Apramycin: [apramycin]
+      Streptomycin: [streptomycin]
+      Chloramphenicol and Spectinomycin: [chloramphenicol, spectinomycin]
+      Hygromycin: [hygromycin]
+      Spectinomycin and Streptomycin: [spectinomycin, streptomycin]
+      Ampicillin and Gentamicin: [ampicillin, gentamicin]
+      Nourseothricin (clonNat): [nourseothricin_clonnat]
+      Erythromycin: [erythromycin]
+      Chloramphenicol and Gentamicin: [chloramphenicol, gentamicin]
+      Ampicillin and Tetracycline: [ampicillin, tetracycline]
+      Chloramphenicol and Tetracycline: [chloramphenicol, tetracycline]
+      Ampicillin and Bleocin (Zeocin): [ampicillin, bleocin_zeocin]
+      Ampicillin and Spectinomycin: [ampicillin, spectinomycin]
+      Kanamycin and Gentamicin: [kanamycin, gentamicin]
+      Blasticidin: [blasticidin]
+      Kanamycin and Spectinomycin: [kanamycin, spectinomycin]
+      Chloramphenicol and Bleocin (Zeocin): [chloramphenicol, bleocin_zeocin]
+      Ampicillin and Streptomycin: [ampicillin, streptomycin]
+      Apramycin and Chloramphenicol: [apramycin, chloramphenicol]
+      Chloramphenicol and Hygromycin: [chloramphenicol, hygromycin]
+      Chloramphenicol and Erythromycin: [chloramphenicol, erythromycin]
+      Gentamicin and Spectinomycin: [gentamicin, spectinomycin]
+      Spectinomycin and Tetracycline: [spectinomycin, tetracycline]
+    reviewed_mappings:
+      Trimethoprim:
+        canonical_values: [trimethoprim]
+        interpretation: >-
+          Trimethoprim is written in full and is mapped directly to the trimethoprim
+          antibiotic-selection marker.
+      Kan + DAP:
+        canonical_values: [kanamycin]
+        interpretation: >-
+          Kan means kanamycin. DAP means diaminopimelic acid, which is a growth requirement and is
+          not mapped as an antibiotic-resistance marker.
+      Amp + Kan + Dap:
+        canonical_values: [ampicillin, kanamycin]
+        interpretation: >-
+          Amp means ampicillin and Kan means kanamycin. Dap means diaminopimelic acid, which is a
+          growth requirement and is not mapped as an antibiotic-resistance marker.
+      Amp + Chl + Dap:
+        canonical_values: [ampicillin, chloramphenicol]
+        interpretation: >-
+          Amp means ampicillin and Chl means chloramphenicol. Dap means diaminopimelic acid, which
+          is a growth requirement and is not mapped as an antibiotic-resistance marker.
+      Erythromycin (200 μg/mL), Kanamycin (50 μg/mL):
+        canonical_values: [erythromycin, kanamycin]
+        interpretation: >-
+          The complete source cell names erythromycin at 200 micrograms per millilitre and
+          kanamycin at 50 micrograms per millilitre. Both antibiotic names are mapped. The doses
+          remain in the preserved raw value.
+    excluded:
+      Ampicillin, Gentamicin and Chloramphenicol: Unreviewed comma-delimited syntax.
+      Gentamycin, Spectinomycin: Contains a spelling variant and comma-delimited syntax.
+      Chloramphenicol, Ampicillin, Tetracycline: Unreviewed comma-delimited syntax.
+      Amp + DAP: Contains a growth requirement and an abbreviation.
+      Ampicillin, Gentamicin, Spectinomycin: Unreviewed comma-delimited syntax.
+      Ampicillin + 1% Glucose: Contains a growth supplement.
+      Low Chloramphenicol, 12.5 μg/mL: Contains a dose qualifier.
+      RNA-OUT ( 6% sucrose): Not an antibiotic-resistance marker.
+      Ampicillin+ 1% Arabinose: Contains a growth supplement.
+      Kanamycin + 2% Glucose: Contains a growth supplement.
+      Low Chloramphenicol, 12.5 ug/mL: Contains a dose qualifier.
+      Rifampicin: Not in the reviewed controlled-name list.
+      Tetracyline and Kanamycin: Contains a spelling variant.
+    missing_exact: [None]
+    included_single_target: 75
+    included_combination_target: 75
+    minimum_per_canonical: 5
+    excluded_target: 75
+    sample_all_missing: true
+
+  intended_use:
+    rule_id: addgene_intended_use.v0_1
+    expression_facet: addgene_expression_context
+    expression_relation: tagged_for_expression_in
+    expression_included:
+      Mammalian Expression: [mammalian]
+      Bacterial Expression: [bacterial]
+      Yeast Expression: [yeast]
+      Worm Expression: [worm]
+      Insect Expression: [insect]
+      Plant Expression: [plant]
+    use_facet: addgene_use_category
+    use_relation: tagged_for
+    use_included:
+      Lentiviral: [lentiviral]
+      Retroviral: [retroviral]
+      AAV: [aav]
+      RNAi: [rnai]
+      Luciferase: [luciferase]
+      Cre/Lox: [cre_lox]
+      Mouse Targeting: [mouse_targeting]
+      CRISPR: [crispr]
+      TALEN: [talen]
+      Synthetic Biology: [synthetic_biology]
+      Affinity Reagent/ Antibody: [affinity_reagent_antibody]
+    excluded_exact:
+      Other: Controlled value does not state the free-text category.
+      Unspecified: Controlled value does not state an intended use.
+    missing_exact: [N/A]
+    default_exclusion_reason: Free text is excluded from version 1.
+    expression_target: 75
+    use_target: 75
+    minimum_per_canonical: 5
+    excluded_target: 75
+    missing_target: 75

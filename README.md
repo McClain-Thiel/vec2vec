@@ -16,6 +16,8 @@ to trust both. Modelling is not part of this repository yet.
 | `processing` | Streams the raw Addgene JSON into canonical records; normalizes pLannotate and plasmidkit into one annotation table and per-plasmid feature lists. | yes |
 | `dataset` | Joins descriptions to records, assigns leakage-aware splits, and attaches the constraints each description surfaces. | yes |
 | `audit` | Builds the structured-query curriculum and measures how many provable hard negatives it yields. | yes |
+| `constraint_semantics` | Profiles raw constraint values, grouped-split concentration, and the pLannotate-only annotation view for the E00 feasibility gate. | no |
+| `facet_audit_sample` | Draws the frozen, component-aware E00 metadata-review sample. It does not accept labels. | no |
 | `descriptions` | Generates descriptions through OpenRouter, merges the partitions, and quality-checks them. | **no — paid** |
 | `import_descriptions` | Adopts the already-published descriptions instead of regenerating them. | no |
 
@@ -23,6 +25,8 @@ to trust both. Modelling is not part of this repository yet.
 kedro run                          # processing -> dataset -> audit
 kedro run --pipeline processing
 kedro run --pipeline descriptions  # costs money; see below
+kedro run --pipelines constraint_semantics
+kedro run --pipelines facet_audit_sample
 kedro viz                          # requires the `viz` extra
 ```
 
@@ -191,10 +195,15 @@ conf/
 tests/
 ├── lib/          unit tests for the logic
 └── pipelines/    real Kedro sessions over a small fixture release
+studies/           questions, experiment specifications, interpretation notebooks, and reports
 ```
 
+The first active study is
+[`set_valued_compositional_embeddings`](studies/set_valued_compositional_embeddings/). Its
+benchmark-feasibility gate must pass before model training begins.
+
 ```bash
-pytest              # 80 tests, all offline
+pytest              # all tests are offline
 ruff check . && ruff format --check .
 ```
 

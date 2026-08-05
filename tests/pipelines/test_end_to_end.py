@@ -175,3 +175,51 @@ def test_audit_measures_hard_negative_yield(lake):
     yields = catalog.load("hard_negative_yield")
     assert (yields["order"] >= 1).all()
     assert (yields["known_hard_negative_count"] >= 0).all()
+
+
+def test_constraint_semantics_profiles_fields_components_and_plannotate_only(lake):
+    catalog = run("processing")
+    seed_descriptions(catalog, catalog.load("addgene_records@metadata")["sequence_id"].tolist())
+    run("dataset")
+
+    catalog = run("constraint_semantics")
+
+    fields = catalog.load("e00_constraint_field_profile").set_index("field")
+    assert fields.loc["bacterial_resistance", "known_rows"] == 5
+    assert fields.loc["plasmid_copy", "normalized_value_count"] == 1
+
+    components = catalog.load("e00_split_component_profile")
+    split = catalog.load("e00_split_profile")
+    assert components["rows"].sum() == 5
+    assert split["components_crossing_grouped_split"] == 0
+
+    plannotate = catalog.load("e00_plannotate_profile")
+    assert plannotate["source"] == "plannotate"
+    assert plannotate["annotation_rows_all"] == 2
+    assert plannotate["retrieval_sequences_with_annotations"] == 1
+    assert plannotate["retrieval_sequences_without_annotations"] == 4
+    assert plannotate["provenance_complete"] is False
+
+
+def test_facet_audit_sample_is_label_free_and_excludes_test_rows(lake):
+    catalog = run("processing")
+    seed_descriptions(catalog, catalog.load("addgene_records@metadata")["sequence_id"].tolist())
+    catalog = run("dataset")
+
+    # The five-row fixture has only a train split. Override the eligible set for
+    # this smoke run. Kedro replaces top-level parameter blocks, so pass the
+    # complete block rather than a partial mapping.
+    fixture_params = dict(catalog.load("params:facet_audit"))
+    fixture_params["eligible_splits"] = ["train"]
+    catalog = run("facet_audit_sample", facet_audit=fixture_params)
+
+    sample = catalog.load("e00_facet_audit_sample")
+    vocabulary = catalog.load("e00_facet_audit_vocabulary")
+    manifest = catalog.load("e00_facet_audit_manifest")
+    assert set(sample["split_grouped"]) == {"train"}
+    assert sample["audit_row_id"].is_unique
+    assert {"plasmid_copy", "growth_temp", "bacterial_resistance", "vector_types"} <= set(
+        vocabulary["source_field"]
+    )
+    assert manifest["accepted_labels_created"] is False
+    assert manifest["test_metadata_used_for_sampling"] is False
