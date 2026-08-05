@@ -4,7 +4,14 @@ See https://docs.kedro.org/en/stable/configure/configuration_basics/ for the
 full set of options and their defaults.
 """
 
+from pathlib import Path
+
+from dotenv import load_dotenv
 from omegaconf.resolvers import oc
+
+# Load local developer credentials before OmegaConf resolves environment values.
+# An explicit shell, CI, or job-runner value remains authoritative.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
 
 # Keyword arguments passed to the configuration loader.
 #

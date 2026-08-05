@@ -1123,3 +1123,20 @@ consistent. This is not independent source-page verification of the growth trans
 the packets include the reviewed mapping note. Do not scale the judge to 918 rows or accept labels
 from this output. Resolve the growth-source provenance and clarify the exact controlled-value scope
 before materializing accepted constraint evidence.
+
+## 2026-08-05 15:31:05 BST — Local `.env` credential loading enabled
+
+**Scope:** This was a local credential-handling change. It did not call a model, change scientific
+parameters, or create a data artifact.
+
+**Local secret:** Created the ignored root `.env` from the active 1Password OpenRouter item. The file
+contains `OPENROUTER_API_KEY`, has owner-only permissions (`0600`), and is not tracked by Git. The
+key value was not printed or added to a tracked file.
+
+**Project behavior:** Added `python-dotenv` as a direct dependency. Kedro startup now loads the root
+`.env` before OmegaConf resolves `OPENROUTER_API_KEY`. The loader uses `override=False`, so an
+existing shell, continuous-integration, or job-runner value remains authoritative.
+
+**Validation:** A process without `OPENROUTER_API_KEY` loaded the local value and passed a structural
+key check. A process with a sentinel value preserved the sentinel. Ruff lint, Ruff format, and the
+complete offline test suite passed. The test result was 114 passed.

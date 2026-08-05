@@ -99,16 +99,18 @@ commit by accident. Description generation additionally needs
 `HF_TOKEN`.
 
 Prefer 1Password CLI for local secrets. The desktop app integration must be enabled. This example
-reads the concealed field only into the `kedro` process environment:
+writes a root `.env` file with owner-only permissions:
 
 ```bash
 eval "$(OP_BIOMETRIC_UNLOCK_ENABLED=true op signin)"
-OPENROUTER_API_KEY="$(op read 'op://Personal/OpenRouter/credential')" \
-  kedro run --pipeline agent_judge_targeted
+printf '%s\n' 'OPENROUTER_API_KEY={{ op://Personal/OpenRouter/credential }}' \
+  | op inject --out-file .env --force
 ```
 
 Change the vault, item, or field names if the local 1Password item uses different names. Do not put
-the returned value in a command, `.env` file, Kedro configuration, notebook, or experiment log.
+the returned value directly in a command, Kedro configuration, notebook, or experiment log. The
+project loads the ignored `.env` file at startup. It does not replace a value already supplied by
+the shell, continuous-integration system, or job runner.
 
 ## Descriptions: import first, generate second
 
