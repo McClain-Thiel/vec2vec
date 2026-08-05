@@ -1091,3 +1091,35 @@ and no model cost was incurred. The selected one-row smoke packet was persisted 
 
 **Validation:** The complete local suite passed with 114 tests. Ruff lint, Ruff format, and
 `git diff --check` also passed.
+
+## 2026-08-05 15:13:28 BST — 1Password injection and targeted v0.2 gate completed
+
+**Credential handling:** Authenticated the installed 1Password CLI through the desktop app. Used
+the existing `OpenRouter` API Credential item's concealed field to inject `OPENROUTER_API_KEY` only
+into the Kedro subprocess. No plaintext key was printed, written to Git, or stored in project
+configuration. An empty placeholder item created during setup was archived after the existing valid
+item was identified.
+
+**Diagnostic output version:** `2026-08-05T14.08.01.359Z`. The exact first packet returned one valid
+GPT-5.6 Sol response from provider `OpenAI`. It judged the categorical `23 -> room_temperature`
+mapping semantically supported and in scope without calling it exactly 23 degrees Celsius. Reported
+cost was USD 0.023482. No accepted label was created.
+
+**Complete decision output version:** `2026-08-05T14.08.54.949Z`, using the unchanged 16-packet
+version `2026-08-05T11.45.45.519Z`. The run took 207.2 seconds and reported USD 0.392059, within the
+USD 0.40 cap. All 16 responses were valid and returned model `openai/gpt-5.6-sol` from provider
+`OpenAI`. All packet identities matched. No accepted label was created.
+
+**Semantic result:** All 16 rows were `supported`. This includes all growth and revised
+bacterial-selection packets, all three intended-use free-text packets, and both unchanged controls.
+
+**Scope result:** Thirteen rows were `in_scope`, two intended-use rows were `out_of_scope`, and the
+`Gateway Destination` intended-use row was `uncertain`. Preserve the uncertainty. The reason states
+that the supplied packet did not clearly establish whether that categorical cloning role belongs to
+the frozen rule.
+
+**Interpretation:** The two-axis contract worked and the revised exact selection mappings were
+consistent. This is not independent source-page verification of the growth transformation because
+the packets include the reviewed mapping note. Do not scale the judge to 918 rows or accept labels
+from this output. Resolve the growth-source provenance and clarify the exact controlled-value scope
+before materializing accepted constraint evidence.

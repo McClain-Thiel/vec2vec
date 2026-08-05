@@ -6,9 +6,10 @@ Active. The profiling pipeline and facet audit v0.2 have run. The current determ
 sample is output version `2026-08-05T11.42.05.452Z`. Growth-temperature and bacterial-selection
 rules are now version 0.2. A two-axis model-assisted protocol separates semantic support from
 benchmark scope, and its 16 deterministic packets are frozen at output version
-`2026-08-05T11.45.45.519Z`. The paid v0.2 diagnostic has not run because the API key was absent from
-the Kedro process environment. No benchmark labels exist. This experiment is a data and measurement
-gate. It does not train an embedding model.
+`2026-08-05T11.45.45.519Z`. The one-row diagnostic and complete 16-row GPT-5.6 Sol gate passed the
+structural contract. All 16 rows were semantically supported. Thirteen rows were in scope, two were
+out of scope, and one intended-use row was scope-uncertain. No benchmark labels exist. This
+experiment is a data and measurement gate. It does not train an embedding model.
 
 ## Question
 

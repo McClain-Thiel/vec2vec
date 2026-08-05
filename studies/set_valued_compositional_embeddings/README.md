@@ -14,9 +14,9 @@ these two problems before model scores can support a scientific conclusion.
 
 **Status:** active feasibility study.
 
-**Next decision:** run the frozen 16-packet GPT-5.6 Sol check with the two-axis semantic-support and
-benchmark-scope contract. Then decide which facet rules pass or must be narrowed. Complete the
-constraint evidence, query, split, oracle, and control checks before model experiments.
+**Next decision:** resolve the remaining growth-source provenance question and the one uncertain
+intended-use scope case. Then decide which facet rules pass or must be narrowed and materialize the
+constraint evidence. Complete the query, split, oracle, and control checks before model experiments.
 
 ## Research questions
 

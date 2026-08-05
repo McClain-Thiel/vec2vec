@@ -98,6 +98,18 @@ commit by accident. Description generation additionally needs
 `OPENROUTER_API_KEY` in the environment, and the description import needs
 `HF_TOKEN`.
 
+Prefer 1Password CLI for local secrets. The desktop app integration must be enabled. This example
+reads the concealed field only into the `kedro` process environment:
+
+```bash
+eval "$(OP_BIOMETRIC_UNLOCK_ENABLED=true op signin)"
+OPENROUTER_API_KEY="$(op read 'op://Personal/OpenRouter/credential')" \
+  kedro run --pipeline agent_judge_targeted
+```
+
+Change the vault, item, or field names if the local 1Password item uses different names. Do not put
+the returned value in a command, `.env` file, Kedro configuration, notebook, or experiment log.
+
 ## Descriptions: import first, generate second
 
 Roughly 158k descriptions already exist in the published

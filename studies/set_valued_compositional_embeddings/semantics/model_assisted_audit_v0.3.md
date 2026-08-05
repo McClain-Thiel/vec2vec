@@ -2,8 +2,9 @@
 
 ## Status
 
-The v0.2 audit sample and exact packet list are persisted and inspected. Protocol v0.2 and its
-30-row results remain unchanged.
+Completed. The one-row diagnostic and complete 16-row targeted run produced valid responses. The
+decision output version is `2026-08-05T14.08.54.949Z`. Protocol v0.2 and its 30-row results remain
+unchanged.
 
 ## Purpose
 
@@ -46,3 +47,20 @@ and zero transport retries. Pin the packet load version in each Kedro command.
 Proceed only if every response is schema-valid, the two axes are used independently, revised
 mappings are interpreted consistently, and unchanged controls do not regress. Do not scale to the
 complete audit sample merely because the targeted gate passes.
+
+## Observed result
+
+All 16 responses passed the complete Pydantic contract and returned provider `OpenAI` and model
+`openai/gpt-5.6-sol`. All 16 semantic-support decisions were `supported`. Benchmark scope was 13
+`in_scope`, two `out_of_scope`, and one `uncertain`. Both unchanged controls passed. Reported cost
+was USD 0.392059, below the USD 0.40 cap. No accepted label was created.
+
+All growth and revised bacterial-selection packets were `supported` and `in_scope`. Two of three
+free-text intended-use packets were `supported` and `out_of_scope`. The `Gateway Destination` packet
+was semantically supported but scope-uncertain. Preserve that result. It shows that the packet did
+not state the exact controlled-value boundary clearly enough for a uniform scope judgment.
+
+This gate validates response-contract behavior and finds no model objection to the revised exact
+mappings. It is not independent source-page verification. In particular, the growth packets expose
+the reviewed mapping note to the model. The result therefore cannot by itself establish that every
+stored `23` source record displays `Room Temperature`.
