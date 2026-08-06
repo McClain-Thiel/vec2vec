@@ -77,6 +77,8 @@ paid run at its configured cost cap and preserve all failures.
 
 ## Offline run 1
 
+- Git state: dirty worktree based on `fa02968`; the unchanged production implementation and
+  configuration from the run were committed as `7e66cf4`.
 - Output version: `2026-08-06T08.44.42.865Z`.
 - Runtime: 80.6 seconds.
 - Training claims: 375,819 across 92,097 training sequences and 11,456 leakage components.

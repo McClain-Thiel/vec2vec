@@ -2,10 +2,11 @@
 
 ## Current answer
 
-The existing data supports an active benchmark feasibility study. Facet rule version 0.2 and its
-deterministic audit sample now exist. The data does not yet support the full model study because no
-constraint labels, frozen queries, leakage-sensitive split audit, or measurement controls have
-passed Gate 0.
+The existing data supports an active benchmark feasibility study. Facet rule version 0.2 now
+produces 375,819 rule-derived training claims. These are noisy training labels, not benchmark
+truth. A fixed 240-application validation sample exists, but it has no benchmark decisions yet. The
+data does not yet support the full model study because the label-accuracy benchmark, frozen queries,
+leakage-sensitive split audit, and measurement controls have not passed Gate 0.
 
 The repository has 115,120 paired plasmids, declared-family-disjoint splits, structured metadata,
 and useful controlled-query code. However, the current metadata index is not a validated biological
@@ -14,9 +15,9 @@ these two problems before model scores can support a scientific conclusion.
 
 **Status:** active feasibility study.
 
-**Next decision:** resolve the remaining growth-source provenance question and the one uncertain
-intended-use scope case. Then decide which facet rules pass or must be narrowed and materialize the
-constraint evidence. Complete the query, split, oracle, and control checks before model experiments.
+**Next decision:** run a small paid diagnostic on the fixed validation sample, then run the capped
+accuracy benchmark if the diagnostic passes. Review only uncertain responses and systematic error
+patterns. Complete the query, split, oracle, and control checks before model experiments.
 
 ## Research questions
 
@@ -91,7 +92,7 @@ Required outputs:
 
 - a versioned constraint vocabulary with stable content identifiers;
 - explicit facet rules for positive, conflict, and unknown evidence;
-- manual audits of each included facet;
+- a stratified accuracy benchmark of included facets and targeted review of ambiguous mappings;
 - a frozen query catalog and candidate galleries;
 - split concentration and cross-split near-duplicate audits;
 - oracle, contradiction, prevalence, and random baselines;
@@ -158,6 +159,7 @@ existing data pipelines
 
 new core pipelines
   constraint_semantics
+    -> constraint_evidence
     -> benchmark
     -> encoder_features
     -> training
@@ -174,6 +176,7 @@ Responsibilities:
 | Pipeline | Responsibility | Main layer |
 | --- | --- | --- |
 | `constraint_semantics` | Canonical constraints and evidence rules | `04_feature` |
+| `constraint_evidence` | Rule-derived training claims and validation sample | `05_model_input`, `08_reporting` |
 | `benchmark` | Queries, exclusions, galleries, and frozen labels | `05_model_input` |
 | `encoder_features` | Pinned frozen DNA and text features | `05_model_input` |
 | `training` | Parameterized objectives and model fitting | `06_models` |

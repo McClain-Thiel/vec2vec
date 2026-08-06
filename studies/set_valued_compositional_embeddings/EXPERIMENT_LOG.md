@@ -1140,3 +1140,42 @@ existing shell, continuous-integration, or job-runner value remains authoritativ
 **Validation:** A process without `OPENROUTER_API_KEY` loaded the local value and passed a structural
 key check. A process with a sentinel value preserved the sentinel. Ruff lint, Ruff format, and the
 complete offline test suite passed. The test result was 114 passed.
+
+## 2026-08-06 09:49:12 BST — Rule-derived training evidence v0.1 completed
+
+**Question:** Can enabled exact metadata rules produce a useful training signal while a compact
+validation sample measures accuracy without reviewing every claim?
+
+**Protocol:** Added pipeline `constraint_evidence`. It loads only train and validation metadata from
+retrieval version `2026-08-04T09.02.10.007Z`. It enables ordinary copy, 30/37-degree growth,
+bacterial-selection, controlled expression, and controlled use mappings. It also enables the five
+reviewed bacterial mappings. It does not enable stored growth value `23` or free-text intended-use
+values. Training labels use only train. Benchmark applications use only validation. pLannotate is
+the sole annotation source; there is no plasmidkit fallback.
+
+**Output version:** `2026-08-06T08.44.42.865Z`. The offline run completed in 80.6 seconds. It created
+375,819 training claims across 92,097 sequences and 11,456 leakage components. It created a fixed
+240-application validation sample across 237 sequences and 178 components. No model call ran. No
+benchmark label was created. The catalog filter loaded zero test rows.
+
+**Git state:** The run used a dirty worktree based on `fa02968`. The production implementation and
+configuration did not change after the run and were committed as `7e66cf4`. Later changes were tests
+and research documentation.
+
+**Coverage:** Exact mappings covered 83.79% of non-null copy units, 99.91% of growth-temperature
+units, 99.96% of bacterial-resistance units, and 91.36% of vector-type units. The unmatched values
+remain explicit in the manifest. The output contains no `room_temperature` claim and no DAP
+canonical value.
+
+**Sampling note:** The representative validation sample contains no rare `reviewed_mappings` rows.
+The fixed 16-packet targeted gate already covers all five reviewed bacterial mappings. Do not enlarge
+the accuracy sample only to repeat that targeted check.
+
+**Validation:** The focused library tests passed. The complete suite passed with 117 tests before
+the final test-environment pipeline check. The full S3 pipeline and a local Kedro test-environment
+composition run both completed. Ruff lint, Ruff format, and `git diff --check` passed before the
+documentation update.
+
+**Next decision:** Build and inspect fixed judge packets for the 240 validation applications. The
+previous mean cost gives a rough USD 5.88 extrapolation, but packet size differs. Run one small paid
+diagnostic and set a capped complete-run budget only after measuring its cost.
