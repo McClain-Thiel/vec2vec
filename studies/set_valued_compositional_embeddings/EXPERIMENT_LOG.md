@@ -1200,3 +1200,33 @@ these cases contradicts the limited relation used by the rule.
 **Decision:** The sanity check passes. It does not estimate population precision. Proceed to fixed
 judge-packet preparation and a paid diagnostic. Review only uncertain responses and systematic
 errors after the complete benchmark.
+
+## 2026-08-06 10:19:58 BST — Constraint accuracy benchmark completed
+
+**Packet preparation:** Production judge implementation is Git commit `400a47d`. Fixed packet output
+version is `2026-08-06T08.58.54.091Z`. The 240 unique packets use prompt
+`constraint-benchmark-judge-v1` with hash
+`491cd43a849cb74d624f0c00c4ab1b6b740d6d3107f1f43c7108f728140019c4`. No packet contains a
+generated description or accepted label. Mean message size was 7,852 characters.
+
+**Smoke:** Output version `2026-08-06T08.59.59.220Z` contains one application per facet. All five
+responses were valid, `supported`, and `in_scope`. Reported cost was USD 0.117088. The smoke passed
+the preregistered gate.
+
+**Complete run:** Decision output version is `2026-08-06T09.01.02.445Z`. The run used a clean
+worktree, model `openai/gpt-5.6-sol`, provider `OpenAI`, high reasoning, strict structured output,
+zero retries, and a USD 7.50 cap. It completed in 1,073.7 seconds and cost USD 4.670470.
+
+**Result:** All 240 responses were valid. All 240 semantic decisions were `supported`, and all 240
+scope decisions were `in_scope`. There were no uncertain, unsupported, out-of-scope, invalid, or
+manual-review rows. The model-reference pass fraction is 1.0 with a 95% Wilson interval of 0.984246
+to 1.0. The judge pipeline created no accepted benchmark labels.
+
+**Evidence check:** Every `evidence_used` base field resolves to a supplied packet field. The model
+sometimes serialized a reference as `field: value`; record this as a formatting variation rather
+than unsupported evidence.
+
+**Decision:** Accept rule contract
+`aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2` for noisy training
+supervision. This is not biological ground truth. Keep disabled and unknown values unlabeled. Do not
+add claim-by-claim review. Proceed to query and candidate-gallery construction.

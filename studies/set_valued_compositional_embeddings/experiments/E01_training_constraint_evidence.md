@@ -2,8 +2,8 @@
 
 ## Status
 
-Active. The offline evidence and sampling run completed. The paid accuracy benchmark has not run.
-The specification below was fixed before the first complete pipeline run.
+Complete. The offline evidence, hand check, smoke, and fixed accuracy benchmark completed. The
+specification below was fixed before the first complete pipeline run.
 
 ## Question
 
@@ -93,3 +93,22 @@ paid run at its configured cost cap and preserve all failures.
 The representative sample contains no `reviewed_mappings` rows because those mappings are rare. The
 earlier fixed 16-packet targeted gate covers all five reviewed bacterial mappings. Keep that targeted
 result separate from the population-oriented accuracy sample.
+
+## Accuracy benchmark
+
+- Packet output version: `2026-08-06T08.58.54.091Z`.
+- Prompt: `constraint-benchmark-judge-v1`.
+- Model and provider: `openai/gpt-5.6-sol`, provider `OpenAI`.
+- Five-facet smoke output: `2026-08-06T08.59.59.220Z`; 5/5 passed; cost USD 0.117088.
+- Complete decision output: `2026-08-06T09.01.02.445Z`.
+- Runtime: 1,073.7 seconds.
+- Valid responses: 240/240.
+- Semantic support: 240 `supported`.
+- Benchmark scope: 240 `in_scope`.
+- Model-reference pass fraction: 1.0; 95% Wilson interval 0.984246 to 1.0.
+- Manual-review rows: zero under the fixed decision rule.
+- Complete-run cost: USD 4.670470 under the USD 7.50 cap.
+- Accepted benchmark labels created by the judge pipeline: zero.
+
+The hand check and model benchmark support using this rule contract for noisy training supervision.
+They do not convert the metadata into biological ground truth.

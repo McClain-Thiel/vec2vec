@@ -2,7 +2,9 @@
 
 ## Status
 
-Proposed. These rules do not create benchmark labels.
+The exact mapping sections listed in [constraint rule validation v0.1](constraint_rule_validation_v0.1.md)
+are accepted for noisy training supervision. Other mappings remain proposed or unlabeled. These
+rules do not create biological ground truth.
 
 ## Purpose
 
@@ -25,10 +27,10 @@ s3://plasmidclip/kedro/08_reporting/e00/constraint_value_profile.parquet/
 | [Bacterial selection marker v0.2](F003_bacterial_selection_marker_v0.2.md) | `bacterial_resistance` | Recorded bacterial selection includes an antibiotic | None in version 1 |
 | [Addgene intended use](F004_addgene_intended_use.md) | `vector_types` | Addgene controlled intended-use tag | None in version 1 |
 
-The [manual audit protocol v0.2](manual_audit_v0.2.md) defines the current sample and pass rule. A
-facet remains proposed until that audit passes. The original growth-temperature and
-bacterial-selection sheets and [manual audit v0.1](manual_audit_v0.1.md) remain unchanged as
-research history.
+The [manual audit protocol v0.2](manual_audit_v0.2.md), the 30-application hand check, and the fixed
+240-application model benchmark support the accepted training contract. The original
+growth-temperature and bacterial-selection sheets and [manual audit v0.1](manual_audit_v0.1.md)
+remain unchanged as research history.
 
 ## Shared evidence states
 

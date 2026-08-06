@@ -88,8 +88,9 @@ The 115,120 figure independently matches both the upstream project's cleaned
 index and the `rows` field in its phase-2 cache manifest, which is the check
 that the port reproduces the original.
 
-The E00 constraints are noisy training labels, not benchmark truth. A separate 240-application
-validation sample exists but has no benchmark decisions yet.
+The E00 constraints are noisy training labels, not biological ground truth. A 30-application hand
+check and a fixed 240-application strong-model benchmark found no unsupported or out-of-scope
+mapping. The model-reference pass interval was 98.42%–100% for the fixed sample.
 
 ## Setup
 

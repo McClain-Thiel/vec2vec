@@ -2,11 +2,12 @@
 
 ## Current answer
 
-The existing data supports an active benchmark feasibility study. Facet rule version 0.2 now
-produces 375,819 rule-derived training claims. These are noisy training labels, not benchmark
-truth. A fixed 240-application validation sample exists, but it has no benchmark decisions yet. The
-data does not yet support the full model study because the label-accuracy benchmark, frozen queries,
-leakage-sensitive split audit, and measurement controls have not passed Gate 0.
+The existing data supports an active benchmark feasibility study. Facet rule version 0.2 produces
+375,819 rule-derived training claims. A 30-application hand check and fixed 240-application strong
+model benchmark passed without an unsupported, uncertain, or out-of-scope mapping. These are still
+noisy training labels, not biological ground truth. The data does not yet support the full model
+study because frozen queries, the leakage-sensitive split audit, and measurement controls have not
+passed Gate 0.
 
 The repository has 115,120 paired plasmids, declared-family-disjoint splits, structured metadata,
 and useful controlled-query code. However, the current metadata index is not a validated biological
@@ -15,9 +16,13 @@ these two problems before model scores can support a scientific conclusion.
 
 **Status:** active feasibility study.
 
-**Next decision:** run a small paid diagnostic on the fixed validation sample, then run the capped
-accuracy benchmark if the diagnostic passes. Review only uncertain responses and systematic error
-patterns. Complete the query, split, oracle, and control checks before model experiments.
+**Next decision:** build the frozen query catalog and candidate galleries from the accepted training
+rule contract. Then complete the split, oracle, prevalence, and random-control checks before model
+experiments.
+
+**Current report:** [Constraint accuracy benchmark v0.1](reports/08_constraint_accuracy_benchmark.md).
+The study has no interpretation notebook yet because model evaluation has not started. See the
+[experiment log](EXPERIMENT_LOG.md) for the chronological record.
 
 ## Research questions
 
@@ -306,24 +311,27 @@ Define both estimands before evaluation:
 Report row- or query-weighted results as secondary where large components can dominate. Bootstrap
 whole components and state how resampled components are weighted.
 
-## Initial experiment sequence
+## Experiment sequence
 
-| ID | Experiment | Gate |
-| --- | --- | --- |
-| E00 | Benchmark feasibility and oracles | 0 |
-| E00-J | Agent-assisted facet review pilot | 0 |
-| E01 | Paired identity control on controlled queries | 2 |
-| E02 | Verified-set supervision | 2 |
-| E03 | Atomic-only symbolic addition | 3 |
-| E04a | Compound supervision without additivity regularization | 3 |
-| E04b | The same compound supervision with additivity regularization | 3 |
-| E05 | Validated geometry ablation | 4 |
-| E06 | Query norm and information analysis | after E02 |
-| E07 | Descriptive non-additivity map | after E04 |
-| E08 | Putative source-conditioned modification | 5 |
+| ID | Experiment | Gate | Status or outcome |
+| --- | --- | --- | --- |
+| E00 | Benchmark feasibility and oracles | 0 | Active |
+| E00-J | Agent-assisted facet review pilot | 0 | Complete |
+| [E01](experiments/E01_training_constraint_evidence.md) | Rule-derived training constraint evidence | 0 | [Accepted for noisy supervision](reports/08_constraint_accuracy_benchmark.md) |
+| E02 | Paired identity control on controlled queries | 2 | Planned |
+| E03 | Verified-set supervision | 2 | Planned |
+| E04 | Atomic-only symbolic addition | 3 | Planned |
+| E05a | Compound supervision without additivity regularization | 3 | Planned |
+| E05b | The same compound supervision with additivity regularization | 3 | Planned |
+| E06 | Validated geometry ablation | 4 | Gated |
+| E07 | Query norm and information analysis | after E03 | Planned |
+| E08 | Descriptive non-additivity map | after E05 | Planned |
+| E09 | Putative source-conditioned modification | 5 | Gated |
 
-E04a and E04b must use the same compound queries. The original E04 changed both the training data
-and the regularizer, which would not isolate the effect of the regularizer.
+E05a and E05b must use the same compound queries. The initial plan called this comparison E04. It
+changed both the training data and the regularizer, which would not isolate the effect of the
+regularizer. Unstarted experiment identifiers shifted when the implemented constraint-evidence
+work received identifier E01. The historical plan report keeps its original identifiers.
 
 ## Study directory
 
@@ -333,11 +341,13 @@ studies/set_valued_compositional_embeddings/
 ├── EXPERIMENT_LOG.md
 ├── experiments/
 │   ├── E00_benchmark_feasibility.md
-│   └── E00_agent_judge_pilot.md
+│   ├── E00_agent_judge_pilot.md
+│   └── E01_training_constraint_evidence.md
 ├── notebooks/
 │   └── README.md
 └── reports/
-    └── 00_plan_validation.md
+    ├── 00_plan_validation.md
+    └── 08_constraint_accuracy_benchmark.md
 ```
 
 Add one experiment specification per controlled comparison. Add one notebook per interpretation
