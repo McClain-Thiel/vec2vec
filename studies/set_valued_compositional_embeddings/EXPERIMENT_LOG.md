@@ -1179,3 +1179,24 @@ documentation update.
 **Next decision:** Build and inspect fixed judge packets for the 240 validation applications. The
 previous mean cost gives a rough USD 5.88 extrapolation, but packet size differs. Run one small paid
 diagnostic and set a capped complete-run budget only after measuring its cost.
+
+## 2026-08-06 09:54:18 BST — Thirty validation applications hand-checked
+
+**Selection:** Selected six applications per facet from validation sample output
+`2026-08-06T08.44.42.865Z`. Within each facet, distinct raw-to-canonical mappings were selected
+first, then stable hash order filled the remainder. The selection identity SHA-256 is
+`ba823d9de942f1ebd2c73592b1830eb8e063e2f062d1149dbff1c3a3db99cbb8`.
+
+**Review:** All 30 mappings passed. The review checked the exact raw value, canonical value,
+relation, source description, complete local metadata where needed, and supplementary pLannotate
+features for bacterial-selection claims. Generated descriptions were not used.
+
+**Cautions:** Addgene 1164 and 22539 have missing short source descriptions, but their controlled
+tags and feature evidence are consistent. Addgene 87519 has a generic short description, but its
+complete tags include TALE DBD library preparation. Addgene 51833 has pLannotate `SmR` rather than a
+specific spectinomycin name; the exact Addgene selection field remains the primary evidence. None of
+these cases contradicts the limited relation used by the rule.
+
+**Decision:** The sanity check passes. It does not estimate population precision. Proceed to fixed
+judge-packet preparation and a paid diagnostic. Review only uncertain responses and systematic
+errors after the complete benchmark.
