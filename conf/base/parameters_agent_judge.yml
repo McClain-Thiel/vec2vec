@@ -137,3 +137,54 @@ agent_judge_targeted_smoke:
   cost_cap_usd: 0.08
   max_rows: 1
   pilot_indices: [1]
+
+# Accuracy benchmark for rule-derived training labels. Packet preparation is
+# offline. The smoke and complete judge pipelines are paid and explicit.
+constraint_benchmark_judge:
+  packet_protocol: constraint_benchmark
+  judge_version: e00-constraint-benchmark-gpt56-sol-v0.1
+  input_audit_version: e00-constraint-evidence-v0.1
+  input_audit_output_version: 2026-08-06T08.44.42.865Z
+  benchmark_sample_version: e00-constraint-benchmark-sample-v0.1
+  input_packet_output_version: 2026-08-06T08.58.54.091Z
+  model: openai/gpt-5.6-sol
+  provider: OpenAI
+  max_tokens: 1500
+  temperature: null
+  seed: 17
+  reasoning_enabled: true
+  reasoning_effort: high
+  structured_output: true
+  require_parameters: true
+  request_timeout_seconds: 180
+  max_retries: 0
+  cost_cap_usd: 7.50
+  max_rows: 240
+  evidence_scope: >-
+    Frozen Addgene metadata, source description, and pLannotate-only supplementary features; no
+    generated description, browsing, or plasmidkit fallback.
+
+constraint_benchmark_smoke:
+  packet_protocol: constraint_benchmark
+  judge_version: e00-constraint-benchmark-smoke-gpt56-sol-v0.1
+  input_audit_version: e00-constraint-evidence-v0.1
+  input_audit_output_version: 2026-08-06T08.44.42.865Z
+  benchmark_sample_version: e00-constraint-benchmark-sample-v0.1
+  input_packet_output_version: 2026-08-06T08.58.54.091Z
+  model: openai/gpt-5.6-sol
+  provider: OpenAI
+  max_tokens: 1500
+  temperature: null
+  seed: 17
+  reasoning_enabled: true
+  reasoning_effort: high
+  structured_output: true
+  require_parameters: true
+  request_timeout_seconds: 180
+  max_retries: 0
+  cost_cap_usd: 0.25
+  max_rows: 5
+  pilot_indices: [1, 2, 3, 7, 11]
+  evidence_scope: >-
+    Frozen Addgene metadata, source description, and pLannotate-only supplementary features; no
+    generated description, browsing, or plasmidkit fallback.

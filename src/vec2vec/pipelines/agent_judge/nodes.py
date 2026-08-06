@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 import httpx
@@ -55,6 +56,13 @@ def build_packets(sample: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
 def build_targeted_packets(sample: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
     """Build deterministic packets for named revised mappings and controls."""
     return agent_judge.build_targeted_packets(sample, params)
+
+
+def build_constraint_benchmark_packets(
+    sample: pd.DataFrame, params: dict[str, Any]
+) -> pd.DataFrame:
+    """Freeze the complete rule-derived validation sample as judge packets."""
+    return agent_judge.build_constraint_benchmark_packets(sample, params)
 
 
 def select_smoke_packets(packets: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
@@ -195,6 +203,12 @@ def judge_packets(
                         "upstream_provider": upstream_provider,
                         "cost_usd": round(request_cost, 6),
                         "cumulative_cost_usd": round(spent, 6),
+                        "human_review_required": (
+                            decision.semantic_support != "supported"
+                            or decision.benchmark_scope != "in_scope"
+                            if params.get("packet_protocol") == "constraint_benchmark"
+                            else True
+                        ),
                     }
                 )
             except Exception as error:  # noqa: BLE001 - failures are explicit research output
@@ -241,7 +255,11 @@ def summarize(
     semantic_counts = decisions["semantic_support"].dropna().value_counts().sort_index()
     scope_counts = decisions["benchmark_scope"].dropna().value_counts().sort_index()
     total_cost = float(pd.to_numeric(decisions["cost_usd"], errors="coerce").fillna(0).sum())
-    return {
+    prompt_versions = packets["prompt_version"].astype(str).unique().tolist()
+    prompt_hashes = packets["prompt_hash"].astype(str).unique().tolist()
+    if len(prompt_versions) != 1 or len(prompt_hashes) != 1:
+        raise ValueError("agent-judge packets contain inconsistent prompt identities")
+    summary = {
         "judge_version": str(params["judge_version"]),
         "input_audit_version": str(params["input_audit_version"]),
         "input_audit_output_version": str(params["input_audit_output_version"]),
@@ -252,8 +270,9 @@ def summarize(
         "requested_temperature": params["temperature"],
         "requested_max_tokens": int(params["max_tokens"]),
         "requested_max_retries": int(params.get("max_retries", 0)),
-        "prompt_version": agent_judge.PROMPT_VERSION,
-        "prompt_hash": agent_judge.prompt_hash(),
+        "packet_protocol": str(params.get("packet_protocol", "facet_audit")),
+        "prompt_version": prompt_versions[0],
+        "prompt_hash": prompt_hashes[0],
         "packet_rows": len(packets),
         "status_counts": {str(key): int(value) for key, value in status_counts.items()},
         "semantic_support_counts": {str(key): int(value) for key, value in semantic_counts.items()},
@@ -266,11 +285,70 @@ def summarize(
         "require_parameters": bool(params.get("require_parameters", True)),
         "request_timeout_seconds": float(params.get("request_timeout_seconds", 90.0)),
         "response_schema_profile": "full",
-        "all_rows_require_human_review": True,
-        "accepted_labels_created": False,
-        "evidence_scope": (
-            "frozen Addgene metadata and source description; no browsing or annotations"
+        "manual_review_rows": int(decisions["human_review_required"].fillna(True).sum()),
+        "all_rows_require_human_review": bool(
+            decisions["human_review_required"].fillna(True).all()
         ),
+        "accepted_labels_created": False,
+        "evidence_scope": params.get(
+            "evidence_scope",
+            "frozen Addgene metadata and source description; no browsing or annotations",
+        ),
+    }
+    if params.get("packet_protocol") == "constraint_benchmark":
+        summary["preliminary_accuracy"] = _constraint_accuracy(packets, decisions)
+    return summary
+
+
+def _wilson_interval(successes: int, total: int) -> list[float] | None:
+    """Return the two-sided 95% Wilson binomial interval."""
+    if total == 0:
+        return None
+    z = 1.959963984540054
+    proportion = successes / total
+    denominator = 1 + z**2 / total
+    centre = (proportion + z**2 / (2 * total)) / denominator
+    half_width = (
+        z * math.sqrt(proportion * (1 - proportion) / total + z**2 / (4 * total**2)) / denominator
+    )
+    return [round(centre - half_width, 6), round(centre + half_width, 6)]
+
+
+def _constraint_accuracy(packets: pd.DataFrame, decisions: pd.DataFrame) -> dict[str, Any]:
+    """Summarize judge pass rates without converting them into accepted labels."""
+    joined = packets[["audit_row_id", "selection_group"]].merge(
+        decisions[["audit_row_id", "status", "semantic_support", "benchmark_scope"]],
+        on="audit_row_id",
+        how="left",
+        validate="one_to_one",
+    )
+    joined["judge_pass"] = (
+        joined["status"].eq("valid")
+        & joined["semantic_support"].eq("supported")
+        & joined["benchmark_scope"].eq("in_scope")
+    )
+
+    def measure(frame: pd.DataFrame) -> dict[str, Any]:
+        valid = frame["status"].eq("valid")
+        valid_rows = int(valid.sum())
+        passes = int(frame.loc[valid, "judge_pass"].sum())
+        return {
+            "rows": int(len(frame)),
+            "valid_rows": valid_rows,
+            "pass_rows": passes,
+            "pass_fraction_of_valid": round(passes / valid_rows, 6) if valid_rows else None,
+            "pass_fraction_95pct_wilson": _wilson_interval(passes, valid_rows),
+        }
+
+    return {
+        "overall": measure(joined),
+        "by_facet": {
+            str(facet): measure(frame)
+            for facet, frame in joined.groupby("selection_group", sort=True)
+        },
+        "pass_definition": "valid_and_semantically_supported_and_in_scope",
+        "reference_is_model_judgment": True,
+        "accepted_labels_created": False,
     }
 
 

@@ -174,6 +174,61 @@ def test_paid_judge_pipeline_is_not_in_the_default_pipeline():
     assert smoke_nodes.isdisjoint(default_nodes)
     validator_nodes = {node.name for node in pipelines["agent_judge_validator"].nodes}
     assert validator_nodes.isdisjoint(default_nodes)
+    benchmark_nodes = {node.name for node in pipelines["constraint_benchmark_judge"].nodes}
+    assert benchmark_nodes.isdisjoint(default_nodes)
+
+
+def test_constraint_benchmark_summarizes_model_reference_accuracy(monkeypatch):
+    sample = pd.DataFrame(
+        {
+            "benchmark_index": [1, 2, 3],
+            "benchmark_sample_version": ["benchmark-v1"] * 3,
+            "evidence_version": ["evidence-v1"] * 3,
+            "rule_contract_sha256": [_hash(90)] * 3,
+            "mapping_application_id": [_hash(1), _hash(2), _hash(3)],
+            "split_grouped": ["val"] * 3,
+            "rule_id": ["copy.v1", "growth.v1", "selection.v1"],
+            "facet": ["copy", "growth", "selection"],
+            "relation": ["reported_as", "reported_at", "reported_selection_includes"],
+            "source_field": ["plasmid_copy", "growth_temp", "bacterial_resistance"],
+            "source_value_json": ['"High Copy"', '"37"', '"Kanamycin"'],
+            "canonical_values_json": ['["high"]', '["37_c"]', '["kanamycin"]'],
+            "mapping_section": ["included"] * 3,
+            "mapping_note": [None] * 3,
+            "addgene_id": [1, 2, 3],
+            "url": [f"https://example.test/{index}" for index in range(1, 4)],
+            "source_description": [None] * 3,
+            "plannotate_features_json": ["[]"] * 3,
+            "plannotate_evidence_state": ["missing"] * 3,
+            "benchmark_label_created": [False] * 3,
+        }
+    )
+    params = {
+        **PARAMS,
+        "packet_protocol": "constraint_benchmark",
+        "input_audit_version": "evidence-v1",
+        "benchmark_sample_version": "benchmark-v1",
+    }
+    benchmark_packets = agent_judge.build_constraint_benchmark_packets(sample, params)
+    calls = 0
+
+    def complete(client, messages, **kwargs):
+        nonlocal calls
+        row = benchmark_packets.iloc[calls].to_dict()
+        support = "not_supported" if calls == 1 else "supported"
+        calls += 1
+        return openrouter.Completion(text=_valid_response(row, support), cost_usd=0.01)
+
+    monkeypatch.setattr(nodes.openrouter, "complete", complete)
+    decisions = nodes.judge_packets(benchmark_packets, params, {"api_key": "test"})
+    summary = nodes.summarize(benchmark_packets, decisions, params)
+
+    assert decisions["human_review_required"].tolist() == [False, True, False]
+    accuracy = summary["preliminary_accuracy"]["overall"]
+    assert accuracy["valid_rows"] == 3
+    assert accuracy["pass_rows"] == 2
+    assert accuracy["pass_fraction_of_valid"] == 0.666667
+    assert summary["manual_review_rows"] == 1
 
 
 def test_compare_decisions_preserves_disagreement_without_accepting_labels(packets):

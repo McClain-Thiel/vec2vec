@@ -198,3 +198,85 @@ def create_comparison_pipeline(**kwargs) -> Pipeline:
             )
         ]
     )
+
+
+def create_constraint_benchmark_packet_pipeline(**kwargs) -> Pipeline:
+    """Prepare the complete accuracy benchmark without a paid request."""
+    return Pipeline(
+        [
+            node(
+                func=nodes.build_constraint_benchmark_packets,
+                inputs=[
+                    "e00_constraint_benchmark_sample",
+                    "params:constraint_benchmark_judge",
+                ],
+                outputs="e00_constraint_benchmark_packets",
+                name="build_e00_constraint_benchmark_packets",
+            )
+        ]
+    )
+
+
+def create_constraint_benchmark_smoke_pipeline(**kwargs) -> Pipeline:
+    """Run one paid packet per facet before the complete benchmark."""
+    return Pipeline(
+        [
+            node(
+                func=nodes.select_smoke_packets,
+                inputs=[
+                    "e00_constraint_benchmark_packets",
+                    "params:constraint_benchmark_smoke",
+                ],
+                outputs="e00_constraint_benchmark_smoke_packets",
+                name="select_e00_constraint_benchmark_smoke_packets",
+            ),
+            node(
+                func=nodes.judge_packets,
+                inputs=[
+                    "e00_constraint_benchmark_smoke_packets",
+                    "params:constraint_benchmark_smoke",
+                    "params:openrouter",
+                ],
+                outputs="e00_constraint_benchmark_smoke_decisions",
+                name="judge_e00_constraint_benchmark_smoke_packets",
+            ),
+            node(
+                func=nodes.summarize,
+                inputs=[
+                    "e00_constraint_benchmark_smoke_packets",
+                    "e00_constraint_benchmark_smoke_decisions",
+                    "params:constraint_benchmark_smoke",
+                ],
+                outputs="e00_constraint_benchmark_smoke_summary",
+                name="summarize_e00_constraint_benchmark_smoke",
+            ),
+        ]
+    )
+
+
+def create_constraint_benchmark_pipeline(**kwargs) -> Pipeline:
+    """Run the strong model on the fixed 240-application benchmark."""
+    return Pipeline(
+        [
+            node(
+                func=nodes.judge_packets,
+                inputs=[
+                    "e00_constraint_benchmark_packets",
+                    "params:constraint_benchmark_judge",
+                    "params:openrouter",
+                ],
+                outputs="e00_constraint_benchmark_decisions",
+                name="judge_e00_constraint_benchmark_packets",
+            ),
+            node(
+                func=nodes.summarize,
+                inputs=[
+                    "e00_constraint_benchmark_packets",
+                    "e00_constraint_benchmark_decisions",
+                    "params:constraint_benchmark_judge",
+                ],
+                outputs="e00_constraint_benchmark_summary",
+                name="summarize_e00_constraint_benchmark",
+            ),
+        ]
+    )

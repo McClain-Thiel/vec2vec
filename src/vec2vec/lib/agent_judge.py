@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any, Literal
 
@@ -12,6 +13,7 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 PROMPT_VERSION = "agent-judge-v4-semantic-scope"
+CONSTRAINT_BENCHMARK_PROMPT_VERSION = "constraint-benchmark-judge-v1"
 
 SYSTEM_PROMPT = """You are reviewing one proposed metadata treatment for a plasmid retrieval
 benchmark.
@@ -46,6 +48,35 @@ Keep both reasons short and factual. Name the evidence fields you used. Suggeste
 must be short snake_case strings and must be empty unless the proposed biological mapping is not
 supported and a different direct mapping is justified. Return one JSON object that matches the
 supplied schema. Return no Markdown or other text."""
+
+CONSTRAINT_BENCHMARK_SYSTEM_PROMPT = """You are evaluating one rule-derived metadata mapping for
+a plasmid retrieval training set.
+
+Use only the supplied evidence. The Addgene source field is primary evidence for what Addgene
+reports. The source description can corroborate or conflict with it, but silence is not negative
+evidence. pLannotate features are predicted supplementary evidence. Their absence or naming
+ambiguity is not a contradiction. Do not infer biological performance from a metadata tag.
+
+Make two separate judgments.
+
+Semantic support asks whether canonical_values faithfully represent source_value under the stated
+facet and relation.
+- supported: every proposed canonical value is a faithful direct normalization and no relevant
+  meaning was added or removed;
+- not_supported: the mapping changes the meaning, adds an unsupported value, or omits a direct
+  value that the relation requires;
+- uncertain: the source value is ambiguous or the evidence conflicts.
+
+Benchmark scope asks whether this exact type of reported metadata belongs in the stated facet.
+- in_scope: the facet and relation preserve the limited metadata claim;
+- out_of_scope: the meaning can be valid but belongs outside this benchmark facet;
+- uncertain: the supplied rule does not establish scope clearly.
+
+Judge the mapping application, not the complete plasmid. A record can contain other features and
+markers without contradicting the proposed value. Keep both reasons short and factual. Name the
+evidence fields you used. Suggested canonical values must be short snake_case strings and must be
+empty unless semantic support is not_supported and a different direct mapping is justified. Return
+one JSON object that matches the supplied schema. Return no Markdown or other text."""
 
 _EVIDENCE_COLUMNS = (
     "audit_row_id",
@@ -141,6 +172,16 @@ def prompt_hash() -> str:
     return _sha256(_stable_json(contract))
 
 
+def constraint_benchmark_prompt_hash() -> str:
+    """Identify the fixed constraint-accuracy prompt and response contract."""
+    contract = {
+        "prompt_version": CONSTRAINT_BENCHMARK_PROMPT_VERSION,
+        "system_prompt": CONSTRAINT_BENCHMARK_SYSTEM_PROMPT,
+        "response_schema": JudgeDecision.model_json_schema(),
+    }
+    return _sha256(_stable_json(contract))
+
+
 def decision_json_schema(audit_row_id: str, packet_sha256: str) -> dict[str, Any]:
     """Bind the response schema to the identity of one requested packet."""
     schema = deepcopy(JudgeDecision.model_json_schema())
@@ -161,6 +202,43 @@ def build_messages(evidence: dict[str, Any], packet_sha256: str) -> list[dict[st
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": _stable_json(request)},
     ]
+
+
+def build_constraint_benchmark_messages(
+    evidence: dict[str, Any], packet_sha256: str
+) -> list[dict[str, str]]:
+    """Build the exact messages for one constraint benchmark application."""
+    request = {
+        "task": "Judge the accuracy and scope of this rule-derived mapping application.",
+        "evidence_packet_sha256": packet_sha256,
+        "evidence": evidence,
+        "response_schema": decision_json_schema(str(evidence["audit_row_id"]), packet_sha256),
+    }
+    return [
+        {"role": "system", "content": CONSTRAINT_BENCHMARK_SYSTEM_PROMPT},
+        {"role": "user", "content": _stable_json(request)},
+    ]
+
+
+def _packet_protocol(params: Mapping[str, Any]) -> str:
+    protocol = str(params.get("packet_protocol", "facet_audit"))
+    if protocol not in {"facet_audit", "constraint_benchmark"}:
+        raise ValueError(f"unsupported agent-judge packet protocol: {protocol!r}")
+    return protocol
+
+
+def _protocol_identity(params: Mapping[str, Any]) -> tuple[str, str]:
+    if _packet_protocol(params) == "constraint_benchmark":
+        return CONSTRAINT_BENCHMARK_PROMPT_VERSION, constraint_benchmark_prompt_hash()
+    return PROMPT_VERSION, prompt_hash()
+
+
+def _protocol_messages(
+    evidence: dict[str, Any], packet_sha256: str, params: Mapping[str, Any]
+) -> list[dict[str, str]]:
+    if _packet_protocol(params) == "constraint_benchmark":
+        return build_constraint_benchmark_messages(evidence, packet_sha256)
+    return build_messages(evidence, packet_sha256)
 
 
 def _validate_sample(sample: pd.DataFrame, params: dict[str, Any]) -> None:
@@ -295,6 +373,104 @@ def build_targeted_packets(sample: pd.DataFrame, params: dict[str, Any]) -> pd.D
     return _serialize_packets(pd.concat(selected, ignore_index=True), params)
 
 
+def build_constraint_benchmark_packets(
+    sample: pd.DataFrame, params: dict[str, Any]
+) -> pd.DataFrame:
+    """Freeze every application in the fixed validation benchmark."""
+    required = {
+        "benchmark_index",
+        "benchmark_sample_version",
+        "evidence_version",
+        "rule_contract_sha256",
+        "mapping_application_id",
+        "split_grouped",
+        "rule_id",
+        "facet",
+        "relation",
+        "source_field",
+        "source_value_json",
+        "canonical_values_json",
+        "mapping_section",
+        "mapping_note",
+        "addgene_id",
+        "url",
+        "source_description",
+        "plannotate_features_json",
+        "plannotate_evidence_state",
+        "benchmark_label_created",
+    }
+    missing = required.difference(sample.columns)
+    if missing:
+        raise ValueError(f"constraint benchmark sample is missing columns: {sorted(missing)}")
+    if len(sample) != int(params["max_rows"]):
+        raise ValueError("constraint benchmark sample count does not match max_rows")
+    if (
+        sample["mapping_application_id"].isna().any()
+        or sample["mapping_application_id"].duplicated().any()
+    ):
+        raise ValueError("constraint benchmark needs unique mapping_application_id values")
+    if set(sample["split_grouped"].astype(str)) != {"val"}:
+        raise ValueError("constraint benchmark packets require only validation rows")
+    if sample["benchmark_label_created"].astype(bool).any():
+        raise ValueError("constraint benchmark input must not contain benchmark labels")
+    observed_evidence = sample["evidence_version"].astype(str).unique().tolist()
+    if observed_evidence != [str(params["input_audit_version"])]:
+        raise ValueError("constraint benchmark evidence version does not match configuration")
+    observed_sample = sample["benchmark_sample_version"].astype(str).unique().tolist()
+    if observed_sample != [str(params["benchmark_sample_version"])]:
+        raise ValueError("constraint benchmark sample version does not match configuration")
+    if _packet_protocol(params) != "constraint_benchmark":
+        raise ValueError("constraint benchmark packets need packet_protocol=constraint_benchmark")
+
+    prompt_version, fixed_prompt_hash = _protocol_identity(params)
+    records: list[dict[str, Any]] = []
+    ordered = sample.sort_values("benchmark_index", kind="stable")
+    for row in ordered.to_dict("records"):
+        audit_row_id = str(row["mapping_application_id"])
+        evidence = {
+            "audit_row_id": audit_row_id,
+            "evidence_version": str(row["evidence_version"]),
+            "benchmark_sample_version": str(row["benchmark_sample_version"]),
+            "rule_contract_sha256": str(row["rule_contract_sha256"]),
+            "rule_id": str(row["rule_id"]),
+            "facet": str(row["facet"]),
+            "relation": str(row["relation"]),
+            "source_field": str(row["source_field"]),
+            "source_value": json.loads(str(row["source_value_json"])),
+            "canonical_values": json.loads(str(row["canonical_values_json"])),
+            "mapping_section": str(row["mapping_section"]),
+            "mapping_note": None if pd.isna(row["mapping_note"]) else str(row["mapping_note"]),
+            "addgene_id": int(row["addgene_id"]),
+            "url": str(row["url"]),
+            "source_description": (
+                None if pd.isna(row["source_description"]) else str(row["source_description"])
+            ),
+            "plannotate_features": json.loads(str(row["plannotate_features_json"])),
+            "plannotate_evidence_state": str(row["plannotate_evidence_state"]),
+        }
+        evidence_json = _stable_json(evidence)
+        evidence_sha256 = _sha256(evidence_json)
+        messages_json = _stable_json(_protocol_messages(evidence, evidence_sha256, params))
+        records.append(
+            {
+                "pilot_index": int(row["benchmark_index"]),
+                "selection_group": str(row["facet"]),
+                "audit_row_id": audit_row_id,
+                "stratum": str(row["facet"]),
+                "evidence_packet_json": evidence_json,
+                "evidence_packet_sha256": evidence_sha256,
+                "messages_json": messages_json,
+                "messages_sha256": _sha256(messages_json),
+                "prompt_version": prompt_version,
+                "prompt_hash": fixed_prompt_hash,
+                "input_audit_version": str(params["input_audit_version"]),
+                "input_audit_output_version": str(params["input_audit_output_version"]),
+                "accepted_label_created": False,
+            }
+        )
+    return pd.DataFrame.from_records(records)
+
+
 def validate_pilot_packets(packets: pd.DataFrame, params: dict[str, Any]) -> None:
     """Verify persisted packet identity before a paid request can run."""
     required = {
@@ -321,9 +497,10 @@ def validate_pilot_packets(packets: pd.DataFrame, params: dict[str, Any]) -> Non
     if packets["accepted_label_created"].astype(bool).any():
         raise ValueError("agent-judge input must not contain accepted labels")
 
+    prompt_version, fixed_prompt_hash = _protocol_identity(params)
     expected_constants = {
-        "prompt_version": PROMPT_VERSION,
-        "prompt_hash": prompt_hash(),
+        "prompt_version": prompt_version,
+        "prompt_hash": fixed_prompt_hash,
         "input_audit_version": str(params["input_audit_version"]),
         "input_audit_output_version": str(params["input_audit_output_version"]),
     }
@@ -339,7 +516,9 @@ def validate_pilot_packets(packets: pd.DataFrame, params: dict[str, Any]) -> Non
             raise ValueError("agent-judge evidence packet hash does not match its content")
         if "generated_description" in json.loads(evidence_json):
             raise ValueError("agent-judge evidence must not contain a generated description")
-        expected_messages = _stable_json(build_messages(json.loads(evidence_json), evidence_sha256))
+        expected_messages = _stable_json(
+            _protocol_messages(json.loads(evidence_json), evidence_sha256, params)
+        )
         if expected_messages != str(row["messages_json"]):
             raise ValueError("agent-judge messages do not match the evidence and prompt")
         if _sha256(expected_messages) != str(row["messages_sha256"]):

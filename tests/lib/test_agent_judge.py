@@ -196,3 +196,50 @@ def test_parse_decision_binds_the_response_to_the_packet():
         agent_judge.parse_decision(
             decision.model_dump_json(), audit_row_id=_hash(1), packet_sha256=_hash(3)
         )
+
+
+def test_constraint_benchmark_packets_are_fixed_and_use_the_separate_prompt():
+    sample = pd.DataFrame(
+        {
+            "benchmark_index": [1, 2],
+            "benchmark_sample_version": ["benchmark-v1"] * 2,
+            "evidence_version": ["evidence-v1"] * 2,
+            "rule_contract_sha256": [_hash(90)] * 2,
+            "mapping_application_id": [_hash(1), _hash(2)],
+            "split_grouped": ["val", "val"],
+            "rule_id": ["copy.v1", "selection.v1"],
+            "facet": ["copy_class", "bacterial_selection_marker"],
+            "relation": ["reported_as", "reported_selection_includes"],
+            "source_field": ["plasmid_copy", "bacterial_resistance"],
+            "source_value_json": ['"High Copy"', '"Kanamycin"'],
+            "canonical_values_json": ['["high"]', '["kanamycin"]'],
+            "mapping_section": ["included", "included"],
+            "mapping_note": [None, None],
+            "addgene_id": [1, 2],
+            "url": ["https://example.test/1", "https://example.test/2"],
+            "source_description": [None, "Kanamycin selection"],
+            "plannotate_features_json": ["[]", '[{"feature":"KanR"}]'],
+            "plannotate_evidence_state": ["missing", "present"],
+            "benchmark_label_created": [False, False],
+        }
+    )
+    params = {
+        "packet_protocol": "constraint_benchmark",
+        "max_rows": 2,
+        "input_audit_version": "evidence-v1",
+        "input_audit_output_version": "2026-01-01T00.00.00.000Z",
+        "benchmark_sample_version": "benchmark-v1",
+    }
+
+    packets = agent_judge.build_constraint_benchmark_packets(sample, params)
+    shuffled = agent_judge.build_constraint_benchmark_packets(
+        sample.sample(frac=1, random_state=3), params
+    )
+
+    pd.testing.assert_frame_equal(packets, shuffled)
+    assert set(packets["prompt_version"]) == {agent_judge.CONSTRAINT_BENCHMARK_PROMPT_VERSION}
+    evidence = json.loads(packets.iloc[1]["evidence_packet_json"])
+    assert evidence["source_value"] == "Kanamycin"
+    assert evidence["canonical_values"] == ["kanamycin"]
+    assert evidence["plannotate_features"] == [{"feature": "KanR"}]
+    agent_judge.validate_pilot_packets(packets, params)

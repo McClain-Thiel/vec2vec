@@ -339,6 +339,36 @@ e00_constraint_evidence_manifest:
   filepath: ${globals:lake}/08_reporting/e00/constraint_evidence_manifest.json
   versioned: true
 
+e00_constraint_benchmark_packets:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_packets.parquet
+  versioned: true
+
+e00_constraint_benchmark_smoke_packets:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_smoke_packets.parquet
+  versioned: true
+
+e00_constraint_benchmark_smoke_decisions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_smoke_decisions.parquet
+  versioned: true
+
+e00_constraint_benchmark_smoke_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_smoke_summary.json
+  versioned: true
+
+e00_constraint_benchmark_decisions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_decisions.parquet
+  versioned: true
+
+e00_constraint_benchmark_summary:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_summary.json
+  versioned: true
+
 # Agent-assisted review artifacts. Valid decisions remain proposals until a
 # scientist reviews them; raw invalid responses and request errors are retained.
 e00_agent_judge_pilot_packets:

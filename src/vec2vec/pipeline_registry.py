@@ -29,6 +29,9 @@ def register_pipelines() -> dict[str, Pipeline]:
     - ``agent_judge_targeted_packets`` prepares the v0.2 check without a paid call.
     - ``agent_judge_targeted`` calls a paid strong model on those inspected packets.
     - ``agent_judge_targeted_smoke`` calls it once to check the new response contract.
+    - ``constraint_benchmark_packets`` prepares the fixed accuracy check without a paid call.
+    - ``constraint_benchmark_smoke`` calls the strong model once per facet.
+    - ``constraint_benchmark_judge`` calls it on the fixed 240-application sample.
     - ``import_descriptions`` adopts already-published descriptions instead.
     """
     pipelines = {
@@ -41,6 +44,9 @@ def register_pipelines() -> dict[str, Pipeline]:
         "agent_judge_targeted": agent_judge.create_targeted_pipeline(),
         "agent_judge_targeted_smoke": agent_judge.create_targeted_smoke_pipeline(),
         "agent_judge_comparison": agent_judge.create_comparison_pipeline(),
+        "constraint_benchmark_packets": (agent_judge.create_constraint_benchmark_packet_pipeline()),
+        "constraint_benchmark_smoke": agent_judge.create_constraint_benchmark_smoke_pipeline(),
+        "constraint_benchmark_judge": agent_judge.create_constraint_benchmark_pipeline(),
         "import_descriptions": descriptions.create_import_pipeline(),
         "dataset": dataset.create_pipeline(),
         "audit": audit.create_pipeline(),
