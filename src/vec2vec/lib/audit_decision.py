@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from datetime import datetime
 from typing import Literal
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from vec2vec.lib.serialization import stable_json
+from vec2vec.lib.text import sha256_text
 
 _REVIEW_COLUMNS = (
     "audit_version",
@@ -71,8 +72,7 @@ class HumanAuditDecision(BaseModel):
     def decision_id(self) -> str:
         """Return a stable identity for the serialized decision."""
         payload = self.model_dump(mode="json")
-        text = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+        return sha256_text(stable_json(payload))
 
 
 def build_blinded_review_table(sample: pd.DataFrame) -> pd.DataFrame:

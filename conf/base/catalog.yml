@@ -369,8 +369,8 @@ e00_constraint_benchmark_summary:
   filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_summary.json
   versioned: true
 
-# Agent-assisted review artifacts. Valid decisions remain proposals until a
-# scientist reviews them; raw invalid responses and request errors are retained.
+# Historical v3 agent-assisted review artifacts. No active pipeline writes these one-axis
+# decisions. They remain catalog-readable with raw failures retained for research provenance.
 e00_agent_judge_pilot_packets:
   <<: *parquet
   filepath: ${globals:lake}/08_reporting/e00/agent_judge_pilot_packets.parquet
@@ -397,6 +397,8 @@ e00_agent_validator_summary:
   filepath: ${globals:lake}/08_reporting/e00/agent_validator_summary.json
   versioned: true
 
+# Historical one-axis comparison outputs remain readable for research provenance.
+# No active pipeline writes them because the current judge schema has two decision axes.
 e00_agent_judge_comparison:
   <<: *parquet
   filepath: ${globals:lake}/08_reporting/e00/agent_judge_comparison.parquet

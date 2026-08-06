@@ -166,14 +166,10 @@ def test_judge_requires_an_api_key(packets):
 
 def test_paid_judge_pipeline_is_not_in_the_default_pipeline():
     pipelines = register_pipelines()
-    judge_nodes = {node.name for node in pipelines["agent_judge_pilot"].nodes}
     default_nodes = {node.name for node in pipelines["__default__"].nodes}
-    assert judge_nodes
-    assert judge_nodes.isdisjoint(default_nodes)
-    smoke_nodes = {node.name for node in pipelines["agent_judge_smoke"].nodes}
-    assert smoke_nodes.isdisjoint(default_nodes)
-    validator_nodes = {node.name for node in pipelines["agent_judge_validator"].nodes}
-    assert validator_nodes.isdisjoint(default_nodes)
+    targeted_nodes = {node.name for node in pipelines["agent_judge_targeted"].nodes}
+    assert targeted_nodes
+    assert targeted_nodes.isdisjoint(default_nodes)
     benchmark_nodes = {node.name for node in pipelines["constraint_benchmark_judge"].nodes}
     assert benchmark_nodes.isdisjoint(default_nodes)
 
@@ -229,42 +225,3 @@ def test_constraint_benchmark_summarizes_model_reference_accuracy(monkeypatch):
     assert accuracy["pass_rows"] == 2
     assert accuracy["pass_fraction_of_valid"] == 0.666667
     assert summary["manual_review_rows"] == 1
-
-
-def test_compare_decisions_preserves_disagreement_without_accepting_labels(packets):
-    first = []
-    validator = []
-    for index, row in packets.iterrows():
-        base = {
-            "audit_row_id": row["audit_row_id"],
-            "evidence_packet_sha256": row["evidence_packet_sha256"],
-            "status": "valid",
-            "reason": "Reason",
-            "suggested_canonical_values_json": "[]",
-            "judge_model": "first/model",
-            "upstream_model": "first/model",
-            "upstream_provider": "provider",
-            "cost_usd": 0.01,
-        }
-        first.append({**base, "verdict": "supported"})
-        validator.append(
-            {
-                **base,
-                "judge_model": "validator/model",
-                "upstream_model": "validator/model",
-                "verdict": "not_supported" if index == 0 else "supported",
-            }
-        )
-
-    comparison, summary = nodes.compare_decisions(
-        packets.assign(stratum=["one", "two", "three"]),
-        pd.DataFrame(first),
-        pd.DataFrame(validator),
-    )
-
-    assert comparison["comparison_status"].tolist() == ["disagree", "agree", "agree"]
-    assert comparison["manual_resolution_required"].tolist() == [True, False, False]
-    assert not comparison["accepted_label_created"].any()
-    assert summary["exact_verdict_agreement_rows"] == 2
-    assert summary["agreement_is_not_accuracy"] is True
-    assert summary["accepted_labels_created"] is False

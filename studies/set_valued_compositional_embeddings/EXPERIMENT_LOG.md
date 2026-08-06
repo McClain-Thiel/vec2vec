@@ -1230,3 +1230,16 @@ than unsupported evidence.
 `aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2` for noisy training
 supervision. This is not biological ground truth. Keep disabled and unknown values unlabeled. Do not
 add claim-by-claim review. Proceed to query and candidate-gallery construction.
+
+## 2026-08-06 13:48:45 BST — Repository maintenance after constraint validation
+
+**Scope:** Refactor repeated stable-JSON, SHA-256, and exact metadata-key helpers into shared library
+functions. Remove the registered v3 pilot, smoke, validator, and comparison code paths because they
+expect the superseded one-axis response contract. Preserve their configuration, catalog entries,
+persisted outputs, reports, and earlier Git implementation for research provenance. Keep the v4
+targeted check and the current constraint benchmark registered.
+
+**Identity checks:** The constraint benchmark prompt hash remains
+`491cd43a849cb74d624f0c00c4ab1b6b740d6d3107f1f43c7108f728140019c4`. The accepted rule
+contract hash remains `aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2`.
+No data pipeline or paid request ran during this maintenance.

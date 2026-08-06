@@ -258,3 +258,7 @@ def test_constraint_evidence_builds_train_labels_and_validation_sample(lake):
     assert manifest["test_rows_loaded"] == 0
     assert manifest["annotation_source"] == "plannotate"
     assert manifest["plasmidkit_fallback_used"] is False
+    assert (
+        manifest["rule_contract_sha256"]
+        == "aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2"
+    )

@@ -1,8 +1,7 @@
-"""Serializable decisions and stable evidence packets for the agent-judge pilot."""
+"""Serializable decisions and stable evidence packets for agent-assisted checks."""
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from collections.abc import Mapping
@@ -11,6 +10,9 @@ from typing import Any, Literal
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from vec2vec.lib.serialization import stable_json
+from vec2vec.lib.text import sha256_text
 
 PROMPT_VERSION = "agent-judge-v4-semantic-scope"
 CONSTRAINT_BENCHMARK_PROMPT_VERSION = "constraint-benchmark-judge-v1"
@@ -100,15 +102,6 @@ _EVIDENCE_COLUMNS = (
 )
 
 
-def _stable_json(value: Any) -> str:
-    """Serialize JSON with stable ordering and no formatting-only whitespace."""
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def _sha256(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
 class JudgeDecision(BaseModel):
     """One validated judge response.
 
@@ -169,7 +162,7 @@ def prompt_hash() -> str:
         "system_prompt": SYSTEM_PROMPT,
         "response_schema": JudgeDecision.model_json_schema(),
     }
-    return _sha256(_stable_json(contract))
+    return sha256_text(stable_json(contract))
 
 
 def constraint_benchmark_prompt_hash() -> str:
@@ -179,7 +172,7 @@ def constraint_benchmark_prompt_hash() -> str:
         "system_prompt": CONSTRAINT_BENCHMARK_SYSTEM_PROMPT,
         "response_schema": JudgeDecision.model_json_schema(),
     }
-    return _sha256(_stable_json(contract))
+    return sha256_text(stable_json(contract))
 
 
 def decision_json_schema(audit_row_id: str, packet_sha256: str) -> dict[str, Any]:
@@ -200,7 +193,7 @@ def build_messages(evidence: dict[str, Any], packet_sha256: str) -> list[dict[st
     }
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": _stable_json(request)},
+        {"role": "user", "content": stable_json(request)},
     ]
 
 
@@ -216,7 +209,7 @@ def build_constraint_benchmark_messages(
     }
     return [
         {"role": "system", "content": CONSTRAINT_BENCHMARK_SYSTEM_PROMPT},
-        {"role": "user", "content": _stable_json(request)},
+        {"role": "user", "content": stable_json(request)},
     ]
 
 
@@ -272,9 +265,9 @@ def _serialize_packets(chosen: pd.DataFrame, params: dict[str, Any]) -> pd.DataF
         evidence = {
             column: None if pd.isna(row[column]) else row[column] for column in _EVIDENCE_COLUMNS
         }
-        evidence_json = _stable_json(evidence)
-        evidence_sha256 = _sha256(evidence_json)
-        messages_json = _stable_json(build_messages(evidence, evidence_sha256))
+        evidence_json = stable_json(evidence)
+        evidence_sha256 = sha256_text(evidence_json)
+        messages_json = stable_json(build_messages(evidence, evidence_sha256))
         records.append(
             {
                 "pilot_index": pilot_index,
@@ -284,7 +277,7 @@ def _serialize_packets(chosen: pd.DataFrame, params: dict[str, Any]) -> pd.DataF
                 "evidence_packet_json": evidence_json,
                 "evidence_packet_sha256": evidence_sha256,
                 "messages_json": messages_json,
-                "messages_sha256": _sha256(messages_json),
+                "messages_sha256": sha256_text(messages_json),
                 "prompt_version": PROMPT_VERSION,
                 "prompt_hash": prompt_hash(),
                 "input_audit_version": str(params["input_audit_version"]),
@@ -293,32 +286,6 @@ def _serialize_packets(chosen: pd.DataFrame, params: dict[str, Any]) -> pd.DataF
             }
         )
     return pd.DataFrame.from_records(records)
-
-
-def build_pilot_packets(sample: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
-    """Select the preregistered stratum counts and freeze their model inputs."""
-    _validate_sample(sample, params)
-    counts = {str(key): int(value) for key, value in params["stratum_counts"].items()}
-    if not counts or any(value < 1 for value in counts.values()):
-        raise ValueError("stratum_counts must contain positive counts")
-    if sum(counts.values()) != int(params["max_rows"]):
-        raise ValueError("stratum_counts must sum to max_rows")
-
-    selected: list[pd.DataFrame] = []
-    for stratum, count in counts.items():
-        available = sample.loc[sample["stratum"].astype(str).eq(stratum)].sort_values(
-            ["selection_rank", "selection_hash"], kind="stable"
-        )
-        if len(available) < count:
-            raise ValueError(
-                f"stratum {stratum!r} has {len(available)} rows; the pilot requires {count}"
-            )
-        chosen_group = available.head(count).copy()
-        chosen_group["_packet_selection_group"] = stratum
-        selected.append(chosen_group)
-
-    chosen = pd.concat(selected, ignore_index=True)
-    return _serialize_packets(chosen, params)
 
 
 def build_targeted_packets(sample: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
@@ -357,7 +324,7 @@ def build_targeted_packets(sample: pd.DataFrame, params: dict[str, Any]) -> pd.D
         else:
             available = sample.loc[
                 sample["source_field"].astype(str).eq(str(selector["source_field"]))
-                & sample["source_value_json"].astype(str).eq(_stable_json(selector["source_value"]))
+                & sample["source_value_json"].astype(str).eq(stable_json(selector["source_value"]))
             ]
         available = available.sort_values(["selection_hash", "audit_row_id"], kind="stable")
         if len(available) < count:
@@ -448,9 +415,9 @@ def build_constraint_benchmark_packets(
             "plannotate_features": json.loads(str(row["plannotate_features_json"])),
             "plannotate_evidence_state": str(row["plannotate_evidence_state"]),
         }
-        evidence_json = _stable_json(evidence)
-        evidence_sha256 = _sha256(evidence_json)
-        messages_json = _stable_json(_protocol_messages(evidence, evidence_sha256, params))
+        evidence_json = stable_json(evidence)
+        evidence_sha256 = sha256_text(evidence_json)
+        messages_json = stable_json(_protocol_messages(evidence, evidence_sha256, params))
         records.append(
             {
                 "pilot_index": int(row["benchmark_index"]),
@@ -460,7 +427,7 @@ def build_constraint_benchmark_packets(
                 "evidence_packet_json": evidence_json,
                 "evidence_packet_sha256": evidence_sha256,
                 "messages_json": messages_json,
-                "messages_sha256": _sha256(messages_json),
+                "messages_sha256": sha256_text(messages_json),
                 "prompt_version": prompt_version,
                 "prompt_hash": fixed_prompt_hash,
                 "input_audit_version": str(params["input_audit_version"]),
@@ -511,17 +478,17 @@ def validate_pilot_packets(packets: pd.DataFrame, params: dict[str, Any]) -> Non
 
     for row in packets.to_dict("records"):
         evidence_json = str(row["evidence_packet_json"])
-        evidence_sha256 = _sha256(evidence_json)
+        evidence_sha256 = sha256_text(evidence_json)
         if evidence_sha256 != str(row["evidence_packet_sha256"]):
             raise ValueError("agent-judge evidence packet hash does not match its content")
         if "generated_description" in json.loads(evidence_json):
             raise ValueError("agent-judge evidence must not contain a generated description")
-        expected_messages = _stable_json(
+        expected_messages = stable_json(
             _protocol_messages(json.loads(evidence_json), evidence_sha256, params)
         )
         if expected_messages != str(row["messages_json"]):
             raise ValueError("agent-judge messages do not match the evidence and prompt")
-        if _sha256(expected_messages) != str(row["messages_sha256"]):
+        if sha256_text(expected_messages) != str(row["messages_sha256"]):
             raise ValueError("agent-judge message hash does not match its content")
 
 

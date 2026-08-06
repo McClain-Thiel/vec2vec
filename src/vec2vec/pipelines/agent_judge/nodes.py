@@ -1,4 +1,4 @@
-"""Kedro nodes for the small agent-judge pilot."""
+"""Kedro nodes for explicit agent-assisted rule checks."""
 
 from __future__ import annotations
 
@@ -46,11 +46,6 @@ DECISION_COLUMNS = (
     "human_review_required",
     "accepted_label_created",
 )
-
-
-def build_packets(sample: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
-    """Build deterministic, fully serialized model inputs."""
-    return agent_judge.build_pilot_packets(sample, params)
 
 
 def build_targeted_packets(sample: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
@@ -350,91 +345,3 @@ def _constraint_accuracy(packets: pd.DataFrame, decisions: pd.DataFrame) -> dict
         "reference_is_model_judgment": True,
         "accepted_labels_created": False,
     }
-
-
-def compare_decisions(
-    packets: pd.DataFrame,
-    first_decisions: pd.DataFrame,
-    validator_decisions: pd.DataFrame,
-) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Compare two independent model runs without turning agreement into truth."""
-    expected = packets[["pilot_index", "audit_row_id", "stratum", "evidence_packet_json"]].copy()
-    if expected["audit_row_id"].duplicated().any():
-        raise ValueError("comparison packets contain duplicate audit_row_id values")
-
-    def prepare(decisions: pd.DataFrame, prefix: str) -> pd.DataFrame:
-        if decisions["audit_row_id"].duplicated().any():
-            raise ValueError(f"{prefix} decisions contain duplicate audit_row_id values")
-        columns = [
-            "audit_row_id",
-            "evidence_packet_sha256",
-            "status",
-            "verdict",
-            "reason",
-            "suggested_canonical_values_json",
-            "judge_model",
-            "upstream_model",
-            "upstream_provider",
-            "cost_usd",
-        ]
-        missing = set(columns).difference(decisions.columns)
-        if missing:
-            raise ValueError(f"{prefix} decisions are missing columns: {sorted(missing)}")
-        return decisions.loc[:, columns].rename(
-            columns={column: f"{prefix}_{column}" for column in columns if column != "audit_row_id"}
-        )
-
-    comparison = expected.merge(
-        prepare(first_decisions, "first"), on="audit_row_id", how="left", validate="one_to_one"
-    ).merge(
-        prepare(validator_decisions, "validator"),
-        on="audit_row_id",
-        how="left",
-        validate="one_to_one",
-    )
-    if len(comparison) != len(expected):
-        raise RuntimeError("comparison changed the packet count")
-
-    evidence = comparison["evidence_packet_json"].map(json.loads)
-    comparison["addgene_id"] = evidence.map(lambda value: value.get("addgene_id"))
-    comparison["url"] = evidence.map(lambda value: value.get("url"))
-    comparison["source_value_json"] = evidence.map(lambda value: value.get("source_value_json"))
-    comparison = comparison.drop(columns="evidence_packet_json")
-
-    both_valid = comparison["first_status"].eq("valid") & comparison["validator_status"].eq("valid")
-    same_verdict = both_valid & comparison["first_verdict"].eq(comparison["validator_verdict"])
-    comparison["comparison_status"] = "incomplete"
-    comparison.loc[both_valid, "comparison_status"] = "disagree"
-    comparison.loc[same_verdict, "comparison_status"] = "agree"
-    comparison["manual_resolution_required"] = ~same_verdict | comparison["validator_verdict"].eq(
-        "uncertain"
-    )
-    comparison["accepted_label_created"] = False
-
-    status_counts = comparison["comparison_status"].value_counts().sort_index()
-    validator_verdicts = (
-        comparison.loc[comparison["validator_status"].eq("valid"), "validator_verdict"]
-        .value_counts()
-        .sort_index()
-    )
-    valid_pairs = int(both_valid.sum())
-    summary = {
-        "packet_rows": len(comparison),
-        "valid_pairs": valid_pairs,
-        "exact_verdict_agreement_rows": int(same_verdict.sum()),
-        "exact_verdict_agreement_fraction": (
-            round(float(same_verdict.sum() / valid_pairs), 6) if valid_pairs else None
-        ),
-        "comparison_status_counts": {str(key): int(value) for key, value in status_counts.items()},
-        "validator_verdict_counts": {
-            str(key): int(value) for key, value in validator_verdicts.items()
-        },
-        "manual_resolution_rows": int(comparison["manual_resolution_required"].sum()),
-        "reported_validator_cost_usd": round(
-            float(pd.to_numeric(comparison["validator_cost_usd"], errors="coerce").fillna(0).sum()),
-            6,
-        ),
-        "agreement_is_not_accuracy": True,
-        "accepted_labels_created": False,
-    }
-    return comparison, summary

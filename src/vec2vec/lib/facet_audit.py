@@ -7,16 +7,14 @@ mapping, create benchmark evidence, or inspect model output.
 from __future__ import annotations
 
 import hashlib
-import json
-import unicodedata
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
-from vec2vec.lib.text import as_list, clean_text, sha256_text
+from vec2vec.lib.serialization import stable_json, to_jsonable
+from vec2vec.lib.text import as_list, exact_metadata_key, sha256_text
 
 _REQUIRED_COLUMNS = {
     "sequence_id",
@@ -32,33 +30,6 @@ _REQUIRED_COLUMNS = {
     "bacterial_resistance",
     "vector_types",
 }
-
-
-def _exact_key(value: Any) -> str | None:
-    """Normalize case and whitespace while preserving punctuation and units."""
-    text = clean_text(value)
-    if text is None:
-        return None
-    return " ".join(unicodedata.normalize("NFKC", text).casefold().split())
-
-
-def _jsonable(value: Any) -> Any:
-    """Convert one Parquet cell into stable JSON-compatible values."""
-    if value is None:
-        return None
-    if isinstance(value, np.ndarray):
-        return [_jsonable(item) for item in value.tolist()]
-    if isinstance(value, list | tuple):
-        return [_jsonable(item) for item in value]
-    if isinstance(value, np.generic):
-        return value.item()
-    if pd.isna(value):
-        return None
-    return value
-
-
-def _stable_json(value: Any) -> str:
-    return json.dumps(_jsonable(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _require_columns(frame: pd.DataFrame) -> None:
@@ -78,7 +49,7 @@ def _load_mapping(values: Mapping[str, Sequence[str]], label: str) -> dict[str, 
     """Build a punctuation-preserving lookup and reject normalized-key collisions."""
     result: dict[str, tuple[str, ...]] = {}
     for raw_value, canonical_values in values.items():
-        key = _exact_key(raw_value)
+        key = exact_metadata_key(raw_value)
         canonical = tuple(str(value) for value in canonical_values)
         if key is None or not canonical or len(set(canonical)) != len(canonical):
             raise ValueError(f"{label} contains an invalid mapping for {raw_value!r}")
@@ -119,7 +90,7 @@ def _load_reviewed_mappings(
 def _load_exclusions(values: Mapping[str, str], label: str) -> dict[str, str]:
     result: dict[str, str] = {}
     for raw_value, reason in values.items():
-        key = _exact_key(raw_value)
+        key = exact_metadata_key(raw_value)
         if key is None or not str(reason).strip():
             raise ValueError(f"{label} contains an invalid exclusion for {raw_value!r}")
         if key in result:
@@ -131,7 +102,7 @@ def _load_exclusions(values: Mapping[str, str], label: str) -> dict[str, str]:
 def _load_missing(values: Sequence[str], label: str) -> set[str]:
     result: set[str] = set()
     for raw_value in values:
-        key = _exact_key(raw_value)
+        key = exact_metadata_key(raw_value)
         if key is None or key in result:
             raise ValueError(f"{label} contains an invalid value: {raw_value!r}")
         result.add(key)
@@ -181,7 +152,7 @@ def _candidate(
         {"facet": facet, "relation": relation, "canonical_value": value}
         for value in sorted(canonical_values)
     ]
-    source_value_json = _stable_json(source_value)
+    source_value_json = stable_json(source_value)
     return {
         "row_index": row_index,
         "audit_version": audit_version,
@@ -191,10 +162,10 @@ def _candidate(
         "stratum": stratum,
         "source_field": source_field,
         "source_value_json": source_value_json,
-        "classified_source_values_json": _stable_json(sorted(classified_values)),
+        "classified_source_values_json": stable_json(sorted(classified_values)),
         "canonical_values": tuple(sorted(canonical_values)),
-        "canonical_values_json": _stable_json(sorted(canonical_values)),
-        "proposed_claims_json": _stable_json(claims),
+        "canonical_values_json": stable_json(sorted(canonical_values)),
+        "proposed_claims_json": stable_json(claims),
         "mapping_status": mapping_status,
         "proposed_evidence_state": proposed_evidence_state,
         "mapping_note": mapping_note,
@@ -455,7 +426,7 @@ def _build_vocabulary(
     ]
     for field, values in configured_sections:
         for raw_value in values:
-            key = _exact_key(raw_value)
+            key = exact_metadata_key(raw_value)
             if key is None:
                 raise ValueError(f"configured {field} value is empty: {raw_value!r}")
             configured[(field, key)] = str(raw_value)
@@ -471,10 +442,10 @@ def _build_vocabulary(
         for field in ("plasmid_copy", "growth_temp", "bacterial_resistance", "vector_types"):
             raw_cell = row_values[field]
             values = as_list(raw_cell) if field in list_fields else [raw_cell]
-            values = [value for value in values if _exact_key(value) is not None] or [None]
+            values = [value for value in values if exact_metadata_key(value) is not None] or [None]
             seen_keys: set[str | None] = set()
             for value in values:
-                key = _exact_key(value)
+                key = exact_metadata_key(value)
                 if key in seen_keys:
                     continue
                 seen_keys.add(key)
@@ -487,7 +458,7 @@ def _build_vocabulary(
                         "components": set(),
                     },
                 )
-                entry["raw_variants"][_stable_json(value)] += 1
+                entry["raw_variants"][stable_json(value)] += 1
                 entry["rows"] += 1
                 entry["components"].add(component)
 
@@ -518,11 +489,11 @@ def _build_vocabulary(
                 "source_field": field,
                 "exact_key": key,
                 "configured_source_value_json": (
-                    _stable_json(configured[(field, key)])
+                    stable_json(configured[(field, key)])
                     if key is not None and (field, key) in configured
                     else None
                 ),
-                "raw_variants_json": _stable_json(
+                "raw_variants_json": stable_json(
                     [
                         {"raw_value_json": raw, "rows": count}
                         for raw, count in sorted(
@@ -531,7 +502,7 @@ def _build_vocabulary(
                     ]
                 ),
                 "mapping_status": status,
-                "canonical_values_json": _stable_json(sorted(canonical)),
+                "canonical_values_json": stable_json(sorted(canonical)),
                 "mapping_note": (
                     maps["growth_notes"].get(key)
                     if field == "growth_temp"
@@ -695,7 +666,7 @@ def build_facet_audit_sample(
     sample_specs["intended_use:missing"] = (int(intended["missing_target"]), 0, ())
 
     for row_index, row in eligible.iterrows():
-        copy_key = _exact_key(row["plasmid_copy"])
+        copy_key = exact_metadata_key(row["plasmid_copy"])
         if copy_key is None or copy_key in maps["copy_missing"]:
             record = _candidate(
                 row_index,
@@ -736,7 +707,7 @@ def build_facet_audit_sample(
             )
         _keep_component_candidate(candidates, record)
 
-        growth_key = _exact_key(row["growth_temp"])
+        growth_key = exact_metadata_key(row["growth_temp"])
         if growth_key is None or growth_key in maps["growth_missing"]:
             growth_record = _candidate(
                 row_index,
@@ -800,7 +771,7 @@ def build_facet_audit_sample(
             raise ValueError(f"unclassified growth_temp value: {growth_key!r}")
         _keep_component_candidate(candidates, growth_record)
 
-        resistance_key = _exact_key(row["bacterial_resistance"])
+        resistance_key = exact_metadata_key(row["bacterial_resistance"])
         if resistance_key is None or resistance_key in maps["resistance_missing"]:
             resistance_record = _candidate(
                 row_index,
@@ -869,7 +840,8 @@ def build_facet_audit_sample(
         raw_vector_values = [
             value
             for value in as_list(row["vector_types"])
-            if _exact_key(value) is not None and _exact_key(value) not in maps["intended_missing"]
+            if exact_metadata_key(value) is not None
+            and exact_metadata_key(value) not in maps["intended_missing"]
         ]
         if not raw_vector_values:
             _keep_component_candidate(
@@ -901,7 +873,7 @@ def build_facet_audit_sample(
         excluded_values: list[str] = []
         exclusion_reasons: dict[str, str] = {}
         for value in raw_vector_values:
-            key = _exact_key(value)
+            key = exact_metadata_key(value)
             if key in maps["expression"]:
                 expression_values.append(str(value))
                 expression_canonical.update(maps["expression"][key])
@@ -971,7 +943,7 @@ def build_facet_audit_sample(
                     canonical_values=(),
                     mapping_status="proposed_exclude",
                     proposed_evidence_state="unknown",
-                    exclusion_reason=_stable_json(exclusion_reasons),
+                    exclusion_reason=stable_json(exclusion_reasons),
                 ),
             )
 
@@ -1005,8 +977,8 @@ def build_facet_audit_sample(
                 "addgene_id": int(source["addgene_id"]),
                 "url": str(source["url"]),
                 "split_grouped": str(source["split_grouped"]),
-                "generated_description": _jsonable(source["description"]),
-                "source_description": _jsonable(source["source_description"]),
+                "generated_description": to_jsonable(source["description"]),
+                "source_description": to_jsonable(source["source_description"]),
                 "second_review_sample": int(record["selection_hash"][:16], 16) % modulus == 0,
                 "canonical_value_count": len(canonical_values),
             }

@@ -6,14 +6,13 @@ and they do not convert missing metadata into negative evidence.
 
 from __future__ import annotations
 
-import json
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
+from vec2vec.lib.serialization import stable_json
 from vec2vec.lib.text import normalize_values
 
 
@@ -33,21 +32,6 @@ def _validate_retrieval_identity(frame: pd.DataFrame) -> None:
         raise ValueError("retrieval dataset contains missing sequence_id values")
     if frame["sequence_id"].duplicated().any():
         raise ValueError("retrieval dataset contains duplicate sequence_id values")
-
-
-def _jsonable_cell(value: Any) -> Any:
-    """Convert one metadata cell into a stable JSON-compatible value."""
-    if value is None:
-        return None
-    if isinstance(value, np.ndarray):
-        return [_jsonable_cell(item) for item in value.tolist()]
-    if isinstance(value, list | tuple):
-        return [_jsonable_cell(item) for item in value]
-    if pd.isna(value):
-        return None
-    if isinstance(value, np.generic):
-        return value.item()
-    return value
 
 
 def profile_constraint_fields(
@@ -107,9 +91,7 @@ def profile_constraint_fields(
             normalized = normalize_values(raw)
             if normalized:
                 known_by_split[split] += 1
-            raw_cell_json = json.dumps(
-                _jsonable_cell(raw), ensure_ascii=False, sort_keys=True, separators=(",", ":")
-            )
+            raw_cell_json = stable_json(raw)
             for value in normalized:
                 row_support[value] += 1
                 component_support[value].add(component)
@@ -123,15 +105,13 @@ def profile_constraint_fields(
                 "normalized_value": value,
                 "row_support": row_support[value],
                 "component_support": len(component_support[value]),
-                "raw_variants_json": json.dumps(
+                "raw_variants_json": stable_json(
                     [
                         {"raw_cell_json": raw_json, "rows": count}
                         for raw_json, count in sorted(
                             raw_variants[value].items(), key=lambda item: (-item[1], item[0])
                         )
                     ],
-                    ensure_ascii=False,
-                    separators=(",", ":"),
                 ),
             }
             for split in expected_splits:

@@ -1,4 +1,5 @@
-# Small agent-assisted review pilot. This job does not create accepted labels.
+# Historical v3 pilot configuration. Its outputs remain catalog-readable, but the superseded
+# one-axis pipeline is not registered. This block preserves the resolved research configuration.
 agent_judge_pilot:
   judge_version: e00-agent-judge-pilot-gpt56-luna-v0.1
   input_audit_version: e00-facet-audit-v0.1

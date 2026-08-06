@@ -35,6 +35,14 @@ def clean_text(value: Any) -> str | None:
     return text or None
 
 
+def exact_metadata_key(value: Any) -> str | None:
+    """Normalize case and whitespace but preserve punctuation and units."""
+    text = clean_text(value)
+    if text is None:
+        return None
+    return " ".join(unicodedata.normalize("NFKC", text).casefold().split())
+
+
 def normalize_phrase(value: Any) -> str:
     """Normalize one metadata phrase for conservative literal matching.
 

@@ -7,18 +7,16 @@ leave every other value unlabeled.
 
 from __future__ import annotations
 
-import hashlib
 import json
-import unicodedata
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
-from vec2vec.lib.text import as_list, clean_text
+from vec2vec.lib.serialization import stable_json, to_jsonable
+from vec2vec.lib.text import as_list, exact_metadata_key, sha256_text
 
 _SOURCE_FIELDS = ("plasmid_copy", "growth_temp", "bacterial_resistance", "vector_types")
 _REQUIRED_RETRIEVAL_COLUMNS = {
@@ -61,37 +59,6 @@ class ExactMapping:
     relation: str
     section: str
     mapping_note: str | None
-
-
-def _jsonable(value: Any) -> Any:
-    if value is None:
-        return None
-    if isinstance(value, np.ndarray):
-        return [_jsonable(item) for item in value.tolist()]
-    if isinstance(value, Mapping):
-        return {str(key): _jsonable(item) for key, item in value.items()}
-    if isinstance(value, list | tuple):
-        return [_jsonable(item) for item in value]
-    if isinstance(value, np.generic):
-        return value.item()
-    if pd.isna(value):
-        return None
-    return value
-
-
-def _stable_json(value: Any) -> str:
-    return json.dumps(_jsonable(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def _sha256(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def _exact_key(value: Any) -> str | None:
-    text = clean_text(value)
-    if text is None:
-        return None
-    return " ".join(unicodedata.normalize("NFKC", text).casefold().split())
 
 
 def _validate_inputs(
@@ -214,7 +181,7 @@ def _mapping_contract(
                     specification,
                     label=f"{rule_name}.{section}.{raw_value}",
                 )
-                key = _exact_key(raw_value)
+                key = exact_metadata_key(raw_value)
                 if key is None or (source_field, key) in mappings:
                     raise ValueError(
                         f"duplicate or empty exact mapping for {source_field}: {raw_value!r}"
@@ -231,7 +198,7 @@ def _mapping_contract(
                 )
                 mappings[(source_field, key)] = mapping
                 contract_records.append(mapping.__dict__)
-    return mappings, _sha256(_stable_json(contract_records))
+    return mappings, sha256_text(stable_json(contract_records))
 
 
 def _source_values(row: Any, field: str) -> list[Any]:
@@ -264,19 +231,19 @@ def _build_applications(
                 continue
             for raw_value in values:
                 field_counts[field]["source_units"] += 1
-                key = _exact_key(raw_value)
+                key = exact_metadata_key(raw_value)
                 if key is None:
                     field_counts[field]["null_units"] += 1
                     continue
                 mapping = mappings.get((field, key))
                 if mapping is None:
                     field_counts[field]["unlabeled_units"] += 1
-                    unlabeled[field][_stable_json(raw_value)] += 1
+                    unlabeled[field][stable_json(raw_value)] += 1
                     continue
 
                 field_counts[field]["mapped_units"] += 1
-                source_value_json = _stable_json(raw_value)
-                application_id = _sha256(
+                source_value_json = stable_json(raw_value)
+                application_id = sha256_text(
                     f"{evidence_version}|{row.sequence_id}|{field}|{source_value_json}|"
                     f"{mapping.rule_id}|{mapping.facet}"
                 )
@@ -289,7 +256,7 @@ def _build_applications(
                         "sequence_sha256": str(row.sequence_sha256),
                         "addgene_id": int(row.addgene_id),
                         "url": str(row.url),
-                        "source_description": _jsonable(row.source_description),
+                        "source_description": to_jsonable(row.source_description),
                         "leakage_component": str(row.leakage_component),
                         "split_grouped": str(row.split_grouped),
                         "rule_id": mapping.rule_id,
@@ -297,10 +264,10 @@ def _build_applications(
                         "relation": mapping.relation,
                         "source_field": field,
                         "source_value_json": source_value_json,
-                        "canonical_values_json": _stable_json(sorted(mapping.canonical_values)),
+                        "canonical_values_json": stable_json(sorted(mapping.canonical_values)),
                         "mapping_section": mapping.section,
                         "mapping_note": mapping.mapping_note,
-                        "selection_hash": _sha256(
+                        "selection_hash": sha256_text(
                             f"{sampling_key}|{mapping.facet}|{row.leakage_component}|"
                             f"{application_id}"
                         ),
@@ -320,7 +287,7 @@ def _build_applications(
         )
         ordered_unlabeled = sorted(unlabeled[field].items(), key=lambda item: (-item[1], item[0]))
         counts["unlabeled_distinct_values"] = len(ordered_unlabeled)
-        counts["unlabeled_values_sha256"] = _sha256(_stable_json(ordered_unlabeled))
+        counts["unlabeled_values_sha256"] = sha256_text(stable_json(ordered_unlabeled))
         counts["top_unlabeled_values"] = [
             {"source_value_json": value, "count": count} for value, count in ordered_unlabeled[:20]
         ]
@@ -356,7 +323,9 @@ def _training_claims(applications: pd.DataFrame, training_split: str) -> pd.Data
             row.update(
                 {
                     "canonical_value": str(canonical_value),
-                    "evidence_id": _sha256(f"{record['mapping_application_id']}|{canonical_value}"),
+                    "evidence_id": sha256_text(
+                        f"{record['mapping_application_id']}|{canonical_value}"
+                    ),
                     "label_source": "deterministic_exact_rule",
                     "training_label_created": True,
                     "benchmark_label_created": False,
@@ -431,11 +400,11 @@ def _attach_plannotate(sample: pd.DataFrame, plannotate: pd.DataFrame) -> pd.Dat
     for record in evidence.to_dict("records"):
         sequence_id = str(record.pop("sequence_id"))
         record.pop("source", None)
-        by_sequence.setdefault(sequence_id, []).append(_jsonable(record))
+        by_sequence.setdefault(sequence_id, []).append(to_jsonable(record))
 
     result = sample.copy()
     records = result["sequence_id"].map(lambda value: by_sequence.get(str(value), []))
-    result["plannotate_features_json"] = records.map(_stable_json)
+    result["plannotate_features_json"] = records.map(stable_json)
     result["plannotate_feature_count"] = records.map(len)
     result["plannotate_evidence_state"] = result["plannotate_feature_count"].map(
         lambda count: "present" if count else "missing"
@@ -446,7 +415,9 @@ def _attach_plannotate(sample: pd.DataFrame, plannotate: pd.DataFrame) -> pd.Dat
 def _population_hash(retrieval: pd.DataFrame) -> str:
     columns = ["sequence_id", "sequence_sha256", "leakage_component", "split_grouped"]
     records = retrieval[columns].astype(str).sort_values("sequence_id", kind="stable")
-    return _sha256("\n".join("|".join(row) for row in records.itertuples(index=False, name=None)))
+    return sha256_text(
+        "\n".join("|".join(row) for row in records.itertuples(index=False, name=None))
+    )
 
 
 def build_constraint_evidence(

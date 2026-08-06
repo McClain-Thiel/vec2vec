@@ -23,9 +23,6 @@ def register_pipelines() -> dict[str, Pipeline]:
     already in the lake. Run the rest by name:
 
     - ``descriptions`` calls a paid API once per plasmid.
-    - ``agent_judge_pilot`` calls a paid API once per review packet.
-    - ``agent_judge_smoke`` calls it for a fixed six-packet subset.
-    - ``agent_judge_validator`` calls an independent paid model on the fixed pilot packets.
     - ``agent_judge_targeted_packets`` prepares the v0.2 check without a paid call.
     - ``agent_judge_targeted`` calls a paid strong model on those inspected packets.
     - ``agent_judge_targeted_smoke`` calls it once to check the new response contract.
@@ -33,17 +30,16 @@ def register_pipelines() -> dict[str, Pipeline]:
     - ``constraint_benchmark_smoke`` calls the strong model once per facet.
     - ``constraint_benchmark_judge`` calls it on the fixed 240-application sample.
     - ``import_descriptions`` adopts already-published descriptions instead.
+
+    Historical v3 pilot, validator, and comparison outputs remain catalog-readable, but their
+    superseded one-axis pipelines are not registered.
     """
     pipelines = {
         "processing": processing.create_pipeline(),
         "descriptions": descriptions.create_pipeline(),
-        "agent_judge_pilot": agent_judge.create_pipeline(),
-        "agent_judge_smoke": agent_judge.create_smoke_pipeline(),
-        "agent_judge_validator": agent_judge.create_validator_pipeline(),
         "agent_judge_targeted_packets": agent_judge.create_targeted_packet_pipeline(),
         "agent_judge_targeted": agent_judge.create_targeted_pipeline(),
         "agent_judge_targeted_smoke": agent_judge.create_targeted_smoke_pipeline(),
-        "agent_judge_comparison": agent_judge.create_comparison_pipeline(),
         "constraint_benchmark_packets": (agent_judge.create_constraint_benchmark_packet_pipeline()),
         "constraint_benchmark_smoke": agent_judge.create_constraint_benchmark_smoke_pipeline(),
         "constraint_benchmark_judge": agent_judge.create_constraint_benchmark_pipeline(),

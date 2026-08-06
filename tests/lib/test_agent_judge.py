@@ -98,37 +98,11 @@ def test_response_schema_binds_packet_identity():
     assert schema["properties"]["evidence_packet_sha256"]["const"] == _hash(2)
 
 
-def test_packets_are_deterministic_and_exclude_generated_descriptions():
-    sample = sample_frame()
-    first = agent_judge.build_pilot_packets(sample, pilot_params())
-    second = agent_judge.build_pilot_packets(sample.sample(frac=1, random_state=8), pilot_params())
-
-    pd.testing.assert_frame_equal(first, second)
-    assert len(first) == 6
-    assert first["audit_row_id"].is_unique
-    assert first["evidence_packet_sha256"].str.fullmatch(r"[0-9a-f]{64}").all()
-    assert not first["evidence_packet_json"].str.contains("model-generated").any()
-    assert not first["messages_json"].str.contains("model-generated").any()
-    assert not first["accepted_label_created"].any()
-    agent_judge.validate_pilot_packets(first, pilot_params())
-
-    changed = first.copy()
-    changed.loc[0, "evidence_packet_json"] = "{}"
-    with pytest.raises(ValueError, match="evidence packet hash"):
-        agent_judge.validate_pilot_packets(changed, pilot_params())
-
-
-def test_packets_reject_test_rows_and_unmet_sampling_counts():
-    sample = sample_frame()
-    sample.loc[0, "split_grouped"] = "test"
-    with pytest.raises(ValueError, match="test rows"):
-        agent_judge.build_pilot_packets(sample, pilot_params())
-
-    params = pilot_params()
-    params["max_rows"] = 8
-    params["stratum_counts"]["copy_class:missing"] = 4
-    with pytest.raises(ValueError, match="pilot requires 4"):
-        agent_judge.build_pilot_packets(sample_frame(), params)
+def test_constraint_benchmark_prompt_hash_matches_the_recorded_contract():
+    assert (
+        agent_judge.constraint_benchmark_prompt_hash()
+        == "491cd43a849cb74d624f0c00c4ab1b6b740d6d3107f1f43c7108f728140019c4"
+    )
 
 
 def test_targeted_packets_select_exact_values_and_control_strata():
@@ -154,7 +128,14 @@ def test_targeted_packets_select_exact_values_and_control_strata():
     assert packets["selection_group"].tolist() == ["exact_value", "exact_value", "control"]
     exact_values = packets.loc[packets["selection_group"].eq("exact_value"), "evidence_packet_json"]
     assert all(json.loads(value)["source_value_json"] == '"value 1"' for value in exact_values)
+    assert not packets["evidence_packet_json"].str.contains("model-generated").any()
+    assert not packets["messages_json"].str.contains("model-generated").any()
     agent_judge.validate_pilot_packets(packets, params)
+
+    changed = packets.copy()
+    changed.loc[0, "evidence_packet_json"] = "{}"
+    with pytest.raises(ValueError, match="evidence packet hash"):
+        agent_judge.validate_pilot_packets(changed, params)
 
 
 def test_targeted_packets_reject_overlapping_selectors():
@@ -169,10 +150,14 @@ def test_targeted_packets_reject_overlapping_selectors():
     with pytest.raises(ValueError, match="duplicate audit rows"):
         agent_judge.build_targeted_packets(sample_frame(), params)
 
-    params = pilot_params()
+    params = {
+        **pilot_params(),
+        "max_rows": 1,
+        "selectors": [{"name": "control", "stratum": "copy_class:missing", "count": 1}],
+    }
     params["input_audit_version"] = "different-audit"
     with pytest.raises(ValueError, match="does not match input_audit_version"):
-        agent_judge.build_pilot_packets(sample_frame(), params)
+        agent_judge.build_targeted_packets(sample_frame(), params)
 
 
 def test_parse_decision_binds_the_response_to_the_packet():
