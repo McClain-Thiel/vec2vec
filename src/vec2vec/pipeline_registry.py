@@ -7,6 +7,7 @@ from kedro.pipeline import Pipeline
 from vec2vec.pipelines import (
     agent_judge,
     audit,
+    constraint_evidence,
     constraint_semantics,
     dataset,
     descriptions,
@@ -44,6 +45,7 @@ def register_pipelines() -> dict[str, Pipeline]:
         "dataset": dataset.create_pipeline(),
         "audit": audit.create_pipeline(),
         "constraint_semantics": constraint_semantics.create_pipeline(),
+        "constraint_evidence": constraint_evidence.create_pipeline(),
         "facet_audit_sample": facet_audit.create_pipeline(),
         "facet_audit_review_export": facet_audit.create_review_export_pipeline(),
     }

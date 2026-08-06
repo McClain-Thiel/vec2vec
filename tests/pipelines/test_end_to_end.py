@@ -223,3 +223,38 @@ def test_facet_audit_sample_is_label_free_and_excludes_test_rows(lake):
     )
     assert manifest["accepted_labels_created"] is False
     assert manifest["test_metadata_used_for_sampling"] is False
+
+
+def test_constraint_evidence_builds_train_labels_and_validation_sample(lake):
+    catalog = run("processing")
+    seed_descriptions(catalog, catalog.load("addgene_records@metadata")["sequence_id"].tolist())
+    catalog = run("dataset")
+
+    # The five-row split fixture intentionally rounds to training only. Rewrite
+    # this temporary artifact with one validation and one test component so this
+    # test exercises both the benchmark path and the catalog-level test filter.
+    retrieval_path = next((lake / "04_feature" / "retrieval_dataset.parquet").glob("*/*.parquet"))
+    retrieval = pd.read_parquet(retrieval_path)
+    sequence_components = {
+        value: index for index, value in enumerate(retrieval["sequence_sha256"].drop_duplicates())
+    }
+    retrieval["leakage_component"] = retrieval["sequence_sha256"].map(sequence_components)
+    retrieval["split_grouped"] = "train"
+    retrieval.loc[retrieval["leakage_component"].eq(0), "split_grouped"] = "val"
+    retrieval.loc[retrieval["leakage_component"].eq(1), "split_grouped"] = "test"
+    retrieval.to_parquet(retrieval_path, index=False)
+
+    evidence_params = dict(catalog.load("params:constraint_evidence"))
+    evidence_params["benchmark"] = {"target_applications": 10, "minimum_per_facet": 0}
+    catalog = run("constraint_evidence", constraint_evidence=evidence_params)
+
+    training = catalog.load("e00_training_constraint_evidence")
+    benchmark = catalog.load("e00_constraint_benchmark_sample")
+    manifest = catalog.load("e00_constraint_evidence_manifest")
+    assert set(training["split_grouped"]) == {"train"}
+    assert set(benchmark["split_grouped"]) == {"val"}
+    assert training["training_label_created"].all()
+    assert not benchmark["benchmark_label_created"].any()
+    assert manifest["test_rows_loaded"] == 0
+    assert manifest["annotation_source"] == "plannotate"
+    assert manifest["plasmidkit_fallback_used"] is False

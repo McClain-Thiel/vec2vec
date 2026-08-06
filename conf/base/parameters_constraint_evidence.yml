@@ -1,0 +1,23 @@
+# Minimum viable training-label and accuracy-benchmark protocol.
+#
+# The facet-audit configuration owns the exact mappings. This block states which
+# mapping sections are enabled for noisy training labels. Values outside these
+# sections remain unlabeled.
+constraint_evidence:
+  evidence_version: e00-constraint-evidence-v0.1
+  benchmark_sample_version: e00-constraint-benchmark-sample-v0.1
+  input_retrieval_version: 2026-08-04T09.02.10.007Z
+  training_split: train
+  benchmark_split: val
+  sampling_key: e00-constraint-benchmark-sample-v0.1
+
+  enabled_sections:
+    copy_class: [included]
+    # The unresolved 23 -> room_temperature reviewed mapping is not enabled.
+    growth_temperature: [included]
+    bacterial_selection: [included, reviewed_mappings]
+    intended_use: [expression_included, use_included]
+
+  benchmark:
+    target_applications: 240
+    minimum_per_facet: 30

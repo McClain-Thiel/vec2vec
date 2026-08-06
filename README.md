@@ -18,6 +18,7 @@ to trust both. Modelling is not part of this repository yet.
 | `audit` | Builds the structured-query curriculum and measures how many provable hard negatives it yields. | yes |
 | `constraint_semantics` | Profiles raw constraint values, grouped-split concentration, and the pLannotate-only annotation view for the E00 feasibility gate. | no |
 | `facet_audit_sample` | Draws the frozen, component-aware E00 metadata-review sample. It does not accept labels. | no |
+| `constraint_evidence` | Applies enabled exact rules to training metadata and draws a compact validation benchmark. It does not read test rows or call a model. | no |
 | `descriptions` | Generates descriptions through OpenRouter, merges the partitions, and quality-checks them. | **no — paid** |
 | `import_descriptions` | Adopts the already-published descriptions instead of regenerating them. | no |
 
@@ -27,6 +28,7 @@ kedro run --pipeline processing
 kedro run --pipeline descriptions  # costs money; see below
 kedro run --pipelines constraint_semantics
 kedro run --pipelines facet_audit_sample
+kedro run --pipelines constraint_evidence
 kedro viz                          # requires the `viz` extra
 ```
 
@@ -70,6 +72,7 @@ the published dataset rather than regenerated:
 | `addgene_annotation_features` | 141,089 sequences | 6 MB |
 | `plasmid_descriptions` | 158,331 imported, 115,120 matched | 15 MB |
 | `retrieval_dataset` | 115,120 pairs | 93 MB |
+| E00 training constraint evidence | 375,819 rule-derived claims | 29 MB |
 
 - **Splits:** 92,097 / 11,515 / 11,508 over 14,157 leakage components, with
   **zero** components straddling a grouped split.
@@ -84,6 +87,9 @@ the published dataset rather than regenerated:
 The 115,120 figure independently matches both the upstream project's cleaned
 index and the `rows` field in its phase-2 cache manifest, which is the check
 that the port reproduces the original.
+
+The E00 constraints are noisy training labels, not benchmark truth. A separate 240-application
+validation sample exists but has no benchmark decisions yet.
 
 ## Setup
 

@@ -218,6 +218,28 @@ retrieval_dataset@facet_audit:
       - bacterial_resistance
       - vector_types
 
+# Train and validation metadata for deterministic constraint evidence. The
+# catalog filter prevents this pipeline from loading test metadata.
+retrieval_dataset@constraint_evidence:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    filters:
+      - [split_grouped, in, [train, val]]
+    columns:
+      - sequence_id
+      - sequence_sha256
+      - addgene_id
+      - url
+      - source_description
+      - leakage_component
+      - split_grouped
+      - plasmid_copy
+      - growth_temp
+      - bacterial_resistance
+      - vector_types
+
 # ---------------------------------------------------------- 08_reporting
 
 addgene_processing_report:
@@ -299,6 +321,23 @@ e00_facet_audit_decision_template:
   versioned: true
   save_args:
     index: false
+
+# Rule-derived training labels and their compact validation benchmark. These
+# outputs contain no model decision and do not use test rows.
+e00_training_constraint_evidence:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e00/training_constraint_evidence.parquet
+  versioned: true
+
+e00_constraint_benchmark_sample:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_sample.parquet
+  versioned: true
+
+e00_constraint_evidence_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/constraint_evidence_manifest.json
+  versioned: true
 
 # Agent-assisted review artifacts. Valid decisions remain proposals until a
 # scientist reviews them; raw invalid responses and request errors are retained.
