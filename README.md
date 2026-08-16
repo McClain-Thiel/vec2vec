@@ -19,6 +19,12 @@ to trust both. Modelling is not part of this repository yet.
 | `constraint_semantics` | Profiles raw constraint values, grouped-split concentration, and the pLannotate-only annotation view for the E00 feasibility gate. | no |
 | `facet_audit_sample` | Draws the frozen, component-aware E00 metadata-review sample. It does not accept labels. | no |
 | `constraint_evidence` | Applies enabled exact rules to training metadata and draws a compact validation benchmark. It does not read test rows or call a model. | no |
+| `constraint_state` | Applies the frozen rule contract to all splits and writes the stable constraint vocabulary plus sparse verified/contradicted states. | no |
+| `split_audit` | Searches every cross-split pair for near-duplicate sequences and reports split concentration. Found the current `split_grouped` fails its near-duplicate rule. | no |
+| `similarity_graph_calibration` | Measures the compute and storage cost of a global similarity search before committing to a full run. | no |
+| `similarity_graph` | Builds the global 99%/95% whole-plasmid similarity graph the leak-free split needs. Long-running; checkpointed. | no |
+| `similarity_split` | Builds `split_grouped_v2` from the accepted similarity graph so no near-duplicate crosses a split. | no |
+| `query_benchmark` | Freezes the symbolic query catalog, candidate galleries, and measurement controls once the graph and v2 split are accepted. | no |
 | `descriptions` | Generates descriptions through OpenRouter, merges the partitions, and quality-checks them. | **no — paid** |
 | `import_descriptions` | Adopts the already-published descriptions instead of regenerating them. | no |
 
@@ -29,6 +35,12 @@ kedro run --pipeline descriptions  # costs money; see below
 kedro run --pipelines constraint_semantics
 kedro run --pipelines facet_audit_sample
 kedro run --pipelines constraint_evidence
+kedro run --pipelines constraint_state
+kedro run --pipelines split_audit
+kedro run --pipelines similarity_graph_calibration
+kedro run --pipelines similarity_graph      # long-running; see the study experiment spec first
+kedro run --pipelines similarity_split
+kedro run --pipelines query_benchmark
 kedro viz                          # requires the `viz` extra
 ```
 
@@ -73,9 +85,15 @@ the published dataset rather than regenerated:
 | `plasmid_descriptions` | 158,331 imported, 115,120 matched | 15 MB |
 | `retrieval_dataset` | 115,120 pairs | 93 MB |
 | E00 training constraint evidence | 375,819 rule-derived claims | 29 MB |
+| E00 plasmid-constraint state | 684,987 unique verified/contradicted states | versioned |
 
 - **Splits:** 92,097 / 11,515 / 11,508 over 14,157 leakage components, with
-  **zero** components straddling a grouped split.
+  **zero** components straddling a grouped split by declared family or exact
+  sequence. A global near-duplicate audit (`split_audit`) found 7,624
+  cross-split alignments at ≥99% identity, so this split fails a stricter
+  similarity rule and must not be used for model evaluation — see
+  [`10_split_audit_v01.md`](studies/set_valued_compositional_embeddings/reports/10_split_audit_v01.md).
+  A leak-free `split_grouped_v2` is in progress; see the study README.
 - **Constraints:** the median description surfaces 6 functional constraint
   groups; 216 of 115,120 rows surface none.
 - **Descriptions:** 393 chars mean, ~3 sentences, 22 duplicate groups, and 6
@@ -91,6 +109,10 @@ that the port reproduces the original.
 The E00 constraints are noisy training labels, not biological ground truth. A 30-application hand
 check and a fixed 240-application strong-model benchmark found no unsupported or out-of-scope
 mapping. The model-reference pass interval was 98.42%–100% for the fixed sample.
+
+The frozen state contract contains 35 constraints and 684,987 unique plasmid-constraint states.
+Only copy class and the 30/37 degree propagation-temperature pair have reviewed contradiction
+rules. Other absent states remain unknown.
 
 ## Setup
 

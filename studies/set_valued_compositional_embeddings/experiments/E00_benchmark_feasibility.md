@@ -2,7 +2,9 @@
 
 ## Status
 
-Active. The profiling pipeline and facet audit v0.2 have run. The current deterministic review
+Active. The profiling pipeline and facet audit v0.2 have run. The global split audit has also run,
+and the current grouped split failed with a lower bound of 7,624 strict cross-split near-duplicate
+edges. A complete similarity-closure v2 split is now required. The current deterministic review
 sample is output version `2026-08-05T11.42.05.452Z`. Growth-temperature and bacterial-selection
 rules are now version 0.2. A two-axis model-assisted protocol separates semantic support from
 benchmark scope, and its 16 deterministic packets are frozen at output version
@@ -124,6 +126,10 @@ Before freezing the benchmark:
 - design a revised split or grouped resampling scheme if conclusions are unstable.
 
 Do not inspect model outcomes while selecting the benchmark split.
+
+The fixed thresholds, search procedure, failure rules, and split decision rule are recorded in
+[E00: Split Similarity and Concentration Audit](E00_split_similarity_audit.md). That protocol was
+written before the complete cross-split search result was inspected.
 
 ### 5. Freeze queries and galleries
 

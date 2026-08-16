@@ -240,6 +240,51 @@ retrieval_dataset@constraint_evidence:
       - bacterial_resistance
       - vector_types
 
+# Full-population view for applying the already-frozen rule contract. Test
+# metadata can receive a state, but it did not select mappings or conflict rules.
+retrieval_dataset@constraint_state:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence_sha256
+      - leakage_component
+      - split_grouped
+      - plasmid_copy
+      - growth_temp
+      - bacterial_resistance
+      - vector_types
+
+# Population identities for the frozen query benchmark. Constraint states and
+# v2 split membership are loaded from their separately versioned products.
+retrieval_dataset@query_benchmark:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence_sha256
+      - family_key
+
+# Full-sequence view for the explicit, local-compute E00 split audit. This is
+# not part of the default pipeline because the global BLAST search is costly.
+retrieval_dataset@split_audit:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence
+      - sequence_sha256
+      - family_key
+      - leakage_component
+      - split_grouped
+      - length_bp
+
 # ---------------------------------------------------------- 08_reporting
 
 addgene_processing_report:
@@ -293,6 +338,103 @@ e00_split_profile:
   filepath: ${globals:lake}/08_reporting/e00/split_profile.json
   versioned: true
 
+# Global cross-split candidates, concentration, and immutable decision evidence.
+e00_split_audit_edges:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/split_audit_edges.parquet
+  versioned: true
+
+e00_split_audit_component_profile:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/split_audit_component_profile.parquet
+  versioned: true
+
+e00_split_audit_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/split_audit_manifest.json
+  versioned: true
+
+# Pinned read view and explicit outputs for the local Ray calibration. These
+# datasets are not part of the default pipeline.
+e00_split_audit_edges@calibration:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/split_audit_edges.parquet
+  versioned: true
+
+e00_similarity_calibration_runs:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/similarity_calibration_runs.parquet
+  versioned: true
+
+e00_similarity_calibration_query_profile:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/similarity_calibration_query_profile.parquet
+  versioned: true
+
+e00_similarity_calibration_exact_edges:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/similarity_calibration_exact_edges.parquet
+  versioned: true
+
+e00_similarity_calibration_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/similarity_calibration_manifest.json
+  versioned: true
+
+# Complete adaptive all-versus-all graph products. The edge table stores only
+# measured qualifying edges, never a materialized transitive closure.
+e00_similarity_graph_edges:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/similarity_graph_edges.parquet
+  versioned: true
+
+e00_similarity_graph_nodes:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/similarity_graph_nodes.parquet
+  versioned: true
+
+e00_similarity_graph_components:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/similarity_graph_components.parquet
+  versioned: true
+
+e00_similarity_graph_query_profile:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/similarity_graph_query_profile.parquet
+  versioned: true
+
+e00_similarity_graph_runs:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/similarity_graph_runs.parquet
+  versioned: true
+
+e00_similarity_graph_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/similarity_graph_manifest.json
+  versioned: true
+
+# Separately named strict-similarity grouped split. This mapping does not
+# overwrite the retrieval dataset or its current split columns.
+e00_split_grouped_v2:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/e00/split_grouped_v2.parquet
+  versioned: true
+
+e00_split_grouped_v2_components:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/split_grouped_v2_components.parquet
+  versioned: true
+
+e00_split_grouped_v2_cross_edges:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/split_grouped_v2_cross_edges.parquet
+  versioned: true
+
+e00_split_grouped_v2_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/split_grouped_v2_manifest.json
+  versioned: true
+
 e00_plannotate_profile:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e00/plannotate_profile.json
@@ -337,6 +479,59 @@ e00_constraint_benchmark_sample:
 e00_constraint_evidence_manifest:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e00/constraint_evidence_manifest.json
+  versioned: true
+
+# Stable vocabulary and sparse verified/contradicted states used to construct
+# the frozen query benchmark. Unknown states are represented by absence.
+e00_constraint_vocabulary:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e00/constraint_vocabulary.parquet
+  versioned: true
+
+e00_plasmid_constraint_state:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e00/plasmid_constraint_state.parquet
+  versioned: true
+
+e00_constraint_state_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/constraint_state_manifest.json
+  versioned: true
+
+# Frozen symbolic queries, gallery membership, sparse labels, and base masses.
+e00_query_catalog:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e00/query_catalog.parquet
+  versioned: true
+
+e00_candidate_galleries:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e00/candidate_galleries.parquet
+  versioned: true
+
+e00_query_candidate_state:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e00/query_candidate_state.parquet
+  versioned: true
+
+e00_candidate_base_mass:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e00/candidate_base_mass.parquet
+  versioned: true
+
+e00_benchmark_control_rankings:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/benchmark_control_rankings.parquet
+  versioned: true
+
+e00_benchmark_control_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e00/benchmark_control_metrics.parquet
+  versioned: true
+
+e00_query_benchmark_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e00/query_benchmark_manifest.json
   versioned: true
 
 e00_constraint_benchmark_packets:

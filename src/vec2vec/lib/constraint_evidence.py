@@ -9,16 +9,20 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping
 from typing import Any
 
 import pandas as pd
 
+from vec2vec.lib.constraint_rules import (
+    SOURCE_FIELDS,
+    ExactMapping,
+    build_mapping_contract,
+    source_values,
+)
 from vec2vec.lib.serialization import stable_json, to_jsonable
-from vec2vec.lib.text import as_list, exact_metadata_key, sha256_text
+from vec2vec.lib.text import exact_metadata_key, sha256_text
 
-_SOURCE_FIELDS = ("plasmid_copy", "growth_temp", "bacterial_resistance", "vector_types")
 _REQUIRED_RETRIEVAL_COLUMNS = {
     "sequence_id",
     "sequence_sha256",
@@ -27,7 +31,7 @@ _REQUIRED_RETRIEVAL_COLUMNS = {
     "source_description",
     "leakage_component",
     "split_grouped",
-    *_SOURCE_FIELDS,
+    *SOURCE_FIELDS,
 }
 _REQUIRED_ANNOTATION_COLUMNS = {
     "sequence_id",
@@ -39,26 +43,6 @@ _REQUIRED_ANNOTATION_COLUMNS = {
     "strand",
     "confidence",
 }
-_ALLOWED_SECTIONS = {
-    "copy_class": {"included"},
-    "growth_temperature": {"included", "reviewed_mappings"},
-    "bacterial_selection": {"included", "reviewed_mappings"},
-    "intended_use": {"expression_included", "use_included"},
-}
-
-
-@dataclass(frozen=True)
-class ExactMapping:
-    """One configured whole-value mapping."""
-
-    source_field: str
-    raw_value: str
-    canonical_values: tuple[str, ...]
-    rule_id: str
-    facet: str
-    relation: str
-    section: str
-    mapping_note: str | None
 
 
 def _validate_inputs(
@@ -100,113 +84,6 @@ def _validate_inputs(
     return training_split, benchmark_split
 
 
-def _canonical_values(
-    specification: Sequence[str] | Mapping[str, Any],
-    *,
-    label: str,
-) -> tuple[tuple[str, ...], str | None]:
-    if isinstance(specification, Mapping):
-        if set(specification) != {"canonical_values", "interpretation"}:
-            raise ValueError(f"{label} must contain canonical_values and interpretation")
-        values = specification["canonical_values"]
-        note = str(specification["interpretation"]).strip()
-        if not note:
-            raise ValueError(f"{label} needs an interpretation")
-    else:
-        values = specification
-        note = None
-    canonical = tuple(str(value) for value in values)
-    if not canonical or len(canonical) != len(set(canonical)):
-        raise ValueError(f"{label} contains invalid canonical values")
-    return canonical, note
-
-
-def _mapping_contract(
-    facet_params: Mapping[str, Any], params: Mapping[str, Any]
-) -> tuple[dict[tuple[str, str], ExactMapping], str]:
-    enabled = params["enabled_sections"]
-    if set(enabled) != set(_ALLOWED_SECTIONS):
-        raise ValueError("enabled_sections must name all supported rule groups")
-    for rule_name, sections in enabled.items():
-        unknown = set(sections) - _ALLOWED_SECTIONS[rule_name]
-        if unknown:
-            raise ValueError(f"{rule_name} has unsupported enabled sections: {sorted(unknown)}")
-
-    descriptors = {
-        ("copy_class", "included"): (
-            "plasmid_copy",
-            facet_params["copy_class"]["facet"],
-            facet_params["copy_class"]["relation"],
-        ),
-        ("growth_temperature", "included"): (
-            "growth_temp",
-            facet_params["growth_temperature"]["facet"],
-            facet_params["growth_temperature"]["relation"],
-        ),
-        ("growth_temperature", "reviewed_mappings"): (
-            "growth_temp",
-            facet_params["growth_temperature"]["facet"],
-            facet_params["growth_temperature"]["relation"],
-        ),
-        ("bacterial_selection", "included"): (
-            "bacterial_resistance",
-            facet_params["bacterial_selection"]["facet"],
-            facet_params["bacterial_selection"]["relation"],
-        ),
-        ("bacterial_selection", "reviewed_mappings"): (
-            "bacterial_resistance",
-            facet_params["bacterial_selection"]["facet"],
-            facet_params["bacterial_selection"]["relation"],
-        ),
-        ("intended_use", "expression_included"): (
-            "vector_types",
-            facet_params["intended_use"]["expression_facet"],
-            facet_params["intended_use"]["expression_relation"],
-        ),
-        ("intended_use", "use_included"): (
-            "vector_types",
-            facet_params["intended_use"]["use_facet"],
-            facet_params["intended_use"]["use_relation"],
-        ),
-    }
-
-    mappings: dict[tuple[str, str], ExactMapping] = {}
-    contract_records: list[dict[str, Any]] = []
-    for rule_name in sorted(enabled):
-        rule = facet_params[rule_name]
-        for section in sorted(enabled[rule_name]):
-            source_field, facet, relation = descriptors[(rule_name, section)]
-            for raw_value, specification in sorted(rule[section].items()):
-                canonical, note = _canonical_values(
-                    specification,
-                    label=f"{rule_name}.{section}.{raw_value}",
-                )
-                key = exact_metadata_key(raw_value)
-                if key is None or (source_field, key) in mappings:
-                    raise ValueError(
-                        f"duplicate or empty exact mapping for {source_field}: {raw_value!r}"
-                    )
-                mapping = ExactMapping(
-                    source_field=source_field,
-                    raw_value=str(raw_value),
-                    canonical_values=canonical,
-                    rule_id=str(rule["rule_id"]),
-                    facet=str(facet),
-                    relation=str(relation),
-                    section=str(section),
-                    mapping_note=note,
-                )
-                mappings[(source_field, key)] = mapping
-                contract_records.append(mapping.__dict__)
-    return mappings, sha256_text(stable_json(contract_records))
-
-
-def _source_values(row: Any, field: str) -> list[Any]:
-    if field == "vector_types":
-        return as_list(getattr(row, field))
-    return [getattr(row, field)]
-
-
 def _build_applications(
     retrieval: pd.DataFrame,
     mappings: Mapping[tuple[str, str], ExactMapping],
@@ -216,16 +93,16 @@ def _build_applications(
     records: list[dict[str, Any]] = []
     field_counts = {
         field: {"source_units": 0, "mapped_units": 0, "unlabeled_units": 0, "null_units": 0}
-        for field in _SOURCE_FIELDS
+        for field in SOURCE_FIELDS
     }
-    unlabeled: dict[str, Counter[str]] = {field: Counter() for field in _SOURCE_FIELDS}
+    unlabeled: dict[str, Counter[str]] = {field: Counter() for field in SOURCE_FIELDS}
     evidence_version = str(params["evidence_version"])
     sampling_key = str(params["sampling_key"])
 
     ordered = retrieval.sort_values("sequence_id", kind="stable")
     for row in ordered.itertuples(index=False):
-        for field in _SOURCE_FIELDS:
-            values = _source_values(row, field)
+        for field in SOURCE_FIELDS:
+            values = source_values(row, field)
             if not values:
                 field_counts[field]["null_units"] += 1
                 continue
@@ -428,7 +305,7 @@ def build_constraint_evidence(
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     """Build all enabled training claims and a deterministic validation sample."""
     training_split, benchmark_split = _validate_inputs(retrieval, plannotate, params)
-    mappings, contract_hash = _mapping_contract(facet_params, params)
+    mappings, contract_hash = build_mapping_contract(facet_params, params["enabled_sections"])
     applications, field_counts = _build_applications(retrieval, mappings, params, contract_hash)
     training = _training_claims(applications, training_split)
     benchmark, allocation = _benchmark_sample(applications, benchmark_split, params)

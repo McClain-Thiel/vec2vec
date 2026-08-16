@@ -2,11 +2,13 @@
 
 ## Current answer
 
-The existing data supports an active benchmark feasibility study. Facet rule version 0.2 produces
-375,819 rule-derived training claims. A 30-application hand check and fixed 240-application strong
-model benchmark passed without an unsupported, uncertain, or out-of-scope mapping. These are still
-noisy training labels, not biological ground truth. The data does not yet support the full model
-study because frozen queries, the leakage-sensitive split audit, and measurement controls have not
+The existing data supports an active benchmark feasibility study. The frozen evidence contract now
+contains 35 stable constraints and 684,987 unique verified or contradicted plasmid-constraint
+states. A 30-application hand check and fixed 240-application strong-model benchmark previously
+passed without an unsupported, uncertain, or out-of-scope positive mapping. These are still narrow
+Addgene metadata states, not biological ground truth. The data does not yet support the full model
+study because the current grouped split failed the global near-duplicate audit. The lower-bound
+search found 7,624 strict cross-split edges. Frozen queries and measurement controls also have not
 passed Gate 0.
 
 The repository has 115,120 paired plasmids, declared-family-disjoint splits, structured metadata,
@@ -16,11 +18,14 @@ these two problems before model scores can support a scientific conclusion.
 
 **Status:** active feasibility study.
 
-**Next decision:** build the frozen query catalog and candidate galleries from the accepted training
-rule contract. Then complete the split, oracle, prevalence, and random-control checks before model
-experiments.
+**Next decision:** complete and independently validate the global similarity graph. The separately
+named `split_grouped_v2` and `query_benchmark` pipelines are now preregistered and tested. The
+guarded finalizer will run them only against pinned accepted graph, split, and constraint-state
+versions. It will then independently read back the frozen queries, candidate galleries, sparse
+labels, base measures, and oracle, contradiction, prevalence, and random controls before any model
+experiment.
 
-**Current report:** [Constraint accuracy benchmark v0.1](reports/08_constraint_accuracy_benchmark.md).
+**Current report:** [Split similarity and concentration audit v0.1](reports/10_split_audit_v01.md).
 The study has no interpretation notebook yet because model evaluation has not started. See the
 [experiment log](EXPERIMENT_LOG.md) for the chronological record.
 
@@ -83,9 +88,10 @@ Observed properties:
 | Median sequence length | 6,943 bp |
 | Maximum sequence length | 98,922 bp |
 
-The split guarantee covers `family_key` and exact sequence hashes. It does not yet cover
-near-identical sequences with different family names. Call the split **declared-family-disjoint**
-until a cross-split sequence-similarity audit is complete.
+The split guarantee covers `family_key` and exact sequence hashes. The global lower-bound audit
+found 7,624 strict near-duplicate cross-split edges, so the current split fails the approximate
+similarity rule. Preserve it as **declared-family-disjoint but near-duplicate-contaminated**. Do not
+use it for model evaluation.
 
 ## Study gates
 
@@ -316,6 +322,8 @@ whole components and state how resampled components are weighted.
 | ID | Experiment | Gate | Status or outcome |
 | --- | --- | --- | --- |
 | E00 | Benchmark feasibility and oracles | 0 | Active |
+| [E00-S](experiments/E00_split_grouped_v2.md) | Strict similarity-closed grouped split v2 | 0 | Implemented; waiting for accepted graph |
+| [E00-Q](experiments/E00_query_benchmark_v0.1.md) | Frozen symbolic queries, galleries, and controls | 0 | Implemented; waiting for accepted graph and v2 split |
 | E00-J | Agent-assisted facet review pilot | 0 | Complete |
 | [E01](experiments/E01_training_constraint_evidence.md) | Rule-derived training constraint evidence | 0 | [Accepted for noisy supervision](reports/08_constraint_accuracy_benchmark.md) |
 | E02 | Paired identity control on controlled queries | 2 | Planned |

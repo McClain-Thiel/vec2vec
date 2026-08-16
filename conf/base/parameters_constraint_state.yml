@@ -1,0 +1,28 @@
+# Frozen rule-derived states for benchmark construction.
+#
+# The accepted positive mapping contract is reused unchanged. Contradictions
+# require an explicit reviewed conflict group. Values without either form of
+# evidence are unknown and are absent from the sparse state table.
+constraint_state:
+  state_version: e00-plasmid-constraint-state-v0.1
+  input_retrieval_version: 2026-08-04T09.02.10.007Z
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  expected_state_input_sha256: 65feac686141b7c9a22179324a9c84a87e28e14f2d044aa56f6b92f147c2d376
+  expected_rule_contract_sha256: aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2
+  allowed_splits: [train, val, test]
+  training_split: train
+
+  conflict_groups:
+    - name: addgene_copy_class_high_vs_low
+      conflict_rule_id: addgene_copy_class_conflict.v0_1
+      facet: addgene_copy_class
+      relation: reported_as
+      rule_id: addgene_copy_class.v0_1
+      values: [high, low]
+
+    - name: addgene_growth_temperature_30_vs_37
+      conflict_rule_id: addgene_growth_temperature_conflict.v0_1
+      facet: addgene_growth_temperature
+      relation: reported_for_propagation_at
+      rule_id: addgene_growth_temperature.v0_2
+      values: [30_c, 37_c]

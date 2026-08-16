@@ -47,6 +47,9 @@ dev = [
     "pytest-mock>=3.14",
     "ruff~=0.12.0",
 ]
+similarity-graph = [
+    "ray==2.55.1",
+]
 
 [tool.setuptools.dynamic.version]
 attr = "vec2vec.__version__"

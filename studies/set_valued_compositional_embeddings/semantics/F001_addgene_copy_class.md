@@ -2,7 +2,9 @@
 
 ## Status and identity
 
-- **Status:** Proposed. No labels exist.
+- **Status:** Exact positive mappings are accepted for noisy supervision. State protocol
+  `e00-plasmid-constraint-state-v0.1` also materializes the opposite recorded class as a narrow
+  metadata contradiction. This is not biological ground truth.
 - **Rule ID:** `addgene_copy_class.v0_1`
 - **Source field:** `plasmid_copy`
 - **Facet:** `addgene_copy_class`

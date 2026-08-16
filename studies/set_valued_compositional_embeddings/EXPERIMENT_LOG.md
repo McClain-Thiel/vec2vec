@@ -1243,3 +1243,259 @@ targeted check and the current constraint benchmark registered.
 `491cd43a849cb74d624f0c00c4ab1b6b740d6d3107f1f43c7108f728140019c4`. The accepted rule
 contract hash remains `aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2`.
 No data pipeline or paid request ran during this maintenance.
+
+## 2026-08-06 14:21:36 BST — Frozen plasmid-constraint state v0.1 built
+
+**Status:** complete data product within active E00. Gate 0 remains active.
+
+**Question:** Can the accepted exact positive mappings and the two reviewed conflict rules produce
+a stable sparse verified/contradicted state table without converting missing metadata into a
+negative label?
+
+**Input:** retrieval dataset version `2026-08-04T09.02.10.007Z`. Positive rule contract
+`aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2` was accepted before applying
+it to test metadata. Test data did not select mappings or conflict groups.
+
+**Implementation:** added a separate `constraint_state` pipeline. It writes a content-addressed
+constraint vocabulary, one unique row per materialized plasmid-constraint state, and a validation
+manifest. Unknown is represented by absence. Only high/low copy class and numeric 30/37 degree
+propagation temperature create contradictions. The completed E01 outputs were not changed.
+
+**Run:** output version `2026-08-06T13.19.13.181Z`; dirty worktree based on `c3b26ae`; runtime 68.4
+seconds. The build produced 35 constraints, 472,765 verified states, 212,222 contradicted states,
+and 684,987 total states. All 115,120 sequences have verified evidence; 115,089 have at least one
+contradicted state. No pair has both states. Four states preserve two exact case-variant evidence
+values rather than duplicating the state.
+
+**Checks:** 124 tests passed. Ruff lint and formatting passed. `git diff --check` passed. The saved
+S3 artifacts were loaded back and checked for row identity, support counts, conflicts, and evidence
+provenance.
+
+**Decision:** accept state protocol `e00-plasmid-constraint-state-v0.1` as the input to later query
+construction. Do not yet freeze queries. Run the global near-duplicate and split-concentration
+audit first. Positive-only facets remain ineligible for a primary atomic query that requires a
+nontrivial contradiction set.
+
+## 2026-08-06 14:25:50 BST — State build input identity enforced and rerun
+
+**Correction:** The successful output `2026-08-06T13.19.13.181Z` recorded the input population
+SHA-256 but did not reject a future mismatched population before construction. Preserve that output
+as provisional. Do not use it for later query work.
+
+**Change:** Added the expected retrieval population SHA-256
+`7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5` to configuration and made a
+mismatch a hard error. The local fixture overrides this value with its own measured identity.
+
+**Final run:** Pinned input version `2026-08-04T09.02.10.007Z`; output version
+`2026-08-06T13.24.44.354Z`; runtime 65.3 seconds. Counts and invariants match the provisional run:
+35 constraints, 684,987 states, and zero pair-state conflicts. Use this output version for later
+work.
+
+## 2026-08-06 14:28:44 BST — Constraint source content added to input identity
+
+**Correction:** Population identity covers sequence IDs, sequence hashes, components, and splits.
+It does not detect a changed constraint source value when those identities remain fixed. Preserve
+output `2026-08-06T13.24.44.354Z` as a second provisional artifact. Do not use it for query work.
+
+**Change:** Added a second deterministic SHA-256 over row identity plus `plasmid_copy`,
+`growth_temp`, `bacterial_resistance`, and `vector_types`. The production identity is
+`65feac686141b7c9a22179324a9c84a87e28e14f2d044aa56f6b92f147c2d376`. A source-value change is now
+a hard error even when the population and split are unchanged.
+
+**Accepted run:** Pinned retrieval version `2026-08-04T09.02.10.007Z`; output version
+`2026-08-06T13.27.47.937Z`; runtime 56.0 seconds. Counts and invariants remain unchanged. Use this
+version for later work.
+
+## 2026-08-06 — E00 split audit technical stop
+
+The first complete `split_audit` attempt was stopped after approximately 90 minutes. BLAST had not
+completed `val_vs_train`, the first of three search pairs. The temporary result file remained
+empty. Kedro saved no audit output, and no sequence-similarity result was inspected. This was a
+technical runtime stop, not a valid poor result or a split decision.
+
+The dated execution amendment in
+[`E00_split_similarity_audit.md`](experiments/E00_split_similarity_audit.md) changes only BLAST
+thread scheduling and the explicit fail-on-saturation target cap. Scientific thresholds remain
+unchanged.
+
+The amended direct-BLAST benchmark was also stopped after more than three minutes without
+completing 100 queries against the full train database. Mash k=11, k=12, and k=21 prefilters were
+rejected for recorded warning or candidate-selectivity failures. The active execution uses
+minimap2 2.31 to search every query globally and reports a lower-bound edge table. This change was
+made before the full minimap2 result. Identity, coverage, length-ratio, circular-query, and split
+decision thresholds remain unchanged.
+
+## 2026-08-06 17:51:32 BST — E00 split audit completed; current split rejected
+
+**Status:** completed audit with a failed current-split decision. The edge table is a lower bound.
+
+**Input:** retrieval dataset `2026-08-04T09.02.10.007Z`, population SHA-256
+`7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5`.
+
+**Run:** minimap2 2.31-r1302, `asm20`, 10 threads, doubled circular queries, 10 secondary
+alignments, and a 0.5 minimum secondary score ratio. Kedro runtime was 2,926.3 seconds. Git commit
+was `c3b26ae` with a dirty worktree. No model outcome was inspected.
+
+**Output version:** `2026-08-06T16.02.42.779Z` for the edge table, component profile, and manifest.
+
+**Observed lower bounds:** 333,686 candidate edges, 7,624 primary edges, and 13,751 sensitivity
+edges, involving 4,310 plasmids and 1,459 current components. The primary edges alone form at
+least 357 augmented components that cross original splits; the largest has 12,483 rows. The test
+split's largest current component is already 29.23% of its rows (44.84% for the ten largest), with
+a row-weighted effective component count of only 11.12.
+
+**Decision:** reject the current grouped split for model evaluation. Preserve it and the audit as
+provenance. Do not build v2 directly from the lower-bound edge graph. Build complete global
+similarity closure, write a separately named v2 split, and re-audit it before query freezing.
+
+## 2026-08-10 10:39:48 BST — E00 similarity-graph calibration completed
+
+**Status:** completed successfully; proceed to a bounded adaptive full design.
+
+**Inputs:** retrieval dataset `2026-08-04T09.02.10.007Z`, split-audit edges
+`2026-08-06T16.02.42.779Z`, population SHA-256
+`7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5`.
+
+**Run:** local Ray 2.55.1, two workers, four minimap2 threads per worker, deterministic
+1,024-query sample, approximate caps 10/100/1,000, a 64-query adaptive cap-10,000 tail, and a
+32-query exact benchmark at caps 10 and 1,000. Runtime 287.9 seconds. Git commit `c3b26ae`, dirty
+worktree. Accepted output: `2026-08-10T09.34.59.159Z`.
+
+**Observed:** candidate cap 1,000 saturated 67 of 1,024 queries; the adaptive cap-10,000 tail
+saturated none of 64. Exact cap 1,000 saturated 1 of 32 stress-balanced queries; sensitivity edges
+rose from 50 at cap 10 to 522 at cap 1,000 with no cap-10 edge lost.
+
+**Derived:** candidate cap 1,000 projects to 2.29 CPU-hours / 2.40 GB raw PAF for the full
+population; exact cap 1,000 projects to 33.51 CPU-hours / 1.73 GB. Both stay well under the
+preregistered 500 CPU-hour / 250 GB ceiling.
+
+**Decision:** freeze an adaptive full protocol — candidate cap 1,000 to route dense queries, exact
+cap 1,000 for ordinary queries, exact cap 10,000 for flagged queries, fail on any final high-cap
+saturation. Do not assign a v2 split until the full graph and components pass validation. (One
+misrouted CIGAR assertion was caught and fixed by the synthetic gate before this run; no other
+technical failures.)
+
+## 2026-08-10 17:58:58 BST — E00 first full similarity-graph run failed
+
+**Status:** technical failure; no graph output saved.
+
+**Run:** `kedro run --pipeline similarity_graph` against pinned retrieval `2026-08-04T09.02.10.007Z`
+and calibration `2026-08-10T09.34.59.159Z`; local Ray 2.55.1, two workers, four minimap2
+threads/worker. Started 10:51:30 BST, failed 17:58:58 BST: candidate caps 1,000 and 10,000 and
+ordinary exact cap 1,000 all completed; in exact cap 10,000, shard 1 hit the fixed 1,800-second
+task limit.
+
+**Decision:** keep all data, caps, thresholds, and acceptance rules fixed. Shrink adaptive shards
+from 128 to 32 queries, run eight one-thread workers instead of two four-thread workers, and add
+hash-validated per-shard checkpoints so a future failure loses at most one shard. Full amendment:
+[`E00_global_similarity_graph.md`](experiments/E00_global_similarity_graph.md).
+
+## 2026-08-10 21:34:40 BST — E00 checkpointed retry interrupted
+
+**Status:** technical failure; no graph output saved.
+
+**Observed:** the checkpointed retry finished all 900 candidate cap-1,000 shards, all 152
+candidate cap-10,000 shards, and 170 of 862 ordinary exact cap-1,000 shards, then the Ray driver
+called its own `ray.shutdown()` at 21:34:40 BST with zero failed tasks recorded. The Kedro
+terminal session was lost, so the trigger is unknown; 95 GiB was free on the data volume.
+
+**Decision:** resume unchanged as a detached job, so a lost terminal session cannot end the driver
+again. Reuse only checkpoints that pass identity, file-hash, and row-count validation. Amendment:
+[`E00_global_similarity_graph.md`](experiments/E00_global_similarity_graph.md).
+
+## 2026-08-12 — E00 checkpoint backup and unfinished exact-shard amendment
+
+**Observed:** the detached resume failed after 30.6 minutes when exact cap-1,000 shard 141 hit the
+1,800-second limit, after adding 51 more completed shards. All 1,273 retained checkpoints (900
+candidate cap-1,000, 152 candidate cap-10,000, 221 exact cap-1,000) passed independent identity,
+hash, and row-count validation — 148,252 query-profile rows and 263,573 parsed edge rows, no
+failure.
+
+**Backup:** validated checkpoints, partial output, logs, code, and configuration archived to a new
+encrypted S3 prefix; local byte counts and MD5 values matched every uploaded object. Full manifest:
+[`E00_global_similarity_graph.md`](experiments/E00_global_similarity_graph.md).
+
+**Decision:** preserve completed 128-query exact checkpoints. Split only unfinished exact shards
+into parts of at most 32 queries. No scientific parameter changes.
+
+## 2026-08-13 — E00 dense exact failure and isolated-query retry decision
+
+**Status:** technical failure; no graph output saved.
+
+**Observed:** the shard-32 run (started 13:43:19 BST on 2026-08-12) completed exact cap 1,000 for
+all 110,276 ordinary queries and 46 of 152 dense cap-10,000 parent shards (1,472 of 4,844 routed
+queries) before shard 34 hit the 1,800-second limit at 17:16:42 BST. All 3,882 checkpoints later
+passed hash and row-count validation.
+
+**Backup correction:** the 2026-08-12 backup has the target FASTA but no completed target-index
+object — treat it as evidence, not a standalone restore. A fresh, self-contained backup (target
+index, checkpoints, code, and Git provenance; manifest in
+[`E00_global_similarity_graph.md`](experiments/E00_global_similarity_graph.md)) completed before
+this retry.
+
+**Decision:** preserve every completed checkpoint. Split only unfinished dense cap-10,000 shards
+into one-query units. No scientific parameter changes.
+
+## 2026-08-13 — E00 free-disk stop and guarded-resume decision
+
+**Status:** technical stop; no graph output saved.
+
+**Observed:** the isolated-query retry (started 16:59:11 BST) added 930 one-query checkpoints on
+top of the 46 completed dense parent shards, covering 2,402 of 4,844 routed dense queries with no
+search, parser, or checksum failure. Unrelated Docker workloads on the same host dropped free disk
+below the fixed 40-GB floor to roughly 24.6 GB, so the process was stopped under the preregistered
+safety rule (`SIGTERM`, since `SIGINT` did not stop the Ray wait); only 8 unfinished one-query
+tasks were lost. Checkpoints synced to S3 by 20:28:04 UTC.
+
+**Decision:** add a driver-side disk check while Ray tasks are pending, cancelling unfinished tasks
+if free space crosses the 40-GB floor, and require 60 GB free for ten consecutive minutes before
+starting the next retry. All other scientific and execution limits unchanged. Full amendment:
+[`E00_global_similarity_graph.md`](experiments/E00_global_similarity_graph.md).
+
+## 2026-08-13 — E00 similarity-closed split v2 protocol and implementation fixed
+
+**Status:** implemented and tested; not run because no accepted final graph artifact exists.
+
+**Decision before graph result:** use stable primary 99% similarity components as indivisible v2
+leakage components. Preserve the old split. Assign whole components with the original 80/10/10
+targets and seed 42. Report 95% sensitivity-only crossings separately rather than adding them to
+the primary split rule after seeing results.
+
+**Implementation evidence:** the `similarity_split` Kedro pipeline writes a versioned mapping,
+component profile, cross-split sensitivity table, and manifest. Its second node independently
+rejoins the pinned graph and retrieval population and fails on identifier mismatch, join expansion,
+group crossing, or strict edge crossing. Independent S3 read-back validators are prepared for both
+the graph and the v2 split. The full local suite passes with 157 tests; Ruff lint, format, Git
+diff, and Kedro registry checks also pass.
+
+**Protocol:** [`E00_split_grouped_v2.md`](experiments/E00_split_grouped_v2.md).
+
+## 2026-08-13 — E00 frozen query benchmark protocol and finalizer implemented
+
+**Status:** implemented and tested; not run because the graph and v2 split are not complete.
+
+**Decision before graph and v2 results:** freeze version 0.1 as canonical symbolic atomic and
+two-facet conjunction queries, selected only from v2 training evidence. Keep positive-only atoms
+but mark their contradiction control unavailable. Use fixed row and v2 component support floors
+for both query construction and the separate Gate 0 data-support decision. No paraphrases, triples,
+generated descriptions, or source-conditioned queries in this version.
+
+**Implementation evidence:** the `query_benchmark` pipeline requires pinned retrieval,
+constraint-state, graph, and split artifact versions, and writes a query catalog, four candidate
+gallery views, sparse verified/contradicted query-candidate states, four normalized base measures,
+control top ranks, metrics, and a manifest. An independent validator recomputes answer sets from
+the frozen source states and checks hashes, gallery counts, base-mass normalization, and
+verified-first/contradiction-first behavior. Five query tests and three finalizer tests pass. The
+post-graph finalizer now chains graph read-back, v2 construction and read-back, and query benchmark
+construction and read-back as one failure-visible run.
+
+The detached retry supervisor now rearms only on the exact wall-limit or disk-floor technical
+message, keeps a separate log per attempt, syncs checkpoints before each retry, reapplies the
+60-GB/ten-minute start gate, and stops after four retries. It replaces the earlier one-shot
+watcher without disturbing the active graph or checkpoint mirror. Two classification tests pass.
+
+**Backup:** encrypted S3 object `code-and-records-gate0-ready.tar.zst` (326 source, test,
+configuration, script, and study paths; 693,072 bytes) — read back and hash-verified at SHA-256
+`17f5518b60e32f0b4d7411e9ac1c74b926426d9a9bdfad8926ea2ecfe96a1ddf`.
+
+**Protocol:** [`E00_query_benchmark_v0.1.md`](experiments/E00_query_benchmark_v0.1.md).

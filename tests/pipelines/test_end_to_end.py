@@ -18,6 +18,11 @@ from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
 from kedro.io import DataCatalog
 
+from vec2vec.lib.constraint_state import (
+    retrieval_population_sha256,
+    retrieval_state_input_sha256,
+)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -261,4 +266,32 @@ def test_constraint_evidence_builds_train_labels_and_validation_sample(lake):
     assert (
         manifest["rule_contract_sha256"]
         == "aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2"
+    )
+
+
+def test_constraint_state_builds_vocabulary_and_sparse_states(lake):
+    catalog = run("processing")
+    seed_descriptions(catalog, catalog.load("addgene_records@metadata")["sequence_id"].tolist())
+    catalog = run("dataset")
+
+    state_params = dict(catalog.load("params:constraint_state"))
+    retrieval = catalog.load("retrieval_dataset@constraint_state")
+    state_params["expected_input_population_sha256"] = retrieval_population_sha256(retrieval)
+    state_params["expected_state_input_sha256"] = retrieval_state_input_sha256(retrieval)
+    catalog = run("constraint_state", constraint_state=state_params)
+    vocabulary = catalog.load("e00_constraint_vocabulary")
+    states = catalog.load("e00_plasmid_constraint_state")
+    manifest = catalog.load("e00_constraint_state_manifest")
+
+    high = vocabulary.loc[
+        vocabulary["facet"].eq("addgene_copy_class") & vocabulary["canonical_value"].eq("high")
+    ].iloc[0]
+    assert high["train_row_support"] == 5
+    assert high["has_reviewed_conflict_rule"]
+    assert states["state_id"].is_unique
+    assert set(states["state"]) == {"verified", "contradicted"}
+    assert not states.groupby(["sequence_id", "constraint_id"])["state"].nunique().gt(1).any()
+    assert manifest["unknown_policy"] == "absence_from_sparse_table"
+    assert manifest["rule_contract_sha256"] == (
+        "aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2"
     )

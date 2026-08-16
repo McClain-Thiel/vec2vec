@@ -2,7 +2,9 @@
 
 ## Status and identity
 
-- **Status:** Proposed. No labels exist.
+- **Status:** Enabled exact mappings are accepted for noisy positive supervision. State protocol
+  `e00-plasmid-constraint-state-v0.1` creates verified states only; this facet has no contradicted
+  state rule.
 - **Rule ID:** `bacterial_selection_marker.v0_2`
 - **Source field:** `bacterial_resistance`
 - **Facet:** `bacterial_selection_marker`

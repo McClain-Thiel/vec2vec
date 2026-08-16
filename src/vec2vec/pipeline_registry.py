@@ -9,10 +9,16 @@ from vec2vec.pipelines import (
     audit,
     constraint_evidence,
     constraint_semantics,
+    constraint_state,
     dataset,
     descriptions,
     facet_audit,
     processing,
+    query_benchmark,
+    similarity_graph,
+    similarity_graph_calibration,
+    similarity_split,
+    split_audit,
 )
 
 
@@ -48,6 +54,12 @@ def register_pipelines() -> dict[str, Pipeline]:
         "audit": audit.create_pipeline(),
         "constraint_semantics": constraint_semantics.create_pipeline(),
         "constraint_evidence": constraint_evidence.create_pipeline(),
+        "constraint_state": constraint_state.create_pipeline(),
+        "query_benchmark": query_benchmark.create_pipeline(),
+        "split_audit": split_audit.create_pipeline(),
+        "similarity_graph_calibration": similarity_graph_calibration.create_pipeline(),
+        "similarity_graph": similarity_graph.create_pipeline(),
+        "similarity_split": similarity_split.create_pipeline(),
         "facet_audit_sample": facet_audit.create_pipeline(),
         "facet_audit_review_export": facet_audit.create_review_export_pipeline(),
     }

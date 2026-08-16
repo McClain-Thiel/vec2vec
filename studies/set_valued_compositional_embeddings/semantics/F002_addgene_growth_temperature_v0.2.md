@@ -2,7 +2,9 @@
 
 ## Status and identity
 
-- **Status:** Proposed. No labels exist.
+- **Status:** Exact `30` and `37` positive mappings are accepted for noisy supervision. State
+  protocol `e00-plasmid-constraint-state-v0.1` materializes their narrow reported-temperature
+  conflict. Stored value `23` remains unlabeled in this protocol.
 - **Rule ID:** `addgene_growth_temperature.v0_2`
 - **Source field:** `growth_temp`
 - **Facet:** `addgene_growth_temperature`

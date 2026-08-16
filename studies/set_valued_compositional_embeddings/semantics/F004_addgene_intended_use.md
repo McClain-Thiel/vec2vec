@@ -2,7 +2,9 @@
 
 ## Status and identity
 
-- **Status:** Proposed. No labels exist.
+- **Status:** Enabled controlled mappings are accepted for noisy positive supervision. State
+  protocol `e00-plasmid-constraint-state-v0.1` creates verified states only; these facets have no
+  contradicted state rule.
 - **Rule ID:** `addgene_intended_use.v0_1`
 - **Source field:** `vector_types`
 - **Relation:** `addgene_tagged_for`
