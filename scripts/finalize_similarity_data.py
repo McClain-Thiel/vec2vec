@@ -10,6 +10,8 @@ from typing import Any
 
 import fsspec
 import pandas as pd
+from kedro.framework.session import KedroSession
+from kedro.framework.startup import bootstrap_project
 
 from vec2vec.lib.query_benchmark_validation import validate_query_benchmark_outputs
 from vec2vec.lib.similarity_graph_validation import validate_similarity_graph_outputs
@@ -62,6 +64,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--graph-version")
     args = parser.parse_args()
+    bootstrap_project(Path.cwd())
     filesystem = fsspec.filesystem("s3")
 
     graph_version = args.graph_version or _latest_common_version(filesystem, GRAPH_ARTIFACTS)
@@ -92,26 +95,15 @@ def main() -> None:
         graph_report,
     )
 
-    graph_load_versions = ",".join(
-        [
-            f"retrieval_dataset@split_audit:{RETRIEVAL_VERSION}",
-            f"e00_similarity_graph_nodes:{graph_version}",
-            f"e00_similarity_graph_edges:{graph_version}",
-            f"e00_similarity_graph_manifest:{graph_version}",
-        ]
-    )
-    subprocess.run(
-        [
-            "./.venv/bin/kedro",
-            "run",
-            "--pipeline",
-            "similarity_split",
-            "--load-versions",
-            graph_load_versions,
-            "--params",
-            f"similarity_split.input_graph_artifact_version={graph_version}",
-        ],
-        check=True,
+    _run_kedro_pipeline(
+        "similarity_split",
+        load_versions={
+            "retrieval_dataset@split_audit": RETRIEVAL_VERSION,
+            "e00_similarity_graph_nodes": graph_version,
+            "e00_similarity_graph_edges": graph_version,
+            "e00_similarity_graph_manifest": graph_version,
+        },
+        param_overrides={"similarity_split.input_graph_artifact_version": graph_version},
     )
 
     split_version = _latest_common_version(filesystem, SPLIT_ARTIFACTS)
@@ -140,36 +132,22 @@ def main() -> None:
         split_report,
     )
 
-    benchmark_load_versions = ",".join(
-        [
-            f"retrieval_dataset@query_benchmark:{RETRIEVAL_VERSION}",
-            f"e00_split_grouped_v2:{split_version}",
-            f"e00_similarity_graph_edges:{graph_version}",
-            f"e00_similarity_graph_manifest:{graph_version}",
-            f"e00_split_grouped_v2_manifest:{split_version}",
-            f"e00_constraint_vocabulary:{CONSTRAINT_STATE_VERSION}",
-            f"e00_plasmid_constraint_state:{CONSTRAINT_STATE_VERSION}",
-            f"e00_constraint_state_manifest:{CONSTRAINT_STATE_VERSION}",
-        ]
-    )
-    benchmark_params = ",".join(
-        [
-            f"query_benchmark.input_graph_artifact_version={graph_version}",
-            f"query_benchmark.input_split_artifact_version={split_version}",
-        ]
-    )
-    subprocess.run(
-        [
-            "./.venv/bin/kedro",
-            "run",
-            "--pipeline",
-            "query_benchmark",
-            "--load-versions",
-            benchmark_load_versions,
-            "--params",
-            benchmark_params,
-        ],
-        check=True,
+    _run_kedro_pipeline(
+        "query_benchmark",
+        load_versions={
+            "retrieval_dataset@query_benchmark": RETRIEVAL_VERSION,
+            "e00_split_grouped_v2": split_version,
+            "e00_similarity_graph_edges": graph_version,
+            "e00_similarity_graph_manifest": graph_version,
+            "e00_split_grouped_v2_manifest": split_version,
+            "e00_constraint_vocabulary": CONSTRAINT_STATE_VERSION,
+            "e00_plasmid_constraint_state": CONSTRAINT_STATE_VERSION,
+            "e00_constraint_state_manifest": CONSTRAINT_STATE_VERSION,
+        },
+        param_overrides={
+            "query_benchmark.input_graph_artifact_version": graph_version,
+            "query_benchmark.input_split_artifact_version": split_version,
+        },
     )
 
     benchmark_version = _latest_common_version(filesystem, BENCHMARK_ARTIFACTS)
@@ -220,6 +198,48 @@ def main() -> None:
             sort_keys=True,
         )
     )
+
+
+def _run_kedro_pipeline(
+    pipeline_name: str,
+    *,
+    load_versions: dict[str, str],
+    param_overrides: dict[str, Any],
+) -> None:
+    """Run a named pipeline with base params merged with explicit overrides.
+
+    Kedro replaces a whole top-level parameter block on a runtime override
+    rather than deep-merging into it (documented in the project README for
+    environment files; the same replacement applies to KedroSession
+    runtime_params). Read the full base block first and merge each override
+    into a complete dict so sibling keys are not silently dropped.
+    """
+    with KedroSession.create() as base_session:
+        base_params = base_session.load_context().params
+
+    runtime_params = merge_param_overrides(base_params, param_overrides)
+
+    with KedroSession.create(runtime_params=runtime_params) as session:
+        session.run(pipeline_name=pipeline_name, load_versions=load_versions)
+
+
+def merge_param_overrides(
+    base_params: dict[str, Any], param_overrides: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    """Group dotted overrides by top-level block and merge each onto its base block.
+
+    Kedro replaces a whole top-level parameter block on a runtime override
+    rather than deep-merging into it, so the returned block must already
+    contain every sibling key or Kedro silently drops them.
+    """
+    overrides_by_block: dict[str, dict[str, Any]] = {}
+    for dotted_key, value in param_overrides.items():
+        block, _, leaf = dotted_key.partition(".")
+        overrides_by_block.setdefault(block, {})[leaf] = value
+    return {
+        block: {**base_params[block], **leaf_overrides}
+        for block, leaf_overrides in overrides_by_block.items()
+    }
 
 
 def _latest_common_version(filesystem: Any, artifacts: dict[str, tuple[str, str]]) -> str:
