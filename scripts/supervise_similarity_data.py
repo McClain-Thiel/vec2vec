@@ -24,14 +24,23 @@ MAXIMUM_TECHNICAL_RETRIES = 4
 
 
 def classify_graph_log(text: str) -> str:
-    """Classify one completed graph log without weakening failure policy."""
-    if "Pipeline execution completed successfully" in text:
+    """Classify one completed graph log without weakening failure policy.
+
+    Kedro's Rich console renderer hard-wraps long log lines against a fixed
+    column width when output is redirected to a file. The wrap can fall
+    inside a matched phrase and also inserts an unrelated right-aligned
+    "module.py:line" gutter at the break, so whitespace collapsing alone is
+    not enough. Require the two halves of the success message as separate,
+    non-adjacent substrings instead of one contiguous phrase.
+    """
+    if "Pipeline execution completed" in text and "successfully" in text:
         return "success"
     technical_markers = (
         "global graph reached its fixed wall-time limit",
         "is below calibration minimum",
     )
-    if any(marker in text for marker in technical_markers):
+    collapsed = " ".join(text.split())
+    if any(marker in collapsed for marker in technical_markers):
         return "retryable_technical_stop"
     return "non_retryable_failure"
 

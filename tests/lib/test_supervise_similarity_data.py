@@ -22,6 +22,17 @@ def test_classifies_only_success_and_two_recorded_technical_stops():
     )
 
 
+def test_classifies_success_wrapped_across_lines_by_the_rich_renderer():
+    # Real Kedro console output, redirected to a file: Rich hard-wraps this
+    # exact phrase mid-word against its column width, splitting the message
+    # across two physical lines with a right-aligned "runner.py:119" gutter.
+    wrapped = (
+        "INFO     Pipeline execution completed          runner.py:119\n"
+        "                             successfully in 396.9 sec.\n"
+    )
+    assert supervise_similarity_data.classify_graph_log(wrapped) == "success"
+
+
 def test_does_not_retry_scientific_or_validation_failures():
     failures = (
         "candidate query saturated at adaptive cap",

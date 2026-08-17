@@ -157,7 +157,7 @@ def validate_similarity_graph_outputs(
     if failed_decisions:
         raise RuntimeError(f"persisted graph decision is not acceptable: {failed_decisions}")
     input_validation = manifest.get("input_validation", {})
-    if input_validation.get("population_sha256") != expected_population_sha256:
+    if input_validation.get("input_population_sha256") != expected_population_sha256:
         raise RuntimeError("graph manifest population hash differs from the pinned input")
     if manifest.get("input_retrieval_version") != expected_retrieval_version:
         raise RuntimeError("graph manifest retrieval version differs from the pinned input")

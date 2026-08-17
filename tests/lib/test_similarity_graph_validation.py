@@ -119,7 +119,7 @@ def _fixture():
     }
     manifest = {
         "input_retrieval_version": "retrieval-version",
-        "input_validation": {"population_sha256": "population"},
+        "input_validation": {"input_population_sha256": "population"},
         "decision": {
             "all_queries_have_final_exact_search": True,
             "no_final_query_saturated": True,
