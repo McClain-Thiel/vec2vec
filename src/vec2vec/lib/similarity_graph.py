@@ -7,6 +7,7 @@ import json
 from collections.abc import Iterable, Sequence
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from vec2vec.lib.split_audit import SimilarityRule
@@ -333,7 +334,10 @@ def _member_hash(members: Iterable[str]) -> str:
 def _json_scalar(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): _json_scalar(item) for key, item in sorted(value.items())}
-    if isinstance(value, list | tuple):
+    # Parquet list columns (e.g. captured per-shard tool log lines) deserialize
+    # to numpy.ndarray, not a Python list or tuple. Convert before the scalar
+    # pd.isna check below, which raises on an array instead of a scalar.
+    if isinstance(value, list | tuple | np.ndarray):
         return [_json_scalar(item) for item in value]
     if value is None:
         return None

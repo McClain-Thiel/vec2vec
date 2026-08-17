@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from vec2vec.lib.similarity_graph import (
@@ -85,6 +86,22 @@ def test_table_content_hash_is_stable_to_row_order_and_changes_with_content():
 
     assert first == second
     assert first != dataframe_content_sha256(changed, sort_columns=["id"])
+
+
+def test_table_content_hash_accepts_array_valued_columns():
+    # A Parquet list column (e.g. captured per-shard tool log lines in
+    # similarity_graph_runs) deserializes to numpy.ndarray, not a Python
+    # list or tuple.
+    frame = pd.DataFrame(
+        {
+            "id": ["a", "b"],
+            "tool_log": [np.array(["line one", "line two"]), np.array([])],
+        }
+    )
+
+    digest = dataframe_content_sha256(frame, sort_columns=["id"])
+
+    assert isinstance(digest, str) and digest
 
 
 def _directional_edge(
