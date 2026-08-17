@@ -1499,3 +1499,38 @@ configuration, script, and study paths; 693,072 bytes) — read back and hash-ve
 `17f5518b60e32f0b4d7411e9ac1c74b926426d9a9bdfad8926ea2ecfe96a1ddf`.
 
 **Protocol:** [`E00_query_benchmark_v0.1.md`](experiments/E00_query_benchmark_v0.1.md).
+
+## 2026-08-17 — E00 graph execution moved to a dedicated host; restored from backup
+
+**Status:** execution-only change; no scientific parameter changed.
+
+**Observed:** the prior four graph attempts (2026-08-10 through 2026-08-13) all ran on the
+10-core Mac research host and repeatedly hit its local disk floor. That host currently has 49 GB
+free at its root, which is why every retry kept crossing the 40 GB minimum.
+
+**Decision:** move execution to a dedicated 16-vCPU AWS EC2 host (`g6-big`, us-east-1), not
+previously used for this study. Cloned the repository fresh at `d38d838`, installed minimap2
+`2.31-r1302` (identical to the pinned protocol version) and `ray==2.55.1` via the project's
+`similarity-graph` extra, and confirmed 164 tests pass. The project checkout lives on the host's
+root EBS volume (74 GB free at setup), not its separate, unrelated, and nearly-full ephemeral NVMe
+volume that hosts other active research projects — no cleanup of that volume was needed or
+performed.
+
+**Restore:** downloaded `resume-state.tar.zst` from the 2026-08-13T15-45-08Z backup prefix,
+verified its SHA-256 against `backup-manifest.json`, and extracted it into
+`data/09_scratch/similarity_graph_calibration` per the manifest's own restore command. This
+recovered all 900 candidate cap-1,000, all 152 candidate cap-10,000, and 46 of 152 exact
+cap-10,000 shard checkpoints, plus the 858 MB target FASTA and 1.75 GB minimap2 index (both
+SHA-256-verified against the manifest). Then synced the newer
+`in-progress-checkpoints/exact-cap10000/` prefix on top, bringing dense exact coverage from 46 to
+1,093 checkpointed shard directories (2,402 of 4,844 routed dense queries, matching the last
+free-disk-stop entry). Root disk free space after restore: 65 GB.
+
+**Execution amendment:** raised `execution.ray_workers` from 8 to 12 in
+`conf/local/parameters_similarity_graph.yml` to use more of the new host's 16 vCPUs, leaving 4 for
+OS/Ray driver/S3 sync overhead. No cap, threshold, timeout, or acceptance rule changed. Updated
+`scripts/supervise_similarity_data.py` and `scripts/finalize_similarity_data.py` in place, per
+existing project convention, to point at a new session (`vec2vec-graph-autoresume-20260817`) and
+backup prefix (`2026-08-17T08-48-41Z`) rather than the exhausted 2026-08-13 one.
+
+**Next:** resume `kedro run --pipeline similarity_graph` under the retry supervisor on `g6-big`.

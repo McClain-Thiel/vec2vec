@@ -11,10 +11,10 @@ from pathlib import Path
 
 RETRIEVAL_VERSION = "2026-08-04T09.02.10.007Z"
 POPULATION_SHA256 = "7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5"
-GRAPH_SESSION = "vec2vec-graph-autoresume-20260813"
+GRAPH_SESSION = "vec2vec-graph-autoresume-20260817"
 BACKUP_PREFIX = (
     "s3://plasmidclip/research-backups/vec2vec/e00/global_similarity_graph_v0.1/"
-    "2026-08-13T15-45-08Z"
+    "2026-08-17T08-48-41Z"
 )
 REQUIRED_FREE_BYTES = 60_000_000_000
 STABLE_SAMPLES = 10
@@ -43,8 +43,8 @@ def main() -> None:
     args = parser.parse_args()
     workspace = args.workspace.resolve()
     log_root = workspace / "data/09_scratch/similarity_graph_calibration"
-    current_log = log_root / "global_similarity_graph_autoresume_20260813.log"
-    supervisor_log = log_root / "similarity_data_supervisor_20260813.log"
+    current_log = log_root / "global_similarity_graph_autoresume_20260817.log"
+    supervisor_log = log_root / "similarity_data_supervisor_20260817.log"
     checkpoint_root = (
         log_root
         / POPULATION_SHA256
@@ -60,14 +60,14 @@ def main() -> None:
         if not current_log.exists():
             raise RuntimeError(f"graph log is missing: {current_log}")
         classification = classify_graph_log(current_log.read_text(encoding="utf-8"))
-        archived_log = log_root / f"global_similarity_graph_attempt_{attempt:02d}_20260813.log"
+        archived_log = log_root / f"global_similarity_graph_attempt_{attempt:02d}_20260817.log"
         if not archived_log.exists():
             shutil.copy2(current_log, archived_log)
         _upload_log(archived_log, attempt)
         _record(supervisor_log, f"attempt={attempt} classification={classification}")
         if classification == "success":
             _record(supervisor_log, "starting full data finalizer")
-            with (log_root / "finalize_similarity_data_20260813.log").open(
+            with (log_root / "finalize_similarity_data_20260817.log").open(
                 "a", encoding="utf-8"
             ) as handle:
                 subprocess.run(

@@ -22,7 +22,7 @@ POPULATION_SHA256 = "7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e
 EXPECTED_ROWS = 115_120
 BACKUP_PREFIX = (
     "s3://plasmidclip/research-backups/vec2vec/e00/global_similarity_graph_v0.1/"
-    "2026-08-13T15-45-08Z/validation"
+    "2026-08-17T08-48-41Z/validation"
 )
 SCRATCH_ROOT = Path("data/09_scratch/similarity_graph_calibration")
 
