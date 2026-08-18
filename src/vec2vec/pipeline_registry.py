@@ -13,6 +13,7 @@ from vec2vec.pipelines import (
     dataset,
     descriptions,
     facet_audit,
+    fixed_representation_smoke,
     processing,
     query_benchmark,
     similarity_graph,
@@ -60,6 +61,7 @@ def register_pipelines() -> dict[str, Pipeline]:
         "similarity_graph_calibration": similarity_graph_calibration.create_pipeline(),
         "similarity_graph": similarity_graph.create_pipeline(),
         "similarity_split": similarity_split.create_pipeline(),
+        "fixed_representation_smoke": fixed_representation_smoke.create_pipeline(),
         "facet_audit_sample": facet_audit.create_pipeline(),
         "facet_audit_review_export": facet_audit.create_review_export_pipeline(),
     }

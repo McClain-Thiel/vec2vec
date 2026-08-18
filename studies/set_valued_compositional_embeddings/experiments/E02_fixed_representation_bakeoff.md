@@ -207,6 +207,35 @@ failed and stopped run.
 Full-population feature extraction for the selected pair is a separate post-selection action. It
 requires a new resolved cost estimate and approval. It cannot overwrite screening features.
 
+## 2026-08-18 numerical smoke execution amendment before results
+
+Run the 32-row numerical smoke panel for the four neural DNA candidates before any invariance or
+retrieval run. This execution does not run the 6-mer baseline or the text encoders because those
+representations do not have the DNA coverage and bfloat16 risks that this check measures.
+
+Build the 512-row invariance panel from `split_grouped_v2` training rows. Use ten length deciles,
+one row per primary similarity component, and deterministic SHA-256 ordering. Reserve the shortest
+and longest eligible row in each decile before filling the remaining component-balanced quota.
+Build the 32-row numerical panel from that frozen panel. Use four rows in each of the first two
+deciles and three rows in each remaining decile. Include the shortest and longest panel row in
+each decile.
+
+For a 6-mer tokenizer, wrap the final one to five input bases across the recorded circular origin
+to create a complete 6-mer. Record the number of wrapped input bases. This rule adds no unknown
+base, does not drop a source base, and keeps every model input aligned to the tokenizer unit.
+
+For each candidate, extract the same 32 original sequences once in bfloat16 and once in float32.
+Do not run rotation, reverse-complement, collapse, or retrieval checks in this smoke execution.
+Those checks still use the full 512-row invariance panel in the later run. Pass this smoke check
+only if every vector is finite, every source base has coverage 1.0, the tokenizer emits no
+out-of-vocabulary token, and every paired bfloat16-to-float32 cosine is at least 0.99.
+
+Use the existing project-dedicated EC2 `g6.4xlarge` host in `us-east-1`. AWS reported an on-demand
+Linux price of $1.3232 per instance-hour on 2026-08-18. Stop this smoke attempt after six instance
+hours, for a maximum observed instance charge of $7.94 before storage and data-transfer charges.
+The original 40 A100-equivalent GPU-hour experiment budget remains unchanged. Stop the instance
+after the run or after the six-hour limit, whichever happens first.
+
 ## Required outputs
 
 - a resolved protocol and candidate manifest;

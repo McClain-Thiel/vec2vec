@@ -50,6 +50,11 @@ dev = [
 similarity-graph = [
     "ray==2.55.1",
 ]
+modeling = [
+    "accelerate==1.14.0",
+    "torch==2.11.0",
+    "transformers==5.12.1",
+]
 
 [tool.setuptools.dynamic.version]
 attr = "vec2vec.__version__"

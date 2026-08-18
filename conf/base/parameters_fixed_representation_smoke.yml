@@ -1,0 +1,71 @@
+fixed_representation_smoke:
+  protocol_version: fixed_representation_bakeoff_v0.1
+  input_retrieval_version: 2026-08-04T09.02.10.007Z
+  input_split_version: 2026-08-17T23.49.47.355Z
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  invariance_rows: 512
+  numerical_smoke_rows: 32
+  length_strata: 10
+  selection_salt: fixed_representation_bakeoff_v0.1:invariance_panel
+  window_overlap_fraction: 0.25
+  minimum_bfloat16_float32_cosine: 0.99
+  seed: 20260818
+  device: cuda
+  instance_type: g6.4xlarge
+  instance_hour_limit: 6.0
+  observed_instance_price_usd_per_hour: 1.3232
+  candidates:
+    carbon_500m:
+      model_id: HuggingFaceBio/Carbon-500M
+      revision: 106e36ff51b5dfbfe0b078ad18ad37a6956c5714
+      model_class: causal_lm
+      trust_remote_code: true
+      model_max_tokens: 8192
+      tokenizer_unit_bp: 6
+      sequence_prefix: <dna>
+      sequence_suffix: </dna>
+      excluded_content_tokens: [<dna>, </dna>]
+      out_of_vocabulary_token: <oov>
+      pooling_layers: 4
+      attention_implementation: sdpa
+    carbon_3b:
+      model_id: HuggingFaceBio/Carbon-3B
+      revision: 95c3c68fc77fdf70b1582031bacf9d7753f72cf2
+      model_class: causal_lm
+      trust_remote_code: true
+      model_max_tokens: 32768
+      tokenizer_unit_bp: 6
+      sequence_prefix: <dna>
+      sequence_suffix: </dna>
+      excluded_content_tokens: [<dna>, </dna>]
+      out_of_vocabulary_token: <oov>
+      pooling_layers: 4
+      attention_implementation: sdpa
+    generanno_prokaryote_500m:
+      model_id: GenerTeam/GENERanno-prokaryote-0.5b-base
+      revision: d02db0f24f2c62fa1efde760217cdf75771b0228
+      model_class: masked_lm
+      trust_remote_code: true
+      model_max_tokens: 8192
+      tokenizer_unit_bp: 1
+      sequence_prefix: <s>
+      sequence_suffix: ""
+      excluded_content_tokens: [<s>]
+      out_of_vocabulary_token: N
+      pooling_layers: 1
+      attention_implementation: sdpa
+    generator_v2_prokaryote_1_2b:
+      model_id: GenerTeam/GENERator-v2-prokaryote-1.2b-base
+      revision: 8b2f768b0d293953518ff91d34600f9322ef1f94
+      model_class: causal_lm
+      trust_remote_code: true
+      model_max_tokens: 16384
+      tokenizer_unit_bp: 6
+      sequence_prefix: <s>
+      sequence_suffix: <s>
+      excluded_content_tokens: [<s>]
+      out_of_vocabulary_token: <oov>
+      pooling_layers: 1
+      attention_implementation: sdpa
+
+fixed_representation_smoke_candidate: carbon_500m

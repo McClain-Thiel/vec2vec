@@ -7,8 +7,8 @@ The PlasmidCLIP data pipeline, rebuilt on Kedro with an S3 data catalog.
 It turns the raw Addgene release into a paired
 **(plasmid DNA sequence, natural-language description)** dataset with
 leakage-aware splits, constraint-based relevance labels, and the audits needed
-to trust both. Gate 1 encoder selection is specified, but encoder features and
-model training are not implemented yet.
+to trust both. Gate 1 encoder selection and its numerical DNA smoke harness are
+implemented. Full encoder features and model training have not started.
 
 ## Pipelines
 
@@ -19,6 +19,7 @@ model training are not implemented yet.
 | `audit` | Builds the structured-query curriculum and measures how many provable hard negatives it yields. | yes |
 | `constraint_semantics` | Profiles raw constraint values, grouped-split concentration, and the pLannotate-only annotation view for the E00 feasibility gate. | no |
 | `facet_audit_sample` | Draws the frozen, component-aware E00 metadata-review sample. It does not accept labels. | no |
+| `fixed_representation_smoke` | Runs the paid Gate 1 bfloat16-versus-float32 DNA encoder smoke check on training rows only. | **no — paid** |
 | `constraint_evidence` | Applies enabled exact rules to training metadata and draws a compact validation benchmark. It does not read test rows or call a model. | no |
 | `constraint_state` | Applies the frozen rule contract to all splits and writes the stable constraint vocabulary plus sparse verified/contradicted states. | no |
 | `split_audit` | Searches every cross-split pair for near-duplicate sequences and reports split concentration. Found the current `split_grouped` fails its near-duplicate rule. | no |
@@ -42,6 +43,7 @@ kedro run --pipelines similarity_graph_calibration
 kedro run --pipelines similarity_graph      # long-running; see the study experiment spec first
 kedro run --pipelines similarity_split
 kedro run --pipelines query_benchmark
+python scripts/run_fixed_representation_smoke.py --candidate carbon_500m  # paid GPU run
 kedro viz                          # requires the `viz` extra
 ```
 
