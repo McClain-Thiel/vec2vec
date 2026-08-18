@@ -1669,3 +1669,37 @@ scientific checks.
 **Decision:** start Gate 1 with smoke-loading and cost measurement only after approval. Do not
 start Gate 2 or inspect test metrics until the selected encoder revisions, extraction rules, and
 feature hashes are frozen.
+
+## 2026-08-18 — Gate 1 DNA numerical smoke executed on AWS
+
+**Status:** three candidates passed. Carbon-3B had a technical memory failure. No encoder was
+selected. Validation outcomes and test rows remained unread.
+
+Built a deterministic 512-row training-only invariance panel with one row per primary similarity
+component and a nested 32-row numerical panel. The input population hash was
+`7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5`; the panel hash was
+`6dddbc33e0bb07ffcd3a2bebfcbf58f8c07573da976d0ef02e62c252e6e1593b`.
+
+Accepted S3 output versions:
+
+- Carbon-500M: `2026-08-18T15.02.18.875Z`, minimum BF16/FP32 cosine `0.99999355`;
+- GENERanno prokaryote 500M: `2026-08-18T15.15.56.524Z`, minimum cosine `0.99999595`;
+- GENERator-v2 prokaryote 1.2B: `2026-08-18T15.19.31.423Z`, minimum cosine `0.99999383`.
+
+Every accepted run had 32 finite diagnostic rows, complete source-base coverage, and zero
+out-of-vocabulary tokens. Independent S3 read-back recomputed the cosines and table hashes. All
+values and hashes matched the manifests. The accepted runs used commits `6a19a66` and `81768b9`.
+
+Carbon-3B exceeded the 22.03 GiB L4, then exceeded a task-specific 44.39 GiB L40S on the unchanged
+protocol. The second process used 43.38 GiB and requested 3.57 GiB more. Neither attempt wrote an
+accepted feature, coverage, diagnostic, or manifest artifact. This is a technical memory failure,
+not a retrieval result.
+
+The L4 host was stopped. The task-specific L40S host was terminated. The derived launch-to-stop
+compute estimate is $0.65 before storage and data transfer. See
+[`reports/14_gate1_numerical_smoke.md`](reports/14_gate1_numerical_smoke.md) for the complete run
+history, exact hashes, runtime versions, and limitations.
+
+**Decision:** continue the 512-row invariance checks with Carbon-500M, GENERanno prokaryote 500M,
+and GENERator-v2 prokaryote 1.2B. Keep Carbon-3B out of the L4 run. Do not select an encoder until
+the invariance and validation-only retrieval stages complete.

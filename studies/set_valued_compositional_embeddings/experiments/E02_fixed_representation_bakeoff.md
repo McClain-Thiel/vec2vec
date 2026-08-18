@@ -277,6 +277,15 @@ reported an on-demand Linux price of $1.861 per instance-hour on 2026-08-18. Sto
 two instance-hours, for a maximum observed instance charge of $3.72 before storage and data
 transfer. Stop and remove the task-specific host after the attempt.
 
+## Observed numerical smoke outcomes
+
+The 2026-08-18 smoke execution accepted Carbon-500M, GENERanno prokaryote 500M, and GENERator-v2
+prokaryote 1.2B. Carbon-3B exceeded both the 22.03 GiB L4 and 44.39 GiB L40S devices. Treat this as
+a technical memory failure. The run did not measure retrieval and did not select an encoder.
+
+See [the numerical smoke report](../reports/14_gate1_numerical_smoke.md) for exact S3 versions,
+hashes, runtime provenance, failed attempts, cost, and independent read-back results.
+
 ## Required outputs
 
 - a resolved protocol and candidate manifest;

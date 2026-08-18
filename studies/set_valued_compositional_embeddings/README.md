@@ -17,19 +17,22 @@ unique verified or contradicted plasmid-constraint states. A 30-application hand
 positive mapping. These remain narrow Addgene metadata states, not biological ground truth — the
 benchmark measures recorded-metadata consistency, not plasmid function.
 
-**Status:** Gate 0 complete. The study is ready to start the Gate 1 fixed-representation bake-off.
-Gate 2 training cannot start until the Gate 1 representation pair and feature hashes are frozen.
+**Status:** Gate 0 complete. Gate 1 is active. The DNA numerical smoke check accepted Carbon-500M,
+GENERanno prokaryote 500M, and GENERator-v2 prokaryote 1.2B for the full invariance check.
+Carbon-3B exceeded both 22.03 GiB and 44.39 GiB GPUs under the fixed protocol. Gate 2 training
+cannot start until the Gate 1 representation pair and feature hashes are frozen.
 
-**Next decision:** run the validation-only
-[E02 fixed-representation bake-off](experiments/E02_fixed_representation_bakeoff.md). Carbon-500M
-is the incumbent because it won the prior PlasmidCLIP target-retrieval comparison. Carbon-3B,
-GENERanno prokaryote 500M, and GENERator-v2 prokaryote 1.2B are the bounded DNA candidates. Keep
-the test split unread during selection.
+**Next decision:** run the 512-row invariance checks for the three candidates that passed the
+[E02 numerical smoke check](reports/14_gate1_numerical_smoke.md). Carbon-500M remains the incumbent
+because it won the prior PlasmidCLIP target-retrieval comparison. Keep the test split unread during
+selection.
 
 **Current reports:** [Gate 0 completion](reports/12_gate0_completion.md) records the accepted graph,
 v2 split, query benchmark, and remaining limitations. The
 [encoder prior and candidate review](reports/13_encoder_prior_and_candidates.md) records the
-PlasmidCLIP evidence, current primary-source search, exact candidate revisions, and exclusions.
+PlasmidCLIP evidence, current primary-source search, exact candidate revisions, and exclusions. The
+[Gate 1 numerical smoke report](reports/14_gate1_numerical_smoke.md) records the accepted S3
+artifacts, independent read-back, compute failures, and cost estimate.
 The study has no interpretation notebook because model evaluation has not started. See the
 [experiment log](EXPERIMENT_LOG.md) for the chronological record.
 
@@ -341,7 +344,7 @@ whole components and state how resampled components are weighted.
 | [E00-Q](experiments/E00_query_benchmark_v0.1.md) | Frozen symbolic queries, galleries, and controls | 0 | Complete; Gate 0 data-support flag passed both splits |
 | E00-J | Agent-assisted facet review pilot | 0 | Complete |
 | [E01](experiments/E01_training_constraint_evidence.md) | Rule-derived training constraint evidence | 0 | [Accepted for noisy supervision](reports/08_constraint_accuracy_benchmark.md) |
-| [E02](experiments/E02_fixed_representation_bakeoff.md) | Frozen DNA and text representation selection | 1 | Planned; protocol frozen |
+| [E02](experiments/E02_fixed_representation_bakeoff.md) | Frozen DNA and text representation selection | 1 | Active; 3 of 4 DNA candidates passed numerical smoke |
 | E03 | Paired identity control on controlled queries | 2 | Planned |
 | E04 | Verified-set supervision | 2 | Planned |
 | E05 | Atomic-only symbolic addition | 3 | Planned |
@@ -374,7 +377,8 @@ studies/set_valued_compositional_embeddings/
 │   └── README.md
 └── reports/
     ├── 12_gate0_completion.md
-    └── 13_encoder_prior_and_candidates.md
+    ├── 13_encoder_prior_and_candidates.md
+    └── 14_gate1_numerical_smoke.md
 ```
 
 Add one experiment specification per controlled comparison. Add one notebook per interpretation
