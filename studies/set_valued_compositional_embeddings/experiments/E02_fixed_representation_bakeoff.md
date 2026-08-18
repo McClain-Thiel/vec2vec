@@ -249,6 +249,19 @@ per instance-hour on 2026-08-18. Keep the six-hour limit, which reduces the maxi
 instance charge to $5.87 before storage and data-transfer charges. Stop on a memory failure. Do
 not reduce the model, precision, sequence length, or panel to make a failed candidate complete.
 
+## 2026-08-18 GENERanno runtime failure and dependency amendment before model results
+
+The first GENERanno load attempt used Transformers 5.12.1, the version that passed the prior
+Carbon run. The pinned GENERanno remote model code failed before it created the model because the
+Transformers 5 rope registry no longer contains the `default` key that the model requests. The
+run produced no feature, coverage, diagnostic, or manifest artifact.
+
+The official GENERanno and GENERator repositories both pin `transformers[torch]==4.49.0`. Run
+both GenerTeam candidates in a separate environment with Transformers 4.49.0. Keep Torch 2.11.0,
+CUDA 13.0, the model revisions, tokenization rules, precision, sequence panel, and all scientific
+thresholds unchanged. Keep Carbon candidates on the already tested Transformers 5.12.1 runtime.
+Record the resolved runtime in each candidate manifest.
+
 ## Required outputs
 
 - a resolved protocol and candidate manifest;

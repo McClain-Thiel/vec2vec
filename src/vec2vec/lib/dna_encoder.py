@@ -21,6 +21,7 @@ class EncoderRecipe(BaseModel):
 
     model_id: str
     revision: str
+    transformers_version: str
     model_class: Literal["causal_lm", "masked_lm"]
     trust_remote_code: bool
     model_max_tokens: int = Field(gt=0)
@@ -85,6 +86,11 @@ class FrozenDnaEncoder:
             return
         torch = importlib.import_module("torch")
         transformers = importlib.import_module("transformers")
+        if transformers.__version__ != self.recipe.transformers_version:
+            raise RuntimeError(
+                f"{self.recipe.model_id} requires Transformers "
+                f"{self.recipe.transformers_version}, but {transformers.__version__} is installed"
+            )
         dtype = getattr(torch, self.precision)
         tokenizer = transformers.AutoTokenizer.from_pretrained(
             self.recipe.model_id,
@@ -100,7 +106,7 @@ class FrozenDnaEncoder:
             self.recipe.model_id,
             revision=self.recipe.revision,
             trust_remote_code=self.recipe.trust_remote_code,
-            dtype=dtype,
+            torch_dtype=dtype,
             attn_implementation=self.recipe.attention_implementation,
         )
         model.eval()

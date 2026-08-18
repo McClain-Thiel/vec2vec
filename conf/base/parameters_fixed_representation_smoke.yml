@@ -18,6 +18,7 @@ fixed_representation_smoke:
     carbon_500m:
       model_id: HuggingFaceBio/Carbon-500M
       revision: 106e36ff51b5dfbfe0b078ad18ad37a6956c5714
+      transformers_version: 5.12.1
       model_class: causal_lm
       trust_remote_code: true
       model_max_tokens: 8192
@@ -31,6 +32,7 @@ fixed_representation_smoke:
     carbon_3b:
       model_id: HuggingFaceBio/Carbon-3B
       revision: 95c3c68fc77fdf70b1582031bacf9d7753f72cf2
+      transformers_version: 5.12.1
       model_class: causal_lm
       trust_remote_code: true
       model_max_tokens: 32768
@@ -44,6 +46,7 @@ fixed_representation_smoke:
     generanno_prokaryote_500m:
       model_id: GenerTeam/GENERanno-prokaryote-0.5b-base
       revision: d02db0f24f2c62fa1efde760217cdf75771b0228
+      transformers_version: 4.49.0
       model_class: masked_lm
       trust_remote_code: true
       model_max_tokens: 8192
@@ -57,6 +60,7 @@ fixed_representation_smoke:
     generator_v2_prokaryote_1_2b:
       model_id: GenerTeam/GENERator-v2-prokaryote-1.2b-base
       revision: 8b2f768b0d293953518ff91d34600f9322ef1f94
+      transformers_version: 4.49.0
       model_class: causal_lm
       trust_remote_code: true
       model_max_tokens: 16384

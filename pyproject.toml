@@ -55,6 +55,14 @@ modeling = [
     "torch==2.11.0",
     "transformers==5.12.1",
 ]
+modeling-gener = [
+    "accelerate==1.14.0",
+    "torch==2.11.0",
+    "transformers==4.49.0",
+]
+
+[tool.uv]
+conflicts = [[{ extra = "modeling" }, { extra = "modeling-gener" }]]
 
 [tool.setuptools.dynamic.version]
 attr = "vec2vec.__version__"
