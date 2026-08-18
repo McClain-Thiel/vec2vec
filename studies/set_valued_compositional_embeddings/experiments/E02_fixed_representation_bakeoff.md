@@ -262,6 +262,21 @@ CUDA 13.0, the model revisions, tokenization rules, precision, sequence panel, a
 thresholds unchanged. Keep Carbon candidates on the already tested Transformers 5.12.1 runtime.
 Record the resolved runtime in each candidate manifest.
 
+## 2026-08-18 Carbon-3B memory failure and 48 GB host amendment before retry results
+
+The first Carbon-3B attempt used the approved `g6.2xlarge` host and unchanged full-length
+deterministic scaled dot-product attention. It failed during model inference. The process used
+14.73 GiB of the 22.03 GiB L4 device and then requested 14.27 GiB more. The attempt produced no
+feature, coverage, diagnostic, or manifest artifact. Treat this as a technical memory failure,
+not as a model result.
+
+Retry Carbon-3B once on a task-specific `g6e.xlarge` host with one NVIDIA L40S and 45,776 MiB of
+device memory. Keep the model revision, code commit, sample manifest, tokenizer, sequence length,
+windowing, precision, attention implementation, deterministic settings, and seed unchanged. AWS
+reported an on-demand Linux price of $1.861 per instance-hour on 2026-08-18. Stop the retry after
+two instance-hours, for a maximum observed instance charge of $3.72 before storage and data
+transfer. Stop and remove the task-specific host after the attempt.
+
 ## Required outputs
 
 - a resolved protocol and candidate manifest;
