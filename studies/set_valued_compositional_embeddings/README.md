@@ -2,31 +2,33 @@
 
 ## Current answer
 
-The existing data supports an active benchmark feasibility study. The frozen evidence contract now
-contains 35 stable constraints and 684,987 unique verified or contradicted plasmid-constraint
-states. A 30-application hand check and fixed 240-application strong-model benchmark previously
-passed without an unsupported, uncertain, or out-of-scope positive mapping. These are still narrow
-Addgene metadata states, not biological ground truth. The data does not yet support the full model
-study because the current grouped split failed the global near-duplicate audit. The lower-bound
-search found 7,624 strict cross-split edges. Frozen queries and measurement controls also have not
-passed Gate 0.
+**Gate 0 is complete.** The global similarity graph is accepted (4,450,238 primary and 4,676,653
+sensitivity edges over all 115,120 plasmids), the leak-free `split_grouped_v2` is built and
+independently validated with **zero primary cross-split edges** (92,279 / 11,344 / 11,497
+train/val/test, and far less concentrated than the old split: test's largest component fell from
+29.23% of rows to 2.86%), and the frozen query benchmark v0.1 (131 semantic queries, 4 candidate
+galleries, 5,740,247 sparse verified/contradicted states) passed its own independent read-back
+validation, including the oracle and contradiction-first controls. The Gate 0 data-support flag
+passed for both the validation and test closed evaluations.
 
-The repository has 115,120 paired plasmids, declared-family-disjoint splits, structured metadata,
-and useful controlled-query code. However, the current metadata index is not a validated biological
-truth table. The current test split is also dominated by a few large declared families. We must fix
-these two problems before model scores can support a scientific conclusion.
+The frozen evidence contract underlying the benchmark contains 35 stable constraints and 684,987
+unique verified or contradicted plasmid-constraint states. A 30-application hand check and fixed
+240-application strong-model benchmark passed without an unsupported, uncertain, or out-of-scope
+positive mapping. These remain narrow Addgene metadata states, not biological ground truth — the
+benchmark measures recorded-metadata consistency, not plasmid function.
 
-**Status:** active feasibility study.
+**Status:** Gate 0 complete. Not yet ready for model training — Gate 1 (fixed representations) is
+next.
 
-**Next decision:** complete and independently validate the global similarity graph. The separately
-named `split_grouped_v2` and `query_benchmark` pipelines are now preregistered and tested. The
-guarded finalizer will run them only against pinned accepted graph, split, and constraint-state
-versions. It will then independently read back the frozen queries, candidate galleries, sparse
-labels, base measures, and oracle, contradiction, prevalence, and random controls before any model
-experiment.
+**Next decision:** select and pin one DNA encoder and one text encoder (Gate 1). Validate
+sequence-length coverage and the long-sequence policy, circular-rotation sensitivity,
+reverse-complement sensitivity, pooling behavior, and storage/compute cost for frozen features
+before any training run.
 
-**Current report:** [Split similarity and concentration audit v0.1](reports/10_split_audit_v01.md).
-The study has no interpretation notebook yet because model evaluation has not started. See the
+**Current report:** [Split similarity and concentration audit v0.1](reports/10_split_audit_v01.md)
+covers the near-duplicate finding that motivated `split_grouped_v2`; a Gate 0 completion report
+covering the accepted graph, v2 split, and query benchmark has not been written yet. The study has
+no interpretation notebook because model evaluation has not started. See the
 [experiment log](EXPERIMENT_LOG.md) for the chronological record.
 
 ## Research questions
@@ -92,6 +94,12 @@ The split guarantee covers `family_key` and exact sequence hashes. The global lo
 found 7,624 strict near-duplicate cross-split edges, so the current split fails the approximate
 similarity rule. Preserve it as **declared-family-disjoint but near-duplicate-contaminated**. Do not
 use it for model evaluation.
+
+**Superseded for model evaluation.** `split_grouped_v2` (output version `2026-08-17T23.49.47.355Z`,
+built from the accepted complete similarity graph) closes this leak: zero primary cross-split edges,
+92,279 / 11,344 / 11,497 train/val/test, and substantially better concentration than the table
+above. Use `split_grouped_v2`, not `split_grouped`, for any evaluation. See the
+[experiment log](EXPERIMENT_LOG.md) entry for 2026-08-18.
 
 ## Study gates
 
@@ -321,9 +329,9 @@ whole components and state how resampled components are weighted.
 
 | ID | Experiment | Gate | Status or outcome |
 | --- | --- | --- | --- |
-| E00 | Benchmark feasibility and oracles | 0 | Active |
-| [E00-S](experiments/E00_split_grouped_v2.md) | Strict similarity-closed grouped split v2 | 0 | Implemented; waiting for accepted graph |
-| [E00-Q](experiments/E00_query_benchmark_v0.1.md) | Frozen symbolic queries, galleries, and controls | 0 | Implemented; waiting for accepted graph and v2 split |
+| E00 | Benchmark feasibility and oracles | 0 | [Complete — Gate 0 accepted](EXPERIMENT_LOG.md) |
+| [E00-S](experiments/E00_split_grouped_v2.md) | Strict similarity-closed grouped split v2 | 0 | Complete; zero primary cross-split edges |
+| [E00-Q](experiments/E00_query_benchmark_v0.1.md) | Frozen symbolic queries, galleries, and controls | 0 | Complete; Gate 0 data-support flag passed both splits |
 | E00-J | Agent-assisted facet review pilot | 0 | Complete |
 | [E01](experiments/E01_training_constraint_evidence.md) | Rule-derived training constraint evidence | 0 | [Accepted for noisy supervision](reports/08_constraint_accuracy_benchmark.md) |
 | E02 | Paired identity control on controlled queries | 2 | Planned |

@@ -86,14 +86,19 @@ the published dataset rather than regenerated:
 | `retrieval_dataset` | 115,120 pairs | 93 MB |
 | E00 training constraint evidence | 375,819 rule-derived claims | 29 MB |
 | E00 plasmid-constraint state | 684,987 unique verified/contradicted states | versioned |
+| E00 global similarity graph | 4,450,238 primary / 4,676,653 sensitivity edges | versioned |
+| E00 `split_grouped_v2` | 92,279 / 11,344 / 11,497 train/val/test, zero primary crossings | versioned |
+| E00 frozen query benchmark | 131 semantic queries, 5,740,247 sparse query-candidate states | versioned |
 
-- **Splits:** 92,097 / 11,515 / 11,508 over 14,157 leakage components, with
-  **zero** components straddling a grouped split by declared family or exact
-  sequence. A global near-duplicate audit (`split_audit`) found 7,624
-  cross-split alignments at ≥99% identity, so this split fails a stricter
+- **Splits:** the original `split_grouped` (92,097 / 11,515 / 11,508 over
+  14,157 leakage components) has **zero** components straddling by declared
+  family or exact sequence, but a global near-duplicate audit (`split_audit`)
+  found 7,624 cross-split alignments at ≥99% identity, so it fails a stricter
   similarity rule and must not be used for model evaluation — see
   [`10_split_audit_v01.md`](studies/set_valued_compositional_embeddings/reports/10_split_audit_v01.md).
-  A leak-free `split_grouped_v2` is in progress; see the study README.
+  **Use `split_grouped_v2` instead**: built from the complete, accepted
+  similarity graph, it has **zero** primary cross-split edges and
+  substantially better test/validation concentration than the original split.
 - **Constraints:** the median description surfaces 6 functional constraint
   groups; 216 of 115,120 rows surface none.
 - **Descriptions:** 393 chars mean, ~3 sentences, 22 duplicate groups, and 6
@@ -113,6 +118,14 @@ mapping. The model-reference pass interval was 98.42%–100% for the fixed sampl
 The frozen state contract contains 35 constraints and 684,987 unique plasmid-constraint states.
 Only copy class and the 30/37 degree propagation-temperature pair have reviewed contradiction
 rules. Other absent states remain unknown.
+
+**Gate 0 of the `set_valued_compositional_embeddings` study is complete**: the global similarity
+graph, `split_grouped_v2`, and the frozen query benchmark are all built and independently
+validated, including the leak-free split check and the oracle/contradiction-first controls. The
+Gate 0 data-support flag passed for both the validation and test closed evaluations. See the
+[study README](studies/set_valued_compositional_embeddings/README.md) and
+[experiment log](studies/set_valued_compositional_embeddings/EXPERIMENT_LOG.md) for details.
+Modelling (Gate 1 onward) is still not part of this repository.
 
 ## Setup
 

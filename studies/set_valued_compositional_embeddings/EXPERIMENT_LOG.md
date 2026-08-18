@@ -1534,3 +1534,89 @@ existing project convention, to point at a new session (`vec2vec-graph-autoresum
 backup prefix (`2026-08-17T08-48-41Z`) rather than the exhausted 2026-08-13 one.
 
 **Next:** resume `kedro run --pipeline similarity_graph` under the retry supervisor on `g6-big`.
+
+## 2026-08-17 — E00 global similarity graph accepted; four execution bugs found and fixed
+
+**Status:** graph accepted. Four non-scientific bugs found and fixed along the way; no cap,
+threshold, timeout, or acceptance rule changed.
+
+**Run:** resumed on `g6-big` at `ray_workers: 12`. The dense exact cap-10,000 stage (4,844 routed
+queries) reached 98% (4,758/4,844) before hitting the fixed 12-hour `full_run_wall_limit_seconds`.
+The supervisor correctly classified this as a retryable technical stop, synced checkpoints, and
+launched a retry once free disk held above 60 GB for ten consecutive minutes. The retry reused the
+prior checkpoints (same host, same absolute paths this time) and completed in 396.9 seconds:
+`Pipeline execution completed successfully`, 4,450,238 primary and 4,676,653 sensitivity edges over
+all 115,120 plasmids, 164.98 CPU-hours total, output version `2026-08-17T22.59.04.326Z`.
+
+**Bug 1 — success misclassified as failure:** `scripts/supervise_similarity_data.py` matched a
+literal `"Pipeline execution completed successfully"` substring, but Kedro's Rich console renderer
+hard-wraps that exact phrase across two lines (with an unrelated `module.py:line` gutter injected
+at the break) when output is redirected to a file. The supervisor read the wrapped success log,
+classified it `non_retryable_failure`, and aborted instead of chaining into the finalizer. Fixed by
+requiring the two halves as independent, non-adjacent substrings; added a regression test using the
+real wrapped text.
+
+**Bug 2 — validator checked the wrong manifest key:** `similarity_graph_validation.py` checked
+`input_validation.population_sha256`, but every writer in the codebase (`constraint_evidence`,
+`facet_audit`, `constraint_state`, `split_audit`, and the graph pipeline itself) writes
+`input_population_sha256`. The mismatch rejected an otherwise-valid, passing manifest. The unit
+test fixture had the same wrong key, so it never caught this. Fixed the key name in both.
+
+**Bug 3 — content hash crashed on a list column:** `_json_scalar` (used by
+`dataframe_content_sha256` for read-back provenance hashing) checked `isinstance(value, list |
+tuple)` before falling through to a scalar `pd.isna(value)` call. `similarity_graph_runs`' captured
+per-shard minimap2 stderr lines (`tool_log`) deserialize from Parquet as `numpy.ndarray`, which
+`pd.isna` cannot evaluate as a single boolean. Added `np.ndarray` to the isinstance check; added a
+regression test with an array-valued column.
+
+**Bug 4 — `--params` silently dropped sibling keys:** `scripts/finalize_similarity_data.py` ran
+`similarity_split` and `query_benchmark` via `kedro run --params block.leaf_key=value`. Kedro
+replaces a whole top-level parameter block on a runtime override rather than deep-merging into it
+— the same non-deep-merge behavior this README already documents for environment config files —
+so passing only the changed leaf key silently dropped `train_fraction`, `val_fraction`, `seed`, and
+every other sibling, producing a bare `KeyError: 'train_fraction'`. It was also fundamentally
+unsafe for list-valued params (`query_benchmark.top_k`, `evaluation_splits`): a naive comma-join
+cannot distinguish a list literal's internal commas from the next `key=value` pair. Replaced both
+invocations with the Kedro Python session API: read the base params block, merge the override leaf
+keys onto a full copy of it, pass the complete block as `runtime_params`. Added unit tests for the
+merge logic.
+
+All four fixes: 168 tests pass, ruff clean, verified independently on `g6-big` before each rerun.
+Commits `2217f0a`, `a94413b`, `8cd831e`.
+
+**Next:** run the finalizer (`split_grouped_v2` then `query_benchmark`) against the accepted graph.
+
+## 2026-08-18 — Gate 0 complete: split_grouped_v2 and frozen query benchmark accepted
+
+**Status:** `gate0_data_complete`. All required Gate 0 outputs exist and pass independent S3
+read-back validation. This closes E00.
+
+**split_grouped_v2** — output version `2026-08-17T23.49.47.355Z`, built from accepted graph
+`2026-08-17T22.59.04.326Z`: 115,120 rows, 11,764 primary components, split
+92,279 / 11,344 / 11,497 (train/val/test). **Zero primary (99%-identity) cross-split edges** — the
+strict near-duplicate leak the old split failed on is closed. 6,259 sensitivity-only (95%) edges
+still cross, reported as required but not a failure per protocol. Concentration improved sharply
+over the old split: test's largest component fell from 29.23% of rows to 2.86%, its effective
+component count rose from 11.12 to 206.6; val's largest component fell from 16.23% to 3.92%,
+effective components rose from 32.52 to 132.9. `concentration_warning_splits` is empty (both val
+and test stay under the 25% largest-component trigger).
+
+**Frozen query benchmark v0.1** — output version `2026-08-17T23.51.35.629Z`: 131 semantic queries
+(atomic and two-facet conjunctions), 524 catalog rows across 4 candidate galleries, 5,740,247
+sparse verified/contradicted query-candidate states. Independent validation recomputed every
+answer set from the frozen source states (not read from the persisted table), confirmed the four
+base measures are normalized, confirmed verified/contradicted state pairs are disjoint, and passed
+both the verified-first-oracle and contradiction-first control checks.
+
+**Gate 0 data-support flag: passed for both closed evaluation splits**, against the preregistered
+floors (10 usable atomic queries, 20 usable pair queries, 20 usable pair contradiction controls
+per split):
+
+| Split | Usable atomic | Usable pair | Usable pair w/ contradiction control |
+| --- | ---: | ---: | ---: |
+| Validation | 28 | 80 | 80 |
+| Test | 32 | 90 | 90 |
+
+**Decision:** Gate 0 is accepted. Proceed to Gate 1 (fixed representations: select and pin one DNA
+encoder and one text encoder; validate length coverage, circular-rotation sensitivity,
+reverse-complement sensitivity, and pooling behavior) before any model training.
