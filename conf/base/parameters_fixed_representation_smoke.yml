@@ -11,9 +11,9 @@ fixed_representation_smoke:
   minimum_bfloat16_float32_cosine: 0.99
   seed: 20260818
   device: cuda
-  instance_type: g6.4xlarge
+  instance_type: g6.2xlarge
   instance_hour_limit: 6.0
-  observed_instance_price_usd_per_hour: 1.3232
+  observed_instance_price_usd_per_hour: 0.9776
   candidates:
     carbon_500m:
       model_id: HuggingFaceBio/Carbon-500M

@@ -236,6 +236,19 @@ hours, for a maximum observed instance charge of $7.94 before storage and data-t
 The original 40 A100-equivalent GPU-hour experiment budget remains unchanged. Stop the instance
 after the run or after the six-hour limit, whichever happens first.
 
+## 2026-08-18 EC2 capacity failure and host amendment before model results
+
+Two exact attempts to start the project-dedicated `g6.4xlarge` host in `us-east-1b` failed with
+`InsufficientInstanceCapacity`. AWS left the instance stopped. The failed requests incurred no
+instance charge and produced no model result.
+
+Run the same smoke code and scientific configuration on the existing stopped `g6.2xlarge` host
+in `us-east-1d`. This host has the same single NVIDIA L4 GPU with 22,888 MiB of device memory. It
+has 8 virtual CPUs and 32 GiB of system memory. AWS reported an on-demand Linux price of $0.9776
+per instance-hour on 2026-08-18. Keep the six-hour limit, which reduces the maximum observed
+instance charge to $5.87 before storage and data-transfer charges. Stop on a memory failure. Do
+not reduce the model, precision, sequence length, or panel to make a failed candidate complete.
+
 ## Required outputs
 
 - a resolved protocol and candidate manifest;
