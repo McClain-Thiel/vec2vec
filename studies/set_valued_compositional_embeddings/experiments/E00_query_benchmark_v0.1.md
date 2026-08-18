@@ -2,9 +2,9 @@
 
 ## Status
 
-Preregistered on 2026-08-13 before the complete similarity graph or `split_grouped_v2` result
-was available. This experiment constructs data and measurement controls. It does not train or
-select a model.
+Complete and accepted. The protocol was preregistered on 2026-08-13 before the complete similarity
+graph or `split_grouped_v2` result was available. This experiment constructs data and measurement
+controls. It does not train or select a model.
 
 ## Question
 
@@ -147,3 +147,20 @@ than a hidden exclusion.
 - Test support is reported after freezing and does not select query definitions.
 - The open gallery contains training rows and measures collection-wide retrieval, not an unseen-
   family-only task.
+
+## Outcome observed after execution
+
+The accepted benchmark version is `2026-08-17T23.51.35.629Z`. It contains 131 semantic queries,
+524 catalog rows across four galleries, and 5,740,247 explicit verified or contradicted
+query-candidate states.
+
+Independent read-back validation recomputed every answer set from the frozen source states. It
+accepted the set identities, disjoint states, base-measure normalization, deterministic rankings,
+verified-first oracle, and contradiction-first control.
+
+The Gate 0 data-support flag passed both closed splits:
+
+| Split | Usable atomic | Usable pair | Pair with contradiction control |
+| --- | ---: | ---: | ---: |
+| Validation | 28 | 80 | 80 |
+| Test | 32 | 90 | 90 |

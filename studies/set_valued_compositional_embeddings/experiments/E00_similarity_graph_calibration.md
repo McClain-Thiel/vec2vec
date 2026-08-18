@@ -1,6 +1,6 @@
 # E00 Global Similarity Graph Calibration
 
-**Status:** active  
+**Status:** complete; accepted
 **Protocol version:** `similarity_graph_calibration_v0.1`  
 **Fixed before the calibration run:** 2026-08-10 Europe/London
 
@@ -94,3 +94,14 @@ It selects an execution design only.
 - A 1,024-query sample can miss an unusually dense family.
 - A complete edge list can be much larger than the component structure needed for split repair.
 - Publication of a graph dataset needs a separate license, provenance, and dataset-card review.
+
+## Outcome observed after execution
+
+The accepted calibration version is `2026-08-10T09.34.59.159Z`. Candidate cap 1,000 saturated 67
+of 1,024 queries. Candidate cap 10,000 saturated none of the 64 fixed stress-tail queries. Exact
+cap 1,000 saturated one of 32 queries. These results selected the adaptive full-run design: route
+with candidate cap 1,000, then run exact cap 1,000 for ordinary queries and cap 10,000 for routed
+dense queries.
+
+The projected full-run cost remained below both fixed limits. The complete result and limitations
+are in [similarity graph calibration v0.1](../reports/11_similarity_graph_calibration_v01.md).

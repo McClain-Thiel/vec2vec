@@ -17,18 +17,20 @@ unique verified or contradicted plasmid-constraint states. A 30-application hand
 positive mapping. These remain narrow Addgene metadata states, not biological ground truth — the
 benchmark measures recorded-metadata consistency, not plasmid function.
 
-**Status:** Gate 0 complete. Not yet ready for model training — Gate 1 (fixed representations) is
-next.
+**Status:** Gate 0 complete. The study is ready to start the Gate 1 fixed-representation bake-off.
+Gate 2 training cannot start until the Gate 1 representation pair and feature hashes are frozen.
 
-**Next decision:** select and pin one DNA encoder and one text encoder (Gate 1). Validate
-sequence-length coverage and the long-sequence policy, circular-rotation sensitivity,
-reverse-complement sensitivity, pooling behavior, and storage/compute cost for frozen features
-before any training run.
+**Next decision:** run the validation-only
+[E02 fixed-representation bake-off](experiments/E02_fixed_representation_bakeoff.md). Carbon-500M
+is the incumbent because it won the prior PlasmidCLIP target-retrieval comparison. Carbon-3B,
+GENERanno prokaryote 500M, and GENERator-v2 prokaryote 1.2B are the bounded DNA candidates. Keep
+the test split unread during selection.
 
-**Current report:** [Split similarity and concentration audit v0.1](reports/10_split_audit_v01.md)
-covers the near-duplicate finding that motivated `split_grouped_v2`; a Gate 0 completion report
-covering the accepted graph, v2 split, and query benchmark has not been written yet. The study has
-no interpretation notebook because model evaluation has not started. See the
+**Current reports:** [Gate 0 completion](reports/12_gate0_completion.md) records the accepted graph,
+v2 split, query benchmark, and remaining limitations. The
+[encoder prior and candidate review](reports/13_encoder_prior_and_candidates.md) records the
+PlasmidCLIP evidence, current primary-source search, exact candidate revisions, and exclusions.
+The study has no interpretation notebook because model evaluation has not started. See the
 [experiment log](EXPERIMENT_LOG.md) for the chronological record.
 
 ## Research questions
@@ -123,8 +125,10 @@ the model to compensate for a weak benchmark.
 
 ### Gate 1: fixed representations
 
-Select one DNA encoder and one text encoder after Gate 0. Pin their Hugging Face repository
-revisions. Validate:
+Use [E02](experiments/E02_fixed_representation_bakeoff.md) to select one DNA encoder and one text
+encoder. Pin every Hugging Face repository revision before extraction. Carbon-500M is the DNA
+incumbent, and BGE-base is the text incumbent. Compare only the preregistered candidate panel.
+Validate:
 
 - sequence-length coverage and the long-sequence policy;
 - circular rotation sensitivity;
@@ -134,6 +138,9 @@ revisions. Validate:
 
 The source data ranges from 201 to 98,922 bp. Encoder context and pooling are therefore part of the
 experimental definition, not an implementation detail.
+
+Use `split_grouped_v2` training rows for the fixed alignment probe and validation rows for model
+selection. Do not read test outcomes. Do not start paid GPU work without explicit approval.
 
 ### Gate 2: set supervision
 
@@ -334,20 +341,22 @@ whole components and state how resampled components are weighted.
 | [E00-Q](experiments/E00_query_benchmark_v0.1.md) | Frozen symbolic queries, galleries, and controls | 0 | Complete; Gate 0 data-support flag passed both splits |
 | E00-J | Agent-assisted facet review pilot | 0 | Complete |
 | [E01](experiments/E01_training_constraint_evidence.md) | Rule-derived training constraint evidence | 0 | [Accepted for noisy supervision](reports/08_constraint_accuracy_benchmark.md) |
-| E02 | Paired identity control on controlled queries | 2 | Planned |
-| E03 | Verified-set supervision | 2 | Planned |
-| E04 | Atomic-only symbolic addition | 3 | Planned |
-| E05a | Compound supervision without additivity regularization | 3 | Planned |
-| E05b | The same compound supervision with additivity regularization | 3 | Planned |
-| E06 | Validated geometry ablation | 4 | Gated |
-| E07 | Query norm and information analysis | after E03 | Planned |
-| E08 | Descriptive non-additivity map | after E05 | Planned |
-| E09 | Putative source-conditioned modification | 5 | Gated |
+| [E02](experiments/E02_fixed_representation_bakeoff.md) | Frozen DNA and text representation selection | 1 | Planned; protocol frozen |
+| E03 | Paired identity control on controlled queries | 2 | Planned |
+| E04 | Verified-set supervision | 2 | Planned |
+| E05 | Atomic-only symbolic addition | 3 | Planned |
+| E06a | Compound supervision without additivity regularization | 3 | Planned |
+| E06b | The same compound supervision with additivity regularization | 3 | Planned |
+| E07 | Validated geometry ablation | 4 | Gated |
+| E08 | Query norm and information analysis | after E04 | Planned |
+| E09 | Descriptive non-additivity map | after E06 | Planned |
+| E10 | Putative source-conditioned modification | 5 | Gated |
 
-E05a and E05b must use the same compound queries. The initial plan called this comparison E04. It
+E06a and E06b must use the same compound queries. The initial plan called this comparison E04. It
 changed both the training data and the regularizer, which would not isolate the effect of the
 regularizer. Unstarted experiment identifiers shifted when the implemented constraint-evidence
-work received identifier E01. The historical plan report keeps its original identifiers.
+work received identifier E01. They shifted again when the required Gate 1 selection received E02.
+The historical plan report keeps its original identifiers.
 
 ## Study directory
 
@@ -356,14 +365,16 @@ studies/set_valued_compositional_embeddings/
 ├── README.md
 ├── EXPERIMENT_LOG.md
 ├── experiments/
-│   ├── E00_benchmark_feasibility.md
-│   ├── E00_agent_judge_pilot.md
-│   └── E01_training_constraint_evidence.md
+│   ├── E00_global_similarity_graph.md
+│   ├── E00_split_grouped_v2.md
+│   ├── E00_query_benchmark_v0.1.md
+│   ├── E01_training_constraint_evidence.md
+│   └── E02_fixed_representation_bakeoff.md
 ├── notebooks/
 │   └── README.md
 └── reports/
-    ├── 00_plan_validation.md
-    └── 08_constraint_accuracy_benchmark.md
+    ├── 12_gate0_completion.md
+    └── 13_encoder_prior_and_candidates.md
 ```
 
 Add one experiment specification per controlled comparison. Add one notebook per interpretation

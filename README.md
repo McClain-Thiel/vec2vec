@@ -7,7 +7,8 @@ The PlasmidCLIP data pipeline, rebuilt on Kedro with an S3 data catalog.
 It turns the raw Addgene release into a paired
 **(plasmid DNA sequence, natural-language description)** dataset with
 leakage-aware splits, constraint-based relevance labels, and the audits needed
-to trust both. Modelling is not part of this repository yet.
+to trust both. Gate 1 encoder selection is specified, but encoder features and
+model training are not implemented yet.
 
 ## Pipelines
 
@@ -125,7 +126,11 @@ validated, including the leak-free split check and the oracle/contradiction-firs
 Gate 0 data-support flag passed for both the validation and test closed evaluations. See the
 [study README](studies/set_valued_compositional_embeddings/README.md) and
 [experiment log](studies/set_valued_compositional_embeddings/EXPERIMENT_LOG.md) for details.
-Modelling (Gate 1 onward) is still not part of this repository.
+The [Gate 0 completion report](studies/set_valued_compositional_embeddings/reports/12_gate0_completion.md)
+records the accepted artifact versions and remaining limitations. The
+[Gate 1 encoder review](studies/set_valued_compositional_embeddings/reports/13_encoder_prior_and_candidates.md)
+and [fixed-representation protocol](studies/set_valued_compositional_embeddings/experiments/E02_fixed_representation_bakeoff.md)
+define the next work. Paid GPU extraction has not started.
 
 ## Setup
 

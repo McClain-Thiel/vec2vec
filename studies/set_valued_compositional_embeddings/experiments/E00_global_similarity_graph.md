@@ -1,6 +1,6 @@
 # E00 Global Plasmid Similarity Graph
 
-**Status:** active  
+**Status:** complete; accepted
 **Protocol version:** `global_similarity_graph_v0.1`  
 **Fixed before the full run:** 2026-08-10 Europe/London
 
@@ -222,3 +222,14 @@ backup prefix. Apply the same 60-GB, ten-minute start gate and the same runtime 
 separate immutable log for each attempt. Permit at most four technical retries after the active
 attempt. Stop visibly after that limit. This amendment changes orchestration only; it does not
 change a scientific or search setting.
+
+## Outcome observed after execution
+
+The accepted graph version is `2026-08-17T22.59.04.326Z`. It contains 115,120 nodes, 4,450,238
+primary edges, and 4,676,653 sensitivity edges. No exact cap-10,000 query remained saturated. The
+complete run used 164.98 CPU-hours, below the fixed 500-CPU-hour limit.
+
+An independent S3 read-back validation accepted the graph, component tables, run table, and
+manifest. It confirmed population identity, edge thresholds, cap coverage, component assignments,
+content hashes, and non-saturation. The failed and interrupted attempts above remain part of the
+research record. They did not produce an accepted graph artifact.

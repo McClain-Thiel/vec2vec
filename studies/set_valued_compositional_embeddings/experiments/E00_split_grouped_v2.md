@@ -1,6 +1,6 @@
 # E00 Similarity-Closed Grouped Split v2
 
-**Status:** planned  
+**Status:** complete; accepted
 **Protocol version:** `split_grouped_v2_v0.1`  
 **Fixed before the global graph result:** 2026-08-13 Europe/London
 
@@ -87,3 +87,15 @@ analysis.
 - Single-linkage components can connect rows through chains of pairwise similarity.
 - A large component can prevent close agreement with the target split fractions.
 - Sequence dissimilarity does not establish functional independence.
+
+## Outcome observed after execution
+
+The accepted mapping version is `2026-08-17T23.49.47.355Z`. It contains 115,120 rows and 11,764
+primary components. The split contains 92,279 training rows, 11,344 validation rows, and 11,497
+test rows.
+
+The independent audit found zero declared-family, exact-sequence, old-component, primary-component,
+or primary-edge crossings. It found 6,259 sensitivity-only 95%-similarity edges that cross the v2
+split, as required by the protocol. Neither validation nor test reached the 25% concentration
+warning. Validation's largest component contains 3.92% of rows. Test's largest component contains
+2.86%.

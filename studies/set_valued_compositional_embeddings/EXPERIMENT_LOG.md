@@ -1620,3 +1620,52 @@ per split):
 **Decision:** Gate 0 is accepted. Proceed to Gate 1 (fixed representations: select and pin one DNA
 encoder and one text encoder; validate length coverage, circular-rotation sensitivity,
 reverse-complement sensitivity, and pooling behavior) before any model training.
+
+## 2026-08-18 — Gate 1 encoder prior reviewed and fixed-representation bake-off preregistered
+
+**Status:** documentation and protocol complete. No encoder feature extraction, alignment probe,
+validation scoring, test read, or paid GPU run occurred.
+
+Reviewed the PlasmidCLIP encoder evidence before selecting new candidates. Its first 100-plasmid
+geometry benchmark favored Mistral-DNA-bacteria, but its later leakage-safe target-retrieval
+comparison favored Carbon-500M: R@1 8.1%, R@10 28.8%, and median rank 41, compared with Mistral's
+6.0%, 24.5%, and 57. Carbon also had effective rank 475/1,024, while Mistral had about 6/768. This
+means rotation and reverse-complement invariance are diagnostics, not the primary selector. The
+same prior work found BGE-base healthy at effective rank 472/768 and found Carbon float16 inference
+invalid. Gate 1 uses bfloat16 with a float32 check.
+
+Reviewed current official model cards, repositories, papers, licenses, contexts, and Hugging Face
+revisions. The frozen DNA panel is:
+
+- incumbent `HuggingFaceBio/Carbon-500M@106e36ff51b5dfbfe0b078ad18ad37a6956c5714`;
+- `HuggingFaceBio/Carbon-3B@95c3c68fc77fdf70b1582031bacf9d7753f72cf2`;
+- `GenerTeam/GENERanno-prokaryote-0.5b-base@d02db0f24f2c62fa1efde760217cdf75771b0228`;
+- `GenerTeam/GENERator-v2-prokaryote-1.2b-base@8b2f768b0d293953518ff91d34600f9322ef1f94`.
+
+The frozen text panel is BGE-base revision
+`a5beb1e3e68b9ab74eb54cfd186867f64f240e1a`, GTE-ModernBERT-base revision
+`e7f32e3c00f91d699e8c43b53106206bcc72bb22`, and Qwen3-Embedding-0.6B revision
+`97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3`.
+
+Evo 2 7B is a high-cost reserve. NTv3 is excluded because the current weights are non-commercial
+and the long-context post-training targets animal and plant functional tracks. CENO remains a
+watchlist model because its July 2026 release is too new for the primary gate. Bacformer requires
+protein calls and belongs in a later annotation-aware comparison. The fine-tuned PlasmidCLIP
+checkpoint is not a confirmatory candidate because its old training split can overlap v2
+validation and test rows.
+
+Preregistered `E02_fixed_representation_bakeoff.md`. It fixes component-aware training and
+invariance panels, full validation evaluation, the five-by-three DNA and text factorial, complete
+circular-window coverage, pooling and precision rules, three 60-epoch projection seeds, query-macro
+`verified@10 - contradicted@10` as the primary metric, component bootstrap intervals, a
+40-A100-equivalent-GPU-hour limit, and a 250-GB artifact limit. Test outcomes remain unread. Paid
+GPU work requires explicit approval.
+
+The required scientist-workflow consult did not return a protocol decision. The advisor could not
+read its required Notion UX Constitution because `NOTION_API_KEY` was unset. It made no edits.
+This leaves the protocol without that product-workflow review; it does not change the recorded
+scientific checks.
+
+**Decision:** start Gate 1 with smoke-loading and cost measurement only after approval. Do not
+start Gate 2 or inspect test metrics until the selected encoder revisions, extraction rules, and
+feature hashes are frozen.
