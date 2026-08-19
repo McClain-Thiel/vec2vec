@@ -1703,3 +1703,24 @@ history, exact hashes, runtime versions, and limitations.
 **Decision:** continue the 512-row invariance checks with Carbon-500M, GENERanno prokaryote 500M,
 and GENERator-v2 prokaryote 1.2B. Keep Carbon-3B out of the L4 run. Do not select an encoder until
 the invariance and validation-only retrieval stages complete.
+
+## 2026-08-19 — Carbon-3B exact 80 GiB retry approved before execution
+
+**Status:** approved and not yet run. No model result was available when this amendment was
+recorded.
+
+The user approved another exact Carbon-3B numerical smoke retry and paid AWS compute. The prior
+L40S attempt used 43.38 GiB and then requested 3.57 GiB more, so the new host must provide more
+than 48 GiB on one device. AWS describes `p5.4xlarge` as one NVIDIA H100 with 80 GiB. AWS Pricing
+reported $6.88 per on-demand Linux instance-hour in `us-east-1` on 2026-08-19. The account quota
+allows this instance type, and AWS lists it in all six `us-east-1` Availability Zones.
+
+Run one task-specific `p5.4xlarge` for at most one instance-hour. Keep the scientific code at
+commit `66163b161fdd064da3926bf55d8d6853f25cf305` and keep the model revision, sample manifest,
+tokenizer, sequence length, windowing, precision, deterministic attention, and seed unchanged.
+Terminate the host after success, technical failure, or the one-hour limit. The maximum instance
+charge is $6.88 before storage and data transfer. This retry cannot inspect validation outcomes or
+test rows.
+
+**Decision:** run the exact Carbon-3B numerical smoke retry. Treat a capacity failure as an AWS
+launch failure. Treat an inference failure as a technical result, not as retrieval evidence.

@@ -277,6 +277,22 @@ reported an on-demand Linux price of $1.861 per instance-hour on 2026-08-18. Sto
 two instance-hours, for a maximum observed instance charge of $3.72 before storage and data
 transfer. Stop and remove the task-specific host after the attempt.
 
+## 2026-08-19 Carbon-3B 80 GB host amendment before second retry results
+
+The first Carbon-3B retry exceeded the measured 44.39 GiB on the task-specific NVIDIA L40S.
+The process used 43.38 GiB and requested 3.57 GiB more. It produced no feature, coverage,
+diagnostic, or manifest artifact. Treat this as a second technical memory failure, not as a model
+result.
+
+The user approved another exact retry and paid AWS compute on 2026-08-19. Run Carbon-3B once on a
+task-specific `p5.4xlarge` host with one NVIDIA H100 and 81,920 MiB of device memory. Use the
+scientific code from commit `66163b161fdd064da3926bf55d8d6853f25cf305`. Keep the model revision,
+sample manifest, tokenizer, sequence length, windowing, precision, attention implementation,
+deterministic settings, and seed unchanged. AWS Pricing reported an on-demand Linux price of
+$6.88 per instance-hour in `us-east-1` on 2026-08-19. Stop the retry after one instance-hour, for
+a maximum instance charge of $6.88 before storage and data transfer. Stop and remove the
+task-specific host after the attempt.
+
 ## Observed numerical smoke outcomes
 
 The 2026-08-18 smoke execution accepted Carbon-500M, GENERanno prokaryote 500M, and GENERator-v2
