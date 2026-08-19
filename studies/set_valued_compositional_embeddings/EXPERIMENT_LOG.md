@@ -1724,3 +1724,15 @@ test rows.
 
 **Decision:** run the exact Carbon-3B numerical smoke retry. Treat a capacity failure as an AWS
 launch failure. Treat an inference failure as a technical result, not as retrieval evidence.
+
+### 2026-08-19 launch outcome
+
+**Observed:** AWS rejected six zone-specific On-Demand requests and one regional On-Demand
+request with `InsufficientInstanceCapacity`. AWS also rejected seven regional one-time Spot
+requests with the same error. No request created an instance or incurred an instance charge. The
+account retains quota for 192 On-Demand P-instance virtual CPUs and 192 P Spot-instance virtual
+CPUs in `us-east-1`. Other checked regions have zero On-Demand P-instance quota.
+
+**Decision:** Carbon-3B remains unresolved. Do not change the scientific configuration to fit a
+smaller device. Retry the approved `p5.4xlarge` job when AWS capacity is available. Continue the
+512-row invariance stage for the three candidates that passed the numerical smoke check.

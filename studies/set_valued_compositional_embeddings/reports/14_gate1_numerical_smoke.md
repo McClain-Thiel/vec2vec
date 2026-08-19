@@ -9,8 +9,9 @@ bfloat16-to-float32 cosine greater than 0.99999.
 
 Carbon-3B did not complete. It exceeded both a 22.03 GiB NVIDIA L4 and a 44.39 GiB NVIDIA L40S
 under the fixed full-length deterministic attention protocol. This is a technical memory failure,
-not evidence about retrieval quality. Do not include Carbon-3B in the L4 invariance run. A future
-retry needs a GPU with more than 48 GB of memory and separate compute approval.
+not evidence about retrieval quality. The user approved an exact 80 GiB H100 retry on 2026-08-19,
+but AWS had no `p5.4xlarge` capacity. No retry instance was created. Do not include Carbon-3B in
+the L4 invariance run.
 
 This smoke check did not measure invariance or retrieval. It did not select an encoder. Validation
 outcomes and test rows remained unread.
@@ -91,6 +92,9 @@ The run history includes these failures. None produced an accepted model result.
    `us-east-1a`, and `us-east-1c`. No instance was created for these requests.
 6. Carbon-3B on the L40S used 43.38 GiB and then requested 3.57 GiB more. The 44.39 GiB device
    could not satisfy the request.
+7. Six zone-specific On-Demand `p5.4xlarge` requests, one regional On-Demand request, and seven
+   regional one-time Spot requests failed with `InsufficientInstanceCapacity` on 2026-08-19. No
+   request created an instance or produced a model result.
 
 ## Compute and cost
 
@@ -102,10 +106,12 @@ termination request at 15:28:00 UTC.
 The launch-to-stop estimate is $0.49 for the L4 and $0.15 for the L40S, or $0.65 total. This is a
 derived estimate, not an AWS invoice. It excludes storage and data transfer. The L4 host was
 stopped. The task-specific L40S host and its ephemeral files were removed. Accepted outputs remain
-in versioned S3 locations.
+in versioned S3 locations. The failed 2026-08-19 H100 launch requests added $0.00 in instance
+charges because AWS created no instance.
 
 ## Next action
 
 Run the full 512-row rotation, reverse-complement, collapse, and throughput checks for the three
-candidates that passed. Keep Carbon-500M as the incumbent. Do not run retrieval or select a model
-until the invariance results and projected full-run costs are recorded.
+candidates that passed. Retry Carbon-3B on the approved 80 GiB H100 host when AWS capacity is
+available. Keep Carbon-500M as the incumbent. Do not run retrieval or select a model until the
+invariance results and projected full-run costs are recorded.
