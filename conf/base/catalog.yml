@@ -608,6 +608,33 @@ e02_fixed_representation_smoke_manifest:
   filepath: ${globals:lake}/08_reporting/e02/fixed_representation_smoke_manifest.json
   versioned: true
 
+# Gate 1 invariance artifacts. These remain separate from the numerical-smoke
+# products because the full panel has a different scientific acceptance gate.
+e02_fixed_representation_invariance_features:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/e02/fixed_representation_invariance_features.parquet
+  versioned: true
+
+e02_fixed_representation_invariance_coverage:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_coverage.parquet
+  versioned: true
+
+e02_fixed_representation_invariance_similarities:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_similarities.parquet
+  versioned: true
+
+e02_fixed_representation_invariance_diagnostics:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_diagnostics.json
+  versioned: true
+
+e02_fixed_representation_invariance_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_manifest.json
+  versioned: true
+
 e00_constraint_benchmark_summary:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_summary.json

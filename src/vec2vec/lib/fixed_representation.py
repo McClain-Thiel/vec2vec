@@ -244,6 +244,93 @@ def reverse_complement(sequence: str) -> str:
     return sequence.translate(str.maketrans("ACGT", "TGCA"))[::-1]
 
 
+def circular_rotate(sequence: str, fraction: float) -> str:
+    """Rotate a circular DNA sequence by the recorded fractional offset."""
+    if not sequence:
+        raise ValueError("sequence must not be empty")
+    if not 0.0 <= fraction <= 1.0:
+        raise ValueError(f"rotation fraction must be in [0, 1], got {fraction}")
+    offset = int(round(len(sequence) * fraction)) % len(sequence)
+    return sequence[offset:] + sequence[:offset]
+
+
+def gc_fraction(sequence: str) -> float:
+    """Return the G/C fraction of a validated, non-empty DNA sequence."""
+    if not sequence:
+        raise ValueError("sequence must not be empty")
+    invalid = sorted(set(sequence).difference("ACGT"))
+    if invalid:
+        raise ValueError(f"sequence contains unsupported bases: {invalid}")
+    return (sequence.count("G") + sequence.count("C")) / len(sequence)
+
+
+def effective_rank(embeddings: np.ndarray) -> float:
+    """Return entropy effective rank from centered singular values."""
+    matrix = np.asarray(embeddings, dtype=np.float64)
+    if matrix.ndim != 2 or matrix.shape[0] < 2 or matrix.shape[1] < 1:
+        raise ValueError("effective rank requires a two-dimensional matrix with at least two rows")
+    if not np.isfinite(matrix).all():
+        raise ValueError("effective rank requires finite embeddings")
+    singular_values = np.linalg.svd(matrix - matrix.mean(axis=0, keepdims=True), compute_uv=False)
+    total = float(singular_values.sum())
+    if total == 0.0:
+        return 0.0
+    probabilities = singular_values / total
+    positive = probabilities > 0.0
+    entropy = -float(np.sum(probabilities[positive] * np.log(probabilities[positive])))
+    return float(np.exp(entropy))
+
+
+def representation_geometry(
+    embeddings: np.ndarray,
+    *,
+    lengths_bp: Sequence[int],
+    gc_fractions: Sequence[float],
+) -> dict[str, float | int | str | None]:
+    """Measure collapse and length/G+C confounding in original-sequence vectors."""
+    matrix = np.asarray(embeddings, dtype=np.float64)
+    lengths = np.asarray(lengths_bp, dtype=np.float64)
+    gc_values = np.asarray(gc_fractions, dtype=np.float64)
+    if matrix.ndim != 2 or len(matrix) < 2:
+        raise ValueError("representation geometry requires at least two embedding rows")
+    if len(lengths) != len(matrix) or len(gc_values) != len(matrix):
+        raise ValueError("embedding, length, and G+C rows must have equal counts")
+    if (
+        not np.isfinite(matrix).all()
+        or not np.isfinite(lengths).all()
+        or not np.isfinite(gc_values).all()
+    ):
+        raise ValueError("representation geometry requires finite inputs")
+    if np.any(lengths <= 0.0):
+        raise ValueError("sequence lengths must be positive")
+    norms = np.linalg.norm(matrix, axis=1)
+    if np.any(norms == 0.0):
+        raise ValueError("representation geometry rejects zero vectors")
+    normalized = matrix / norms[:, None]
+    pair_rows, pair_columns = np.triu_indices(len(normalized), k=1)
+    pairwise_cosines = np.sum(
+        normalized[pair_rows] * normalized[pair_columns],
+        axis=1,
+    )
+    length_differences = np.abs(np.log2(lengths[pair_rows] / lengths[pair_columns]))
+    gc_differences = np.abs(gc_values[pair_rows] - gc_values[pair_columns])
+    rank = effective_rank(matrix)
+    length_correlation, length_correlation_status = _pearson(pairwise_cosines, length_differences)
+    gc_correlation, gc_correlation_status = _pearson(pairwise_cosines, gc_differences)
+    return {
+        "rows": int(len(matrix)),
+        "embedding_dimension": int(matrix.shape[1]),
+        "effective_rank": rank,
+        "effective_rank_fraction": rank / matrix.shape[1],
+        "mean_pairwise_cosine": float(pairwise_cosines.mean()),
+        "median_pairwise_cosine": float(np.median(pairwise_cosines)),
+        "pairwise_cosine_length_difference_pearson": length_correlation,
+        "pairwise_cosine_length_difference_pearson_status": length_correlation_status,
+        "pairwise_cosine_gc_difference_pearson": gc_correlation,
+        "pairwise_cosine_gc_difference_pearson_status": gc_correlation_status,
+    }
+
+
 def _validate_input_tables(retrieval: pd.DataFrame, split_mapping: pd.DataFrame) -> None:
     missing_retrieval = _RETRIEVAL_COLUMNS.difference(retrieval.columns)
     missing_split = _SPLIT_COLUMNS.difference(split_mapping.columns)
@@ -374,6 +461,14 @@ def _first_unused_component(
 
 def _round_up(value: int, unit: int) -> int:
     return ((value + unit - 1) // unit) * unit
+
+
+def _pearson(left: np.ndarray, right: np.ndarray) -> tuple[float | None, str]:
+    if len(left) != len(right) or len(left) < 2:
+        raise ValueError("Pearson correlation requires at least two paired values")
+    if float(np.std(left)) == 0.0 or float(np.std(right)) == 0.0:
+        return None, "undefined_constant_input"
+    return float(np.corrcoef(left, right)[0, 1]), "calculated"
 
 
 def embedding_sha256(vector: np.ndarray) -> str:

@@ -7,8 +7,9 @@ The PlasmidCLIP data pipeline, rebuilt on Kedro with an S3 data catalog.
 It turns the raw Addgene release into a paired
 **(plasmid DNA sequence, natural-language description)** dataset with
 leakage-aware splits, constraint-based relevance labels, and the audits needed
-to trust both. Gate 1 encoder selection and its numerical DNA smoke harness are
-implemented. Full encoder features and model training have not started.
+to trust both. Gate 1 encoder selection, its numerical DNA smoke harness, and
+the full-panel invariance harness are implemented. Full encoder features and
+model training have not started.
 
 ## Pipelines
 
@@ -20,6 +21,7 @@ implemented. Full encoder features and model training have not started.
 | `constraint_semantics` | Profiles raw constraint values, grouped-split concentration, and the pLannotate-only annotation view for the E00 feasibility gate. | no |
 | `facet_audit_sample` | Draws the frozen, component-aware E00 metadata-review sample. It does not accept labels. | no |
 | `fixed_representation_smoke` | Runs the paid Gate 1 bfloat16-versus-float32 DNA encoder smoke check on training rows only. | **no — paid** |
+| `fixed_representation_invariance` | Runs the paid Gate 1 original/rotation/reverse-complement and collapse checks on the frozen 512-row training panel. | **no — paid** |
 | `constraint_evidence` | Applies enabled exact rules to training metadata and draws a compact validation benchmark. It does not read test rows or call a model. | no |
 | `constraint_state` | Applies the frozen rule contract to all splits and writes the stable constraint vocabulary plus sparse verified/contradicted states. | no |
 | `split_audit` | Searches every cross-split pair for near-duplicate sequences and reports split concentration. Found the current `split_grouped` fails its near-duplicate rule. | no |
@@ -44,6 +46,25 @@ kedro run --pipelines similarity_graph      # long-running; see the study experi
 kedro run --pipelines similarity_split
 kedro run --pipelines query_benchmark
 python scripts/run_fixed_representation_smoke.py --candidate carbon_500m  # paid GPU run
+# Requires an approval reference, region, current instance type, total time cap, and hourly price.
+python scripts/run_fixed_representation_invariance.py \
+  --candidate carbon_500m \
+  --approval-reference <approval-reference> \
+  --region <aws-region> \
+  --instance-type <instance-type> \
+  --instance-hour-limit <total-hours> \
+  --observed-instance-price-usd-per-hour <price>  # paid GPU run
+# Run the two GenerTeam candidates together in their pinned Transformers 4.49 environment.
+python scripts/run_fixed_representation_invariance.py \
+  --candidate generanno_prokaryote_500m \
+  --candidate generator_v2_prokaryote_1_2b \
+  --approval-reference <approval-reference> \
+  --region <aws-region> \
+  --instance-type <instance-type> \
+  --instance-hour-limit <total-hours> \
+  --observed-instance-price-usd-per-hour <price>
+python scripts/validate_fixed_representation_invariance_artifacts.py \
+  --version <candidate-output-version>  # read-only persisted-artifact check
 kedro viz                          # requires the `viz` extra
 ```
 

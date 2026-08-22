@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -141,3 +142,54 @@ def test_reverse_complement_rejects_an_ambiguous_base() -> None:
     assert fixed_representation.reverse_complement("AACCGT") == "ACGGTT"
     with pytest.raises(ValueError, match="unsupported bases"):
         fixed_representation.reverse_complement("AACNGT")
+
+
+def test_circular_rotation_matches_the_frozen_quarter_offsets() -> None:
+    sequence = "AACCGGTT"
+
+    assert fixed_representation.circular_rotate(sequence, 0.25) == "CCGGTTAA"
+    assert fixed_representation.circular_rotate(sequence, 0.50) == "GGTTAACC"
+    assert fixed_representation.circular_rotate(sequence, 0.75) == "TTAACCGG"
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        fixed_representation.circular_rotate("", 0.25)
+
+
+def test_representation_geometry_reports_rank_and_pairwise_confounds() -> None:
+    embeddings = np.asarray(
+        [
+            [1.0, 0.0, 0.0],
+            [0.8, 0.6, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+
+    diagnostics = fixed_representation.representation_geometry(
+        embeddings,
+        lengths_bp=[100, 200, 400, 800],
+        gc_fractions=[0.10, 0.30, 0.60, 0.90],
+    )
+
+    assert diagnostics["rows"] == 4
+    assert diagnostics["embedding_dimension"] == 3
+    assert 1.0 < diagnostics["effective_rank"] <= 3.0
+    assert 0.0 < diagnostics["effective_rank_fraction"] <= 1.0
+    assert diagnostics["mean_pairwise_cosine"] == pytest.approx(7 / 30)
+    assert np.isfinite(diagnostics["pairwise_cosine_length_difference_pearson"])
+    assert np.isfinite(diagnostics["pairwise_cosine_gc_difference_pearson"])
+
+
+def test_representation_geometry_records_an_undefined_constant_confound() -> None:
+    diagnostics = fixed_representation.representation_geometry(
+        np.eye(3, dtype=np.float64),
+        lengths_bp=[100, 100, 100],
+        gc_fractions=[0.2, 0.4, 0.6],
+    )
+
+    assert diagnostics["pairwise_cosine_length_difference_pearson"] is None
+    assert (
+        diagnostics["pairwise_cosine_length_difference_pearson_status"]
+        == "undefined_constant_input"
+    )

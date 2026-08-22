@@ -304,6 +304,36 @@ run did not measure retrieval and did not select an encoder.
 See [the numerical smoke report](../reports/14_gate1_numerical_smoke.md) for exact S3 versions,
 hashes, runtime provenance, failed attempts, cost, and independent read-back results.
 
+## 2026-08-22 invariance implementation amendment before results
+
+Use the same four perturbations as the prior PlasmidCLIP encoder comparison: circular rotations at
+25%, 50%, and 75% of sequence length, plus the reverse complement. Calculate each rotation offset
+as `round(length_bp * fraction) modulo length_bp`. Require the median cosine for each perturbation,
+not a pooled rotation median, to meet the fixed 0.90 threshold. This amendment resolves an
+implementation detail that version 0.1 did not state. No invariance feature or model outcome had
+been produced when it was added.
+
+Calculate effective rank from the singular values of the centered original-sequence feature
+matrix: normalize the singular values to sum to one, calculate their entropy, and exponentiate it.
+Divide by the encoder output dimension for the fixed 1% collapse rule. Calculate mean and median
+pairwise cosine over all original-sequence vectors. Report length and G+C confounding as the
+Pearson correlation between pairwise cosine and, respectively, absolute log2 length ratio and
+absolute G+C-fraction difference. Preserve the full per-row perturbation cosine table.
+
+The invariance run must load the exact accepted numerical-smoke version for each candidate and
+verify canonical SHA-256 hashes for its panel and numerical-smoke manifests, and recheck the frozen
+panel hash before model loading. It runs only in bfloat16 and writes separate versioned features,
+coverage, perturbation similarities, diagnostics, and manifest artifacts. The runner executes each
+complete Kedro candidate run in a child process under the remaining batch deadline, so input
+loading, encoder inference, diagnostics, and artifact writes share one cap. Reserve 30 seconds for
+child termination and runner exit. One command uses one total hour cap across all requested
+candidates; completed candidates reduce the time available to later candidates. The command must
+receive a durable approval reference, AWS region, current instance type, total hour cap, and
+observed hourly price. Preparing this harness does not authorize paid execution. A command must not
+mix candidate Transformers versions. Run Carbon in the pinned 5.12.1 environment and the two
+GenerTeam candidates together in their pinned 4.49.0 environment, with a separate explicit cap for
+each command.
+
 ## Required outputs
 
 - a resolved protocol and candidate manifest;

@@ -1736,3 +1736,73 @@ CPUs in `us-east-1`. Other checked regions have zero On-Demand P-instance quota.
 **Decision:** Carbon-3B remains unresolved. Do not change the scientific configuration to fit a
 smaller device. Retry the approved `p5.4xlarge` job when AWS capacity is available. Continue the
 512-row invariance stage for the three candidates that passed the numerical smoke check.
+
+## 2026-08-22 22:32:02 BST — Gate 1 invariance harness implementation started
+
+**Status:** implementation started. No paid GPU process, encoder inference, validation-outcome
+read, or test-row read occurred.
+
+**Question:** Can the three accepted DNA candidates run the frozen 512-row rotation,
+reverse-complement, collapse, confound, coverage, throughput, memory, and cost checks through a
+failure-visible Kedro pipeline?
+
+**Base code:** commit `246f017da60168b0c6eadeef1c38a322d66dabc8` on a new
+`agent/gate1-invariance-harness` branch. The implementation worktree became dirty only with this
+active change.
+
+**Fixed inputs:** Use the exact accepted numerical-smoke artifact version for each candidate and
+require panel SHA-256 `6dddbc33e0bb07ffcd3a2bebfcbf58f8c07573da976d0ef02e62c252e6e1593b`.
+Only the 512 v2 training rows are eligible.
+
+**Pre-run amendment:** Match the prior PlasmidCLIP comparison with 25%, 50%, and 75% circular
+rotations plus the reverse complement. Test each perturbation median against 0.90. Define effective
+rank from entropy over centered singular values. Define the two confound correlations from
+pairwise cosine versus absolute log2 length ratio and absolute G+C-fraction difference. The E02
+specification records the exact formulas.
+
+**Compute boundary:** The runner must reject a command without a durable approval reference, AWS
+region, explicit instance type, instance-hour limit, and current observed price. It must stop
+before starting another sequence after the remaining cap. One command has one total hour cap across
+all requested candidates; the budget does not reset per candidate. This implementation action does
+not authorize paid execution. Reject a mixed Transformers-version candidate batch. Carbon uses one
+pinned 5.12.1 command; the two GenerTeam candidates can share one pinned 4.49.0 command.
+
+**Planned validation:** Deterministic transform and geometry unit tests, a fake-encoder node test,
+pipeline registration and catalog checks, the full offline test suite, Ruff lint, Ruff format
+check, and `git diff --check`.
+
+**Next decision:** Complete local validation and independent review. Then prepare a bounded cost
+proposal before any paid invariance run.
+
+## 2026-08-23 00:26:07 BST — Gate 1 invariance harness validated locally
+
+**Status:** implementation and offline validation complete. No paid GPU process, encoder
+inference, validation-outcome read, or test-row read occurred.
+
+**Observed input check:** A read-only S3 check loaded all three exact accepted versions. Each
+version contained the expected 512-row training panel, panel-manifest SHA-256, smoke-manifest
+SHA-256, model revision, and Transformers runtime. Carbon-500M's accepted manifest predates the
+recipe-level `transformers_version` field, so its exact hash-bound runtime provenance supplies
+5.12.1. Both GenerTeam manifests supply 4.49.0 in the recipe itself.
+
+**Review corrections:** Independent code and architecture reviews found that the first runner
+timed only inference, direct Kedro invocation did not prove exact accepted input content, the
+read-back omitted confound recomputation, and Git provenance depended on the caller's working
+directory. The corrected runner places the complete candidate session, including catalog reads and
+writes, in an externally timed child process and reserves 30 seconds for termination. The node
+checks immutable input-manifest hashes before model loading. The read-back compares the frozen
+configuration and recomputes every geometry field. Git commands now run against this worktree.
+
+**Validation:** `pytest -q` passed 200 tests. `ruff check src tests scripts` passed.
+`ruff format --check src tests scripts` reported 132 formatted files. Kedro catalog and registry
+inspection resolved only the frozen smoke panel and manifests as inputs and the five versioned
+invariance products as outputs. `git diff HEAD --check` passed.
+
+**Known limitation:** Offline fake-encoder tests do not establish real GPU memory, throughput,
+S3 output size, or model-runtime behavior. The child-process timeout bounds the complete candidate
+command. The EC2 job still needs an independent host-termination deadline because an
+uninterruptible kernel or driver failure can defeat an in-process operating-system timeout.
+
+**Next decision:** Commit and publish the reviewed harness. Then prepare a current price and
+instance-cap proposal. Do not start a paid invariance run without a new explicit approval
+reference and host-termination plan.

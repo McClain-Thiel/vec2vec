@@ -1,0 +1,32 @@
+fixed_representation_invariance:
+  protocol_version: fixed_representation_bakeoff_v0.1
+  expected_panel_sha256: 6dddbc33e0bb07ffcd3a2bebfcbf58f8c07573da976d0ef02e62c252e6e1593b
+  expected_rows: 512
+  accepted_smoke_artifacts:
+    carbon_500m:
+      version: 2026-08-18T15.02.18.875Z
+      panel_manifest_sha256: 7598c829894371e8960dae4fce3eca3eee247924adaf0942943674c79e535398
+      smoke_manifest_sha256: 55c64142b892e942fa78f55e371cc9cdd414a7cbe42a0f4cdff205a5985613d2
+      transformers_version_source: runtime.packages.transformers
+    generanno_prokaryote_500m:
+      version: 2026-08-18T15.15.56.524Z
+      panel_manifest_sha256: ba12acd9d715814a443e8f590cda5271d8901db04792714f490da825d64abce7
+      smoke_manifest_sha256: 41e6461c72e814bbe3bd3516325210c3c7d7f64f32196d4e9034ec7d662f0918
+      transformers_version_source: candidate.transformers_version
+    generator_v2_prokaryote_1_2b:
+      version: 2026-08-18T15.19.31.423Z
+      panel_manifest_sha256: ba12acd9d715814a443e8f590cda5271d8901db04792714f490da825d64abce7
+      smoke_manifest_sha256: 813a7836647d100fe9f3d5da1f0d742a1d51444fcc36f175f2de04aa1e9eeaf0
+      transformers_version_source: candidate.transformers_version
+  rotation_fractions:
+    rotate_25: 0.25
+    rotate_50: 0.50
+    rotate_75: 0.75
+  reverse_complement_variant: reverse_complement
+  minimum_median_transform_cosine: 0.90
+  minimum_effective_rank_fraction: 0.01
+  window_overlap_fraction: 0.25
+  seed: 20260818
+  device: cuda
+
+fixed_representation_invariance_candidate: carbon_500m
