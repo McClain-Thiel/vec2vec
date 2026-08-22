@@ -1806,3 +1806,47 @@ uninterruptible kernel or driver failure can defeat an in-process operating-syst
 **Next decision:** Commit and publish the reviewed harness. Then prepare a current price and
 instance-cap proposal. Do not start a paid invariance run without a new explicit approval
 reference and host-termination plan.
+
+## 2026-08-23 00:46:44 BST — Gate 1 invariance run stopped on IUPAC ambiguity gate
+
+**Status:** technical protocol failure before the first feature row. No invariance feature,
+coverage, perturbation, diagnostic, or run-manifest artifact was written. Validation outcomes and
+test rows remained unread.
+
+The user approved a maximum of three `g6.2xlarge` instance-hours at the observed
+`us-east-1` Linux price of $0.9776 per hour, with approval reference
+`chat-2026-08-23-start-benchmarking`. The Carbon-500M command had a separate one-hour cap. The run
+used clean commit `f3227a79ea7df17c8e070f5a252218483a830dbf` on task-specific instance
+`i-07e521b0268df674b` in `us-east-1a`, with an external AWS stop deadline at
+2026-08-23 02:35:48 UTC.
+
+The runner loaded the pinned Carbon-500M weights, then stopped on the first panel row,
+`addgene_87671`, because its sequence contains the IUPAC ambiguity symbol `W`. The fixed encoder
+boundary accepts only `A`, `C`, `G`, and `T`; E02 requires failure on an out-of-vocabulary base and
+prohibits silent base replacement. This is the intended fail-early behavior, not a model outcome.
+
+A read-only audit of the exact frozen 512-row training panel found 23 affected rows and 258
+ambiguity symbols: `B=1`, `K=19`, `M=25`, `N=43`, `R=36`, `S=64`, `V=1`, `W=22`, and `Y=47`.
+The accepted source contract permits the complete IUPAC DNA alphabet. The numerical smoke panel
+did not expose this full-panel condition.
+
+The exact pinned tokenizer implementations do not supply a candidate-neutral fallback. Carbon
+maps any ambiguity-bearing 6-mer to `<oov>`. GENERator-v2 also maps an ambiguity-bearing 6-mer to
+`<oov>`. GENERanno maps an unsupported source symbol to its `N` token. Allowing these native
+behaviors would therefore apply different information loss and token granularity across
+candidates.
+
+The instance entered `stopping` at 2026-08-22 23:46:44 UTC after 6 minutes 36 seconds from launch.
+At the approved hourly rate, the derived instance charge is $0.107536 before EBS storage and data
+transfer. The instance remained in `stopping` after both normal and forced stop requests. AWS does
+not charge instance usage in this state. The encrypted 200 GB root volume remains recoverable, and
+the external stop schedule remains enabled.
+
+The scientist-advisor consult did not return a policy recommendation. It could not read its
+required Notion UX Constitution because `NOTION_API_KEY` was unset, and it made no changes.
+
+**Decision:** do not retry or change the panel from this result. First preregister one explicit
+IUPAC policy. The proposed candidate-neutral amendment is to make `A`/`C`/`G`/`T`-only sequence
+eligibility explicit and deterministically replace the 23 affected panel rows under the original
+length-stratum and primary-component selection rules. Recompute the nested numerical-smoke
+manifest and rerun that smoke only if its row identities or parent-panel contract changes.
