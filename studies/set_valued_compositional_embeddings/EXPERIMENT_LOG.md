@@ -1850,3 +1850,7 @@ IUPAC policy. The proposed candidate-neutral amendment is to make `A`/`C`/`G`/`T
 eligibility explicit and deterministically replace the 23 affected panel rows under the original
 length-stratum and primary-component selection rules. Recompute the nested numerical-smoke
 manifest and rerun that smoke only if its row identities or parent-panel contract changes.
+
+**Post-stop update:** AWS subsequently confirmed the instance as `stopped`. The encrypted root
+volume remains attached. The now-redundant one-time stop schedule and its task-scoped IAM role were
+deleted. The instance and volume were not terminated or deleted.
