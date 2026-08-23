@@ -2244,3 +2244,31 @@ Freeze these identities:
 - persisted bytes: `92,373,563`.
 
 No validation ranking was computed. BGE-base remains one text candidate in the frozen factorial.
+
+## 2026-08-23 16:22:56 BST — E02b GTE-ModernBERT text features accepted
+
+**Status:** passed independent persisted-artifact read-back. This stage encoded frozen document
+and query-role text only. It did not read query states, fit an alignment probe, calculate a
+validation ranking, or select a candidate.
+
+The clean `g6.2xlarge` worktree at Git commit
+`569d35492df41e03428b96da6001b2db6d30eb63` loaded the accepted E02b pairs, query texts, and input
+manifest. The command completed in 127.19 seconds under its 0.75-hour limit and cost $0.034539 at
+the observed instance price. The feature node used 84.38 seconds, encoded 366.80 texts/s, and used
+881,805,312 peak allocated device bytes.
+
+Version `2026-08-23T15.19.38.226Z` contains all 30,844 unique paired descriptions and all 108
+unique frozen query texts as finite L2-normalized 768-dimensional vectors. The maximum observed
+input was 179 tokens, below the frozen 8,192-token stop boundary. Independent read-back matched
+the exact role-specific text hashes, per-row vector hashes, model recipe, Transformers 5.12.1
+runtime, input hashes, clean Git state, and compute authorization.
+
+Freeze these identities:
+
+- manifest: `a94551c87aec31085c97c7fcbf362722b196cc510c3dcd3fef7fb9249ee1edd9`;
+- features: `90139f7e41c1cf30b929c7ceebcca3496466a6b21620897734c62826166a7443`;
+- extraction GPU-hours: `0.02344021446382006`;
+- persisted bytes: `92,409,461`.
+
+No validation ranking was computed. GTE-ModernBERT remains one text candidate in the frozen
+factorial.

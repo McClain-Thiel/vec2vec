@@ -172,6 +172,12 @@ fixed_representation_bakeoff:
         features_sha256: 5a69bb6647ac977778c0a3d6253bbbe94a8b9db2a2790ea3eac6590e6899f14a
         extraction_gpu_hours: 0.010602783840149642
         persisted_bytes: 92373563
+      gte_modernbert_base:
+        version: 2026-08-23T15.19.38.226Z
+        manifest_sha256: a94551c87aec31085c97c7fcbf362722b196cc510c3dcd3fef7fb9249ee1edd9
+        features_sha256: 90139f7e41c1cf30b929c7ceebcca3496466a6b21620897734c62826166a7443
+        extraction_gpu_hours: 0.02344021446382006
+        persisted_bytes: 92409461
   approved_compute_authorization:
     approval_reference: chat-2026-08-23-e02b-complete-benchmark
     region: us-east-1
