@@ -111,7 +111,7 @@ def _split_manifest(split: pd.DataFrame) -> dict[str, object]:
     }
 
 
-def test_bakeoff_inputs_are_deterministic_and_filter_before_sampling() -> None:
+def test_bakeoff_inputs_are_deterministic_and_filter_before_sampling(tmp_path) -> None:
     retrieval, split, queries, states = _inputs()
     params = _params(retrieval, queries, states)
 
@@ -155,6 +155,24 @@ def test_bakeoff_inputs_are_deterministic_and_filter_before_sampling() -> None:
         expected_training_rows=12,
     )
     assert readback["status"] == "passed_e02b_input_readback"
+
+    persisted_tables = []
+    for name, table in (
+        ("pairs", first_pairs),
+        ("exclusions", first_exclusions),
+        ("queries", first_queries),
+        ("states", first_states),
+    ):
+        path = tmp_path / f"{name}.parquet"
+        table.to_parquet(path)
+        persisted_tables.append(pd.read_parquet(path))
+    persisted_readback = fixed_representation_bakeoff_validation.validate_bakeoff_inputs(
+        *persisted_tables,
+        first_report,
+        expected_protocol_version="e02b-test",
+        expected_training_rows=12,
+    )
+    assert persisted_readback["output_hashes"] == first_report["output_hashes"]
 
 
 def test_component_panel_respects_cap_and_inverse_size_passes() -> None:

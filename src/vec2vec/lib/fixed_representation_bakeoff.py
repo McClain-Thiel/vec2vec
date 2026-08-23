@@ -120,6 +120,9 @@ def build_bakeoff_inputs(
     )
     validation["panel_role"] = "validation_gallery"
     pairs = pd.concat([selected_train, validation], ignore_index=True)
+    # Parquet reads nullable numeric columns as float64. Store this provenance field as nullable
+    # decimal text so its value hash is identical before and after persistence.
+    pairs["selection_pass"] = pairs["selection_pass"].astype("string")
     pairs = pairs.loc[
         :,
         [

@@ -2093,3 +2093,21 @@ ties. Use 2,000 whole-component bootstrap draws with seed 20260818 and persist e
 These choices resolve implementation details before outcomes. They do not change the approved
 E02b population, candidate set, three seeds, optimizer, 60 epochs, primary metric, selection rule,
 or validation-only scope. The earlier test-contamination record remains in force.
+
+## 2026-08-23 15:14:06 BST — E02b input artifact read-back failure
+
+**Status:** invalid technical run; do not accept or reuse version
+`2026-08-23T14.12.10.259Z`. No model loaded, no feature or ranking was calculated, and no candidate
+was selected.
+
+The deterministic input pipeline completed and wrote all five versioned products. Independent
+read-back matched the exclusion, query, and query-state SHA-256 values. The pairs table did not
+match: the pre-write manifest recorded
+`19f062c3ad0bedf5ac855001e7ce749bde5954c00e1190ca3645e60269033b6c`, while the reloaded table
+produced `35c202ecc95fd714b7b283857d761966a8b2a8a80f01409b3add531348a1b972`.
+
+**Observed cause:** the training-panel selection pass was an integer before persistence and a
+nullable float after Parquet read-back. The scientific values were unchanged, but the canonical
+JSON hash distinguished `0` from `0.0`. Store this provenance field as nullable decimal text and
+add an explicit Parquet round-trip regression test. Rerun the input pipeline from a new clean Git
+commit. Preserve this failed version as technical-failure evidence.
