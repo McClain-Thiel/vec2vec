@@ -2019,3 +2019,47 @@ despite a high median pairwise cosine. These observations do not establish retri
 three exact invariance artifact versions and hashes. Do not choose an encoder from invariance,
 throughput, or geometry alone. The next scientific step is frozen feature extraction and the fixed
 alignment-probe validation comparison. Keep the test split unread.
+
+## 2026-08-23 11:44:26 BST — E02b reduced-population retrieval amendment approved
+
+**Status:** approved before feature extraction, alignment-probe fitting, validation scoring, or
+candidate selection. No new model artifact or result existed when this entry was recorded.
+
+**Observed incompatibility:** the complete retrieval population retains valid IUPAC ambiguity
+symbols. Carbon-500M and GENERator-v2 map an ambiguity-bearing 6-mer to an out-of-vocabulary token,
+while GENERanno maps unsupported symbols to `N`. Native behavior would therefore change the input
+meaning by candidate. Replacement, truncation, and candidate-specific fallback remain prohibited.
+
+A read-only eligibility audit found 3,805 of 92,279 `split_grouped_v2` training rows and 492 of
+11,344 validation rows outside the common uppercase `A`/`C`/`G`/`T` alphabet. The reduced
+validation gallery contains 10,852 rows. All 108 previously measurement-usable closed-validation
+queries retain at least ten verified targets after filtering: 28 atomic and 80 pair-conjunction
+queries.
+
+**Approved E02b rule:** apply one `A`/`C`/`G`/`T`-only eligibility rule before model-specific
+processing. Rebuild the 20,000-row component-aware training panel from eligible training rows.
+Filter the validation gallery without replacement. Recompute query support and every metric on
+that reduced gallery. Preserve and report excluded row identities, source hashes, symbol counts,
+length strata, and component coverage. Do not describe E02b as the original full-population E02.
+
+Evaluate the train-fitted 6-mer TF-IDF/SVD baseline and the three neural DNA candidates with
+accepted smoke and invariance artifacts against all three frozen text candidates, for four-by-three
+factorial coverage and all three preregistered seeds. Record Carbon-3B as **not evaluable: technically
+ineligible within the E02 hardware and compute envelope**. Its 22 GiB and 44 GiB memory failures
+and unavailable 80 GiB host are not evidence about retrieval quality.
+
+The interpretation notebook must show the reduced-population warning, population flow, exclusion
+bias, query coverage, candidate disposition, factorial completeness, and numerical/invariance
+checks before its leaderboard. A selected pair is eligible only for this reduced-population Gate 1
+decision. Ambiguity-bearing rows need a separate frozen policy before full-population Gate 2 use.
+
+**Approval:** the user approved this E02b amendment in chat on 2026-08-23 and instructed that the
+reasoning be recorded in this log.
+
+**Test-contamination record:** during the pre-implementation eligibility audit, a local diagnostic
+loaded the complete split mapping, query catalog, and sparse state table before filtering its
+calculation to validation. It printed only aggregate test alphabet/component counts and produced no
+test feature, model score, ranking, or test metric, but the process read test row and state data.
+Under the frozen protocol this access contaminates the current test set for confirmatory use. E02b
+selection remains validation-only. Any later confirmatory evaluation requires a new test protocol
+or a demonstrably untouched holdout; do not report the current test split as unread.
