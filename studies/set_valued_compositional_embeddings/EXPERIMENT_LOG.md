@@ -2156,3 +2156,35 @@ contiguous vocabulary and component indices, and exact table hashes:
 
 The complete feature product uses 93,002,965 bytes and zero GPU-hours. Freeze this exact baseline
 before the neural feature runs.
+
+## 2026-08-23 15:39:31 BST — E02b complete benchmark compute authorization
+
+**Status:** approved before any E02b neural feature extraction, probe fitting, validation ranking,
+or candidate selection. The accepted E02b input and TF-IDF/SVD artifacts are the only E02b
+artifacts available at this boundary.
+
+**Approval:** the user instructed the agent in chat to use `g6-big` or allocate compute, complete
+the benchmarks, save all data, and make material project progress. Use durable approval reference
+`chat-2026-08-23-e02b-complete-benchmark`. The existing `g6-big` alias resolves to the preserved
+on-demand `g6.2xlarge` L4 host in `us-east-1`. Use the observed Linux on-demand price of $0.9776
+per instance-hour. The price excludes storage and data transfer.
+
+**Compute boundary:** authorize at most 15 additional instance-hours, which is at most $14.664 in
+instance charges at the observed price. The exact command limits sum to 14.25 hours:
+
+| Stage | Candidate | Command limit | Maximum instance charge |
+| --- | --- | ---: | ---: |
+| DNA features | Carbon-500M | 0.75 h | $0.7332 |
+| DNA features | GENERanno prokaryote 500M | 7.00 h | $6.8432 |
+| DNA features | GENERator-v2 prokaryote 1.2B | 1.50 h | $1.4664 |
+| Text features | BGE-base-en-v1.5 | 0.50 h | $0.4888 |
+| Text features | GTE-ModernBERT-base | 0.75 h | $0.7332 |
+| Text features | Qwen3-Embedding-0.6B | 0.75 h | $0.7332 |
+| Alignment probes | Complete 4 by 3 by 3 factorial | 3.00 h | $2.9328 |
+
+Each command must use the approval-gated runner and its external deadline. Do not reset a command
+deadline, silently retry, change a candidate recipe, change a stage limit, or use a partial
+artifact. Preserve every failed version and record it as a technical failure. Perform independent
+persisted read-back before accepting each feature or alignment artifact. Freeze exact versions,
+content hashes, physical bytes, and measured GPU-hours before a later stage can load them. The
+earlier test-contamination record remains in force. E02b is validation-only.

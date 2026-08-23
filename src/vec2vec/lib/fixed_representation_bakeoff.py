@@ -27,6 +27,64 @@ PAIR_HASH_COLUMNS = [
     "selection_sha256",
 ]
 
+APPROVED_PAID_STAGES = {
+    "dna_features:carbon_500m",
+    "dna_features:generanno_prokaryote_500m",
+    "dna_features:generator_v2_prokaryote_1_2b",
+    "text_features:bge_base_en_v1_5",
+    "text_features:gte_modernbert_base",
+    "text_features:qwen3_embedding_0_6b",
+    "alignment_probe",
+}
+
+
+def approved_compute_authorization(
+    params: dict[str, Any],
+    *,
+    stage: str,
+) -> dict[str, Any]:
+    """Return the exact preregistered authorization for one paid E02b stage."""
+    approved = params.get("approved_compute_authorization")
+    if not isinstance(approved, dict):
+        raise ValueError("approved_compute_authorization must be frozen before paid E02b work")
+    required_text = ("approval_reference", "region", "instance_type")
+    for name in required_text:
+        if not str(approved.get(name, "")).strip():
+            raise ValueError(f"approved_compute_authorization requires {name}")
+    try:
+        price = float(approved["observed_instance_price_usd_per_hour"])
+        total_limit = float(approved["total_instance_hour_limit"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("approved compute price and total hour limit must be numeric") from error
+    if not math.isfinite(price) or price <= 0.0:
+        raise ValueError("approved compute price must be finite and positive")
+    if not math.isfinite(total_limit) or total_limit <= 0.0:
+        raise ValueError("approved total instance-hour limit must be finite and positive")
+    limits = approved.get("stage_instance_hour_limits")
+    if not isinstance(limits, dict) or set(limits) != APPROVED_PAID_STAGES:
+        raise ValueError("approved paid-stage set changed from the frozen E02b factorial")
+    normalized_limits: dict[str, float] = {}
+    for approved_stage, value in limits.items():
+        try:
+            limit = float(value)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"approved limit for {approved_stage} must be numeric") from error
+        if not math.isfinite(limit) or limit <= 0.0:
+            raise ValueError(f"approved limit for {approved_stage} must be finite and positive")
+        normalized_limits[str(approved_stage)] = limit
+    if sum(normalized_limits.values()) > total_limit:
+        raise ValueError("approved stage limits exceed the total E02b instance-hour limit")
+    if stage not in normalized_limits:
+        raise ValueError(f"{stage} is not an approved paid E02b stage")
+    return {
+        "stage": stage,
+        "approval_reference": str(approved["approval_reference"]),
+        "region": str(approved["region"]),
+        "instance_type": str(approved["instance_type"]),
+        "instance_hour_limit": normalized_limits[stage],
+        "observed_instance_price_usd_per_hour": price,
+    }
+
 
 def validated_compute_authorization(
     params: dict[str, Any],
@@ -53,7 +111,7 @@ def validated_compute_authorization(
         raise ValueError(
             f"compute_authorization is for {authorized_stage!r}, not requested stage {stage!r}"
         )
-    return {
+    normalized = {
         "stage": stage,
         "approval_reference": str(authorization["approval_reference"]),
         "region": str(authorization["region"]),
@@ -63,6 +121,13 @@ def validated_compute_authorization(
             authorization["observed_instance_price_usd_per_hour"]
         ),
     }
+    expected = approved_compute_authorization(params, stage=stage)
+    if normalized != expected:
+        raise ValueError(
+            f"compute_authorization differs from the frozen approval for {stage}: "
+            f"observed={normalized}, expected={expected}"
+        )
+    return normalized
 
 
 def build_bakeoff_inputs(

@@ -32,6 +32,15 @@ def _configuration() -> dict[str, object]:
         "qwen3_embedding_0_6b": {},
     }
     dna_feature_ids = {"tfidf_6mer_svd_512", *dna_candidates}
+    paid_stages = {
+        "dna_features:carbon_500m",
+        "dna_features:generanno_prokaryote_500m",
+        "dna_features:generator_v2_prokaryote_1_2b",
+        "text_features:bge_base_en_v1_5",
+        "text_features:gte_modernbert_base",
+        "text_features:qwen3_embedding_0_6b",
+        "alignment_probe",
+    }
     return {
         "accepted_input_artifact": {"version": "input-v1"},
         "dna_candidates": dna_candidates,
@@ -48,6 +57,14 @@ def _configuration() -> dict[str, object]:
                 candidate_id: {"version": f"text-{candidate_id}"}
                 for candidate_id in text_candidates
             },
+        },
+        "approved_compute_authorization": {
+            "approval_reference": "approval-1",
+            "region": "us-east-1",
+            "instance_type": "g6.2xlarge",
+            "observed_instance_price_usd_per_hour": 0.98,
+            "total_instance_hour_limit": 7.0,
+            "stage_instance_hour_limits": {stage: 1.0 for stage in paid_stages},
         },
     }
 

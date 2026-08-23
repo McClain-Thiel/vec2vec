@@ -15,6 +15,8 @@ from typing import Any
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
 
+from vec2vec.lib.fixed_representation_bakeoff import approved_compute_authorization
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PAID_STAGES = ("dna_features", "text_features", "alignment_probe")
 
@@ -182,6 +184,14 @@ def _run_stage(arguments: argparse.Namespace) -> None:
             arguments.observed_instance_price_usd_per_hour
         ),
     }
+    expected_authorization = approved_compute_authorization(
+        configuration, stage=_authorized_stage(arguments)
+    )
+    if compute_authorization != expected_authorization:
+        raise ValueError(
+            "command authorization differs from the frozen E02b approval: "
+            f"observed={compute_authorization}, expected={expected_authorization}"
+        )
     runtime_params = {
         "fixed_representation_bakeoff": {
             **configuration,

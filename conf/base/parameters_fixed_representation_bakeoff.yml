@@ -160,6 +160,20 @@ fixed_representation_bakeoff:
         extraction_gpu_hours: 0.0
         persisted_bytes: 93002965
     text: {}
+  approved_compute_authorization:
+    approval_reference: chat-2026-08-23-e02b-complete-benchmark
+    region: us-east-1
+    instance_type: g6.2xlarge
+    observed_instance_price_usd_per_hour: 0.9776
+    total_instance_hour_limit: 15.0
+    stage_instance_hour_limits:
+      "dna_features:carbon_500m": 0.75
+      "dna_features:generanno_prokaryote_500m": 7.0
+      "dna_features:generator_v2_prokaryote_1_2b": 1.5
+      "text_features:bge_base_en_v1_5": 0.5
+      "text_features:gte_modernbert_base": 0.75
+      "text_features:qwen3_embedding_0_6b": 0.75
+      alignment_probe: 3.0
   # Set only by an approval-gated runner for one exact paid stage.
   compute_authorization: null
 

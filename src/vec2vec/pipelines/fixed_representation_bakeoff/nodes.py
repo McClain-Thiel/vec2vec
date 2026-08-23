@@ -182,6 +182,12 @@ def _feature_manifest(
         "protocol_version": str(params["protocol_version"]),
         "protocol": str(params["protocol_path"]),
         **summary,
+        "resolved_feature_configuration": {
+            "device": str(params["device"]),
+            "precision": str(params["precision"]),
+            "window_overlap_fraction": float(params["window_overlap_fraction"]),
+            "seed": int(params["seed"]),
+        },
         "compute_authorization": compute,
         "runtime": _runtime_provenance(),
         "git": _git_provenance(),
