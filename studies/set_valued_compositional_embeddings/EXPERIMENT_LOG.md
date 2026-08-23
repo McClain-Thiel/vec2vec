@@ -2272,3 +2272,32 @@ Freeze these identities:
 
 No validation ranking was computed. GTE-ModernBERT remains one text candidate in the frozen
 factorial.
+
+## 2026-08-23 16:29:32 BST — E02b Qwen3-Embedding text features accepted
+
+**Status:** passed independent persisted-artifact read-back. This stage encoded frozen document
+and query-role text only. It did not read query states, fit an alignment probe, calculate a
+validation ranking, or select a candidate.
+
+The clean `g6.2xlarge` worktree at Git commit
+`f8a6d00cc1755dc41042bf56d713be119cf62a98` loaded the accepted E02b pairs, query texts, and input
+manifest. The command completed in 262.82 seconds under its 0.75-hour limit and cost $0.071371 at
+the observed instance price. The feature node used 207.81 seconds, encoded 148.95 texts/s, and used
+2,067,610,112 peak allocated device bytes.
+
+Version `2026-08-23T15.23.41.974Z` contains all 30,844 unique paired descriptions and all 108
+unique frozen query texts as finite L2-normalized 1,024-dimensional vectors. The maximum observed
+prompted input was 189 tokens, below the frozen 32,768-token stop boundary. Independent read-back
+matched the exact role-specific text hashes, per-row vector hashes, model recipe, Transformers
+5.12.1 runtime, input hashes, clean Git state, and compute authorization.
+
+Freeze these identities:
+
+- manifest: `17d2d025a560f34355ca244cfd629178ec0c6c5767159bebf6d44116dcda7235`;
+- features: `c5cbf04e7d034ea4dbe0ad874adc728e6d8ae8c75ee7cbac278cbb7c44218d8d`;
+- extraction GPU-hours: `0.05772405528359943`;
+- persisted bytes: `118,110,567`.
+
+No validation ranking was computed. All three frozen text candidate feature products are now
+accepted. Alignment remains blocked until the two remaining neural DNA candidates pass the same
+independent read-back and are frozen.

@@ -178,6 +178,12 @@ fixed_representation_bakeoff:
         features_sha256: 90139f7e41c1cf30b929c7ceebcca3496466a6b21620897734c62826166a7443
         extraction_gpu_hours: 0.02344021446382006
         persisted_bytes: 92409461
+      qwen3_embedding_0_6b:
+        version: 2026-08-23T15.23.41.974Z
+        manifest_sha256: 17d2d025a560f34355ca244cfd629178ec0c6c5767159bebf6d44116dcda7235
+        features_sha256: c5cbf04e7d034ea4dbe0ad874adc728e6d8ae8c75ee7cbac278cbb7c44218d8d
+        extraction_gpu_hours: 0.05772405528359943
+        persisted_bytes: 118110567
   approved_compute_authorization:
     approval_reference: chat-2026-08-23-e02b-complete-benchmark
     region: us-east-1
