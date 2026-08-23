@@ -2301,3 +2301,30 @@ Freeze these identities:
 No validation ranking was computed. All three frozen text candidate feature products are now
 accepted. Alignment remains blocked until the two remaining neural DNA candidates pass the same
 independent read-back and are frozen.
+
+## 2026-08-23 17:21:49 BST — E02b GENERator-v2 DNA features accepted
+
+**Status:** passed independent persisted-artifact read-back. The stage extracted frozen DNA
+features only. It did not fit an alignment probe, calculate a validation ranking, or select a
+candidate.
+
+The clean `g6.2xlarge` worktree at Git commit
+`ccc9b855521c48ce423eee916c3bcdeecacd79be` loaded the exact accepted E02b input and invariance
+artifacts with Transformers 4.49.0. The command completed in 2,919.79 seconds under its 1.5-hour
+limit. The measured command cost was $0.792887. The feature node used 2,814.01 seconds, processed
+235,586,356 unique base pairs at 83,719 bp/s, and used 2,887,000,576 peak allocated device bytes.
+
+Version `2026-08-23T15.30.18.164Z` contains 30,821 unique L2-normalized 2,048-dimensional vectors
+for 30,852 source rows and 30,821 exact circular-window coverage rows. Independent read-back bound
+the accepted input, numerical-smoke, invariance, recipe, runtime, clean Git state, and exact
+compute authorization. It reconstructed every circular window and matched every per-row and table
+hash. The persisted artifacts use 313,980,591 bytes.
+
+Freeze these identities:
+
+- manifest: `b1d96a4afbcb60f0e970529d1c0d5813c237d3ed7acce5f201336b9f655b1074`;
+- features: `72642a470e4f150316170dae620795f7b246b46b6cbcad0b59571930296bf7a1`;
+- coverage: `0c2370e7f188cbb116b1383518fecc73786f8eb50b4c798a3e12f851e41e2efd`;
+- extraction GPU-hours: `0.7816696715965453`.
+
+No validation ranking was computed. GENERator-v2 remains one candidate in the frozen factorial.

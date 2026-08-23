@@ -165,6 +165,12 @@ fixed_representation_bakeoff:
         features_sha256: bb86fd296a3ba2ed2fdafcb7e21b89c918a11b2a4c2ec9ba8727af0c0713be9a
         extraction_gpu_hours: 0.30318436455498965
         persisted_bytes: 162999200
+      generator_v2_prokaryote_1_2b:
+        version: 2026-08-23T15.30.18.164Z
+        manifest_sha256: b1d96a4afbcb60f0e970529d1c0d5813c237d3ed7acce5f201336b9f655b1074
+        features_sha256: 72642a470e4f150316170dae620795f7b246b46b6cbcad0b59571930296bf7a1
+        extraction_gpu_hours: 0.7816696715965453
+        persisted_bytes: 313980591
     text:
       bge_base_en_v1_5:
         version: 2026-08-23T15.16.22.538Z
