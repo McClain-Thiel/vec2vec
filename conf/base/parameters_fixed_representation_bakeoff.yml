@@ -165,7 +165,13 @@ fixed_representation_bakeoff:
         features_sha256: bb86fd296a3ba2ed2fdafcb7e21b89c918a11b2a4c2ec9ba8727af0c0713be9a
         extraction_gpu_hours: 0.30318436455498965
         persisted_bytes: 162999200
-    text: {}
+    text:
+      bge_base_en_v1_5:
+        version: 2026-08-23T15.16.22.538Z
+        manifest_sha256: 9855a2b15e851d77cd9019d9c591bb3c927d009c5642de6f829d2d2052a84741
+        features_sha256: 5a69bb6647ac977778c0a3d6253bbbe94a8b9db2a2790ea3eac6590e6899f14a
+        extraction_gpu_hours: 0.010602783840149642
+        persisted_bytes: 92373563
   approved_compute_authorization:
     approval_reference: chat-2026-08-23-e02b-complete-benchmark
     region: us-east-1

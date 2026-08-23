@@ -2217,3 +2217,30 @@ Freeze these identities:
 
 No validation ranking was computed. Carbon-500M remains one candidate in the frozen factorial; this
 feature acceptance is not a model-selection result.
+
+## 2026-08-23 16:18:56 BST — E02b BGE-base text features accepted
+
+**Status:** passed independent persisted-artifact read-back. This stage encoded frozen document
+and query-role text only. It did not read query states, fit an alignment probe, calculate a
+validation ranking, or select a candidate.
+
+The clean `g6.2xlarge` worktree at Git commit
+`1f7effc08119aad90d0e2829581b2c12ec99dfc3` loaded the accepted E02b pairs, query texts, and input
+manifest. The command completed in 80.97 seconds under its 0.5-hour limit and cost $0.021987 at the
+observed instance price. The feature node used 38.17 seconds, encoded 810.90 texts/s, and used
+833,486,848 peak allocated device bytes.
+
+Version `2026-08-23T15.16.22.538Z` contains all 30,844 unique paired descriptions and all 108
+unique frozen query texts as finite L2-normalized 768-dimensional vectors. The maximum observed
+prompted input was 258 tokens, below the frozen 512-token stop boundary. Independent read-back
+matched the exact role-specific text hashes, per-row vector hashes, model recipe, Transformers
+5.12.1 runtime, input hashes, clean Git state, and compute authorization.
+
+Freeze these identities:
+
+- manifest: `9855a2b15e851d77cd9019d9c591bb3c927d009c5642de6f829d2d2052a84741`;
+- features: `5a69bb6647ac977778c0a3d6253bbbe94a8b9db2a2790ea3eac6590e6899f14a`;
+- extraction GPU-hours: `0.010602783840149642`;
+- persisted bytes: `92,373,563`.
+
+No validation ranking was computed. BGE-base remains one text candidate in the frozen factorial.
