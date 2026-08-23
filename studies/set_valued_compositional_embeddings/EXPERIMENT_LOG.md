@@ -1913,3 +1913,53 @@ ADR register because `NOTION_API_KEY` is unset. It made no edits. It confirmed t
 confined to seven research files and does not touch authentication, the biolake gateway,
 infrastructure, platform lineage migrations, or storage paths. Record this live-ADR review gap in
 the draft PR. Do not describe the unavailable review as approval.
+
+## 2026-08-23 01:48:01 BST — Gate 1 protocol v0.2 numerical smoke passed
+
+**Status:** all three accepted DNA candidates passed the new versioned protocol v0.2 numerical
+smoke check. Validation outcomes and test rows remained unread. No retrieval result or candidate
+selection was produced.
+
+The preserved `g6.2xlarge` instance `i-07e521b0268df674b` initially remained stopped after three
+manual and two monitored `StartInstances` requests failed with `InsufficientInstanceCapacity`.
+The third monitored request succeeded without changing the instance, availability zone, instance
+type, panel, or model configuration. The failed requests incurred no compute charge. The instance
+started in `us-east-1a` and remains running by user request.
+
+The exact code was clean commit `bc29344cf8a8240b36ebc9264c74de73c9f94ab3`. Carbon used Python
+3.13.9, Torch 2.11.0+cu130, Transformers 5.12.1, and Accelerate 1.14.0. Both GenerTeam candidates
+used the same Python, Torch, and Accelerate versions with Transformers 4.49.0. All runs used one
+NVIDIA L4 with 23,659,151,360 reported device bytes. The scientific command clock started at
+2026-08-23 00:33:16 UTC. The absolute three-hour deadline is 2026-08-23 03:33:16 UTC.
+
+| Candidate | S3 version | Minimum BF16/FP32 cosine | Model-node seconds | Outcome |
+| --- | --- | ---: | ---: | --- |
+| Carbon-500M | `2026-08-23T00.33.38.853Z` | 0.9999935476 | 257.54 | Passed |
+| GENERanno prokaryote 500M | `2026-08-23T00.41.52.864Z` | 0.9999959534 | 165.62 | Passed |
+| GENERator-v2 prokaryote 1.2B | `2026-08-23T00.45.09.745Z` | 0.9999938263 | 68.10 | Passed |
+
+All three exact artifacts contain the 512-row, 512-component, A/C/G/T-only panel with SHA-256
+`2516a415c7040e4ef75805294c8c9d5693749033c1cd196de24a79f14b5a30a0`. Their canonical panel
+manifest SHA-256 is
+`dc88d9ba0b8d2c8680874f6d90265d2b3e7f990d13f91943a0d0afeeca005f91`.
+
+Canonical numerical-smoke manifest SHA-256 values are:
+
+- Carbon-500M: `3d3ef20cd3695ff40933a5e436af74eb035363bcc37ead5b06da04926744d8d1`;
+- GENERanno prokaryote 500M:
+  `51ae97c4b9c007cb45dba2a0b470cccda58aeae29a85a62bc76d5b91f5160389`;
+- GENERator-v2 prokaryote 1.2B:
+  `692bca0587c2d4fcb3647ef81771d2c46613174bc705d9bc8920ef2a24c6f65a`.
+
+**Independent read-back:** Reloaded all six products for each exact version. It checked 64 finite
+feature rows per candidate, recomputed each embedding SHA-256, required zero OOV tokens, recomputed
+coverage and all 32 BF16/FP32 cosines, matched the persisted DataFrame hashes, and checked the
+model revision, runtime, clean Git provenance, decisions, and no-test/no-validation flags. Exact
+cosine equality differed by at most `1.55e-15` after Parquet reload. The read-back therefore used
+an absolute tolerance of `1e-12` and zero relative tolerance, which is more than twelve orders of
+magnitude below the 0.99 pass boundary. Identifiers, counts, decisions, and content hashes remained
+exact.
+
+**Decision:** freeze these three version and manifest-hash tuples as the only accepted protocol
+v0.2 smoke inputs. Commit and push the frozen configuration before starting invariance. Continue
+the absolute three-hour command deadline; do not reset it after smoke validation.

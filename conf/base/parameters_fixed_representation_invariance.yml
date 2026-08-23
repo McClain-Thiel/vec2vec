@@ -4,19 +4,19 @@ fixed_representation_invariance:
   expected_rows: 512
   accepted_smoke_artifacts:
     carbon_500m:
-      version: 2026-08-18T15.02.18.875Z
-      panel_manifest_sha256: 7598c829894371e8960dae4fce3eca3eee247924adaf0942943674c79e535398
-      smoke_manifest_sha256: 55c64142b892e942fa78f55e371cc9cdd414a7cbe42a0f4cdff205a5985613d2
-      transformers_version_source: runtime.packages.transformers
+      version: 2026-08-23T00.33.38.853Z
+      panel_manifest_sha256: dc88d9ba0b8d2c8680874f6d90265d2b3e7f990d13f91943a0d0afeeca005f91
+      smoke_manifest_sha256: 3d3ef20cd3695ff40933a5e436af74eb035363bcc37ead5b06da04926744d8d1
+      transformers_version_source: candidate.transformers_version
     generanno_prokaryote_500m:
-      version: 2026-08-18T15.15.56.524Z
-      panel_manifest_sha256: ba12acd9d715814a443e8f590cda5271d8901db04792714f490da825d64abce7
-      smoke_manifest_sha256: 41e6461c72e814bbe3bd3516325210c3c7d7f64f32196d4e9034ec7d662f0918
+      version: 2026-08-23T00.41.52.864Z
+      panel_manifest_sha256: dc88d9ba0b8d2c8680874f6d90265d2b3e7f990d13f91943a0d0afeeca005f91
+      smoke_manifest_sha256: 51ae97c4b9c007cb45dba2a0b470cccda58aeae29a85a62bc76d5b91f5160389
       transformers_version_source: candidate.transformers_version
     generator_v2_prokaryote_1_2b:
-      version: 2026-08-18T15.19.31.423Z
-      panel_manifest_sha256: ba12acd9d715814a443e8f590cda5271d8901db04792714f490da825d64abce7
-      smoke_manifest_sha256: 813a7836647d100fe9f3d5da1f0d742a1d51444fcc36f175f2de04aa1e9eeaf0
+      version: 2026-08-23T00.45.09.745Z
+      panel_manifest_sha256: dc88d9ba0b8d2c8680874f6d90265d2b3e7f990d13f91943a0d0afeeca005f91
+      smoke_manifest_sha256: 692bca0587c2d4fcb3647ef81771d2c46613174bc705d9bc8920ef2a24c6f65a
       transformers_version_source: candidate.transformers_version
   rotation_fractions:
     rotate_25: 0.25
