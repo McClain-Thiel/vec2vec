@@ -134,6 +134,7 @@ def run_alignment(
         params, stage="alignment_probe"
     )
     deadline = time.monotonic() + float(compute["instance_hour_limit"]) * 3600.0
+    started = time.perf_counter()
     outputs = fixed_representation_alignment.run_factorial_alignment(
         pairs,
         queries,
@@ -164,11 +165,16 @@ def run_alignment(
         params,
         deadline_monotonic=deadline,
     )
+    elapsed_seconds = time.perf_counter() - started
     *tables, report = outputs
     report["protocol"] = str(params["protocol_path"])
     report["compute_authorization"] = compute
     report["runtime"] = _runtime_provenance()
     report["git"] = _git_provenance()
+    report["alignment_elapsed_seconds"] = elapsed_seconds
+    report["alignment_estimated_compute_cost_usd"] = (
+        elapsed_seconds / 3600.0 * float(compute["observed_instance_price_usd_per_hour"])
+    )
     return (*tables, report)
 
 

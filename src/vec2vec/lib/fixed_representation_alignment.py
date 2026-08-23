@@ -304,6 +304,11 @@ def run_factorial_alignment(
             "test_rows_read_by_alignment": False,
             "current_test_split_contaminated_before_e02b": True,
         },
+        "accepted_feature_artifacts": accepted,
+        "resolved_alignment_configuration": {
+            "device": str(params["device"]),
+            "probe": probe,
+        },
         "selection": selection,
         "output_hashes": outputs,
         "decision": {
