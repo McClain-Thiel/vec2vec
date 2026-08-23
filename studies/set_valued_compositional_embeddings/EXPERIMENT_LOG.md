@@ -2188,3 +2188,32 @@ artifact. Preserve every failed version and record it as a technical failure. Pe
 persisted read-back before accepting each feature or alignment artifact. Freeze exact versions,
 content hashes, physical bytes, and measured GPU-hours before a later stage can load them. The
 earlier test-contamination record remains in force. E02b is validation-only.
+
+## 2026-08-23 16:15:19 BST — E02b Carbon-500M DNA features accepted
+
+**Status:** passed independent persisted-artifact read-back. The stage extracted frozen DNA
+features only. It did not fit an alignment probe, calculate a validation ranking, or select a
+candidate.
+
+The clean `g6.2xlarge` worktree at Git commit
+`a6aa0e9a6a5f9fadf4fcbc5f7f604530aca0a6bc` loaded the exact accepted E02b input and invariance
+artifacts. The command completed in 1,150.54 seconds under its 0.75-hour limit. The measured
+command cost was $0.312436 at $0.9776 per instance-hour. The feature node used 1,091.46 seconds,
+processed 235,586,356 unique base pairs at 215,844 bp/s, and used 1,286,269,952 peak allocated
+device bytes.
+
+Version `2026-08-23T14.54.08.128Z` contains 30,821 unique L2-normalized 1,024-dimensional vectors
+for 30,852 source rows and 30,831 exact circular-window coverage rows. Independent read-back bound
+the accepted input, numerical-smoke, invariance, recipe, Transformers 5.12.1 runtime, clean Git
+state, and exact compute authorization. It reconstructed every circular window and matched every
+per-row and table hash. The persisted artifacts use 162,999,200 bytes.
+
+Freeze these identities:
+
+- manifest: `3115b841c90921cca59c330c6956bbe1062b2a7ce4fc975f043174c5638a753c`;
+- features: `bb86fd296a3ba2ed2fdafcb7e21b89c918a11b2a4c2ec9ba8727af0c0713be9a`;
+- coverage: `33cef5d12055f9845743ab4e82f35edde74cd05a85272b3496115562b743ee21`;
+- extraction GPU-hours: `0.30318436455498965`.
+
+No validation ranking was computed. Carbon-500M remains one candidate in the frozen factorial; this
+feature acceptance is not a model-selection result.

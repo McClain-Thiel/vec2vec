@@ -159,6 +159,12 @@ fixed_representation_bakeoff:
         features_sha256: d783f66cb234bd228d9de304884b23849d75d9b5eef2a7510d61b0cc83486a41
         extraction_gpu_hours: 0.0
         persisted_bytes: 93002965
+      carbon_500m:
+        version: 2026-08-23T14.54.08.128Z
+        manifest_sha256: 3115b841c90921cca59c330c6956bbe1062b2a7ce4fc975f043174c5638a753c
+        features_sha256: bb86fd296a3ba2ed2fdafcb7e21b89c918a11b2a4c2ec9ba8727af0c0713be9a
+        extraction_gpu_hours: 0.30318436455498965
+        persisted_bytes: 162999200
     text: {}
   approved_compute_authorization:
     approval_reference: chat-2026-08-23-e02b-complete-benchmark
