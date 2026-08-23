@@ -1963,3 +1963,59 @@ exact.
 **Decision:** freeze these three version and manifest-hash tuples as the only accepted protocol
 v0.2 smoke inputs. Commit and push the frozen configuration before starting invariance. Continue
 the absolute three-hour command deadline; do not reset it after smoke validation.
+
+## 2026-08-23 02:23:04 BST — Gate 1 protocol v0.2 DNA invariance benchmark passed
+
+**Status:** all three accepted DNA candidates passed the frozen coverage, transform-invariance,
+and effective-rank gates. Independent read-back passed for every persisted artifact. Validation
+outcomes and test rows remained unread. No retrieval metric or candidate selection was produced.
+
+The commands used clean commit `130d3feda38d08623d2dc0a26d1db7f806b52d9d` and the three exact
+protocol v0.2 numerical-smoke versions frozen above. Each candidate encoded the original sequence,
+25%, 50%, and 75% circular rotations, and the reverse complement for all 512 A/C/G/T-only training
+rows. Every run used BF16, deterministic algorithms, disabled TF32, and one NVIDIA L4. Carbon used
+Transformers 5.12.1. Both GenerTeam candidates used Transformers 4.49.0.
+
+| Candidate | Invariance artifact version | Reverse-complement median cosine | Lowest rotation median cosine | Effective-rank fraction | Median pairwise cosine | Original throughput (bp/s) | Peak device memory |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Carbon-500M | `2026-08-23T00.50.18.556Z` | 0.983288 | 0.991919 | 0.237089 | 0.974671 | 211,301 | 1,286,269,952 bytes |
+| GENERanno prokaryote 500M | `2026-08-23T00.53.22.430Z` | 0.998770 | 0.999920 | 0.031039 | 0.995220 | 12,903 | 1,259,836,416 bytes |
+| GENERator-v2 prokaryote 1.2B | `2026-08-23T01.18.17.964Z` | 0.999442 | 0.999688 | 0.107953 | 0.999315 | 84,809 | 2,887,549,440 bytes |
+
+The minimum accepted transform median is 0.90, and the minimum accepted effective-rank fraction is
+0.01. All twelve transform medians and all three effective-rank fractions passed. Coverage passed
+for every candidate, and persisted read-back found 2,560 feature rows and 2,048 similarity rows per
+candidate with zero recomputation error.
+
+The persisted feature, coverage, and similarity hashes are:
+
+- Carbon-500M: features
+  `4f56a1357d3b9fa0555944cd24364cecba42840a04d76b917a2285045cb34139`, coverage
+  `2c3f730b525ddee71cdc50a306190ab2c6689c6fa57826186b794d876174815f`, similarities
+  `425c91bc2352f5676c2e2e630018ea0bab106e8251de168c2df45db9744a5c63`;
+- GENERanno prokaryote 500M:
+  features `ab5da24bdc71fcd73755e425189e4ba39026cbf4fba0386b55c26eb67e7a5754`,
+  coverage `fd0373151c93b3c3a61989e888770fab2cf6c6e779aabde2b16456c4aa2ce39d`,
+  similarities `a1d096baa8e278d8f82ed5a0bd9cdb4f123011d73a20526af774aa8863252899`;
+- GENERator-v2 prokaryote 1.2B:
+  features `8cbeacb326470561467f83e5230b2a8f7e282e9344e0d51ef03fbf1c293cce82`,
+  coverage `4b9f5e0fccfc29edfcc7dfc7ad46959c53431ec1ef19b5747e79b51760ab1555`,
+  similarities `4d0739328226f9b350b3939bc9bfe72e5ec2305d3e90c1fc182b236cf6dac742`.
+
+**Derived execution cost:** Carbon completed in 104.45 wall seconds, including setup and
+persistence. The GenerTeam batch completed both candidates in 1,738.53 wall seconds. At the
+approved $0.9776 per instance-hour, the two benchmark commands used 1,842.98 seconds and cost
+$0.500472 before storage and transfer. This value measures the scientific commands, not complete
+EC2 uptime. The user requested that instance `i-07e521b0268df674b` remain running after completion,
+so its total host charge continues to increase at the observed hourly rate.
+
+**Interpretation:** invariance is a failure gate, not a selection metric. Carbon has the highest
+effective-rank fraction and the fastest measured throughput. GENERanno has the lowest
+effective-rank fraction and the strongest measured length and G+C correlations. GENERator-v2 has
+an effective-rank fraction between the other candidates and near-zero measured G+C correlation,
+despite a high median pairwise cosine. These observations do not establish retrieval utility.
+
+**Decision:** retain all three candidates for the fixed Gate 1 retrieval evaluation. Freeze the
+three exact invariance artifact versions and hashes. Do not choose an encoder from invariance,
+throughput, or geometry alone. The next scientific step is frozen feature extraction and the fixed
+alignment-probe validation comparison. Keep the test split unread.
