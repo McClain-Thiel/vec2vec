@@ -1,6 +1,6 @@
 fixed_representation_invariance:
-  protocol_version: fixed_representation_bakeoff_v0.1
-  expected_panel_sha256: 6dddbc33e0bb07ffcd3a2bebfcbf58f8c07573da976d0ef02e62c252e6e1593b
+  protocol_version: fixed_representation_bakeoff_v0.2
+  expected_panel_sha256: 2516a415c7040e4ef75805294c8c9d5693749033c1cd196de24a79f14b5a30a0
   expected_rows: 512
   accepted_smoke_artifacts:
     carbon_500m:

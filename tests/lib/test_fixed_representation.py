@@ -55,6 +55,9 @@ def test_panel_is_deterministic_component_unique_and_length_stratified() -> None
         numerical_smoke_rows=32,
         length_strata=10,
         selection_salt="panel-v1",
+        eligible_sequence_alphabet="ACGT",
+        expected_prior_panel_sha256=None,
+        expected_panel_sha256=None,
     )
     second, second_summary = fixed_representation.build_fixed_representation_panels(
         retrieval.sample(frac=1.0, random_state=9),
@@ -64,6 +67,9 @@ def test_panel_is_deterministic_component_unique_and_length_stratified() -> None
         numerical_smoke_rows=32,
         length_strata=10,
         selection_salt="panel-v1",
+        eligible_sequence_alphabet="ACGT",
+        expected_prior_panel_sha256=None,
+        expected_panel_sha256=None,
     )
 
     assert first_summary["panel_sha256"] == second_summary["panel_sha256"]
@@ -101,6 +107,104 @@ def test_panel_rejects_a_sequence_hash_mismatch() -> None:
             numerical_smoke_rows=32,
             length_strata=10,
             selection_salt="panel-v1",
+            eligible_sequence_alphabet="ACGT",
+            expected_prior_panel_sha256=None,
+            expected_panel_sha256=None,
+        )
+
+
+def test_panel_excludes_noneligible_iupac_rows_before_selection() -> None:
+    retrieval, split = _population()
+    ambiguous_sequence = "W" + str(retrieval.loc[0, "sequence"])[1:]
+    retrieval.loc[0, "sequence"] = ambiguous_sequence
+    retrieval.loc[0, "sequence_sha256"] = sequence_sha256(ambiguous_sequence)
+    expected_hash = retrieval_population_sha256(retrieval)
+
+    prior_panel, prior_summary = fixed_representation.build_fixed_representation_panels(
+        retrieval,
+        split,
+        expected_population_sha256=expected_hash,
+        invariance_rows=512,
+        numerical_smoke_rows=32,
+        length_strata=10,
+        selection_salt="panel-v1",
+        eligible_sequence_alphabet="ACGTRYSWKMBDHVN",
+        expected_prior_panel_sha256=None,
+        expected_panel_sha256=None,
+    )
+
+    panel, summary = fixed_representation.build_fixed_representation_panels(
+        retrieval,
+        split,
+        expected_population_sha256=expected_hash,
+        invariance_rows=512,
+        numerical_smoke_rows=32,
+        length_strata=10,
+        selection_salt="panel-v1",
+        eligible_sequence_alphabet="ACGT",
+        expected_prior_panel_sha256=prior_summary["panel_sha256"],
+        expected_panel_sha256=None,
+    )
+
+    prior_ids = set(prior_panel["sequence_id"])
+    panel_ids = set(panel["sequence_id"])
+    assert prior_ids - panel_ids == {"sequence-0000"}
+    assert len(panel_ids - prior_ids) == 1
+    assert panel["sequence"].map(lambda sequence: set(sequence) <= set("ACGT")).all()
+    assert summary["sequence_eligibility"] == {
+        "allowed_alphabet": "ACGT",
+        "eligible_training_rows": 999,
+        "excluded_training_rows": 1,
+        "excluded_symbol_counts": {"W": 1},
+        "excluded_rows_sha256": "9d029135b17ea8204d82b8316c27a8db166088998357dcb86c80ca7291b751ce",
+    }
+    assert summary["panel_amendment"]["replaced_rows"] == 1
+    assert summary["panel_amendment"]["removed_rows"] == [
+        {
+            "sequence_id": "sequence-0000",
+            "sequence_sha256": sequence_sha256(ambiguous_sequence),
+            "length_decile": 0,
+            "unsupported_symbol_counts": {"W": 1},
+        }
+    ]
+    assert summary["panel_amendment"]["preserved_prior_rows"] == 511
+    assert len(summary["panel_amendment"]["replacement_rows"]) == 1
+    assert summary["panel_amendment"]["replacement_rows"][0]["length_decile"] == 0
+
+
+def test_panel_rejects_a_changed_prior_selection_contract() -> None:
+    retrieval, split = _population()
+
+    with pytest.raises(ValueError, match="prior invariance panel changed"):
+        fixed_representation.build_fixed_representation_panels(
+            retrieval,
+            split,
+            expected_population_sha256=retrieval_population_sha256(retrieval),
+            invariance_rows=512,
+            numerical_smoke_rows=32,
+            length_strata=10,
+            selection_salt="panel-v1",
+            eligible_sequence_alphabet="ACGT",
+            expected_prior_panel_sha256="0" * 64,
+            expected_panel_sha256=None,
+        )
+
+
+def test_panel_rejects_a_changed_amended_selection_contract() -> None:
+    retrieval, split = _population()
+
+    with pytest.raises(ValueError, match="amended invariance panel changed"):
+        fixed_representation.build_fixed_representation_panels(
+            retrieval,
+            split,
+            expected_population_sha256=retrieval_population_sha256(retrieval),
+            invariance_rows=512,
+            numerical_smoke_rows=32,
+            length_strata=10,
+            selection_salt="panel-v1",
+            eligible_sequence_alphabet="ACGT",
+            expected_prior_panel_sha256=None,
+            expected_panel_sha256="0" * 64,
         )
 
 

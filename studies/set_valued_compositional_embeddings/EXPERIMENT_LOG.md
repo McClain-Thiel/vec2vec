@@ -1854,3 +1854,62 @@ manifest and rerun that smoke only if its row identities or parent-panel contrac
 **Post-stop update:** AWS subsequently confirmed the instance as `stopped`. The encrypted root
 volume remains attached. The now-redundant one-time stop schedule and its task-scoped IAM role were
 deleted. The instance and volume were not terminated or deleted.
+
+## 2026-08-23 01:13:29 BST — Gate 1 A/C/G/T-only panel amendment approved before retry
+
+**Status:** protocol version 0.2 approved and implemented locally. No retry, encoder inference,
+validation-outcome read, test-row read, or new remote artifact had occurred when this entry was
+recorded.
+
+**Question:** Can one candidate-neutral input rule remove the tokenizer-specific IUPAC behavior
+without changing the source sequences or resampling unaffected panel rows?
+
+**Approved rule:** An invariance-panel row is eligible only when its complete source sequence uses
+uppercase `A`, `C`, `G`, and `T`. Preserve all eligible version 0.1 panel rows. Replace each
+ineligible row within its original length decile, under the original extreme-preservation,
+deterministic SHA-256 ordering, and primary-component uniqueness rules. Do not replace or infer a
+base. Bind the amendment to the version 0.1 panel hash.
+
+**Observed input audit:** A read-only calculation from retrieval version
+`2026-08-04T09.02.10.007Z` and `split_grouped_v2` version `2026-08-17T23.49.47.355Z` found 88,474
+A/C/G/T-only training rows and 3,805 excluded training rows. The excluded rows contain these
+ambiguity-symbol counts: `B=64`, `D=64`, `H=21`, `K=2,640`, `M=1,667`, `N=9,100`, `R=6,755`,
+`S=12,032`, `V=75`, `W=1,614`, and `Y=2,205`. The exact excluded-row identity, source-sequence
+hash, and per-row symbol-count records have SHA-256
+`de65f169e71a087e190f1539faeddf216551d911d5842cdd0dcbad624c1f325b`.
+
+**Derived panel:** The amended selection preserves 489 version 0.1 rows and replaces the 23
+ineligible panel rows. It retains 512 rows, 512 primary components, the fixed length-stratum
+quotas, and only `A/C/G/T` sequences. The 32 nested numerical-smoke identities do not change. The
+new panel SHA-256 is
+`2516a415c7040e4ef75805294c8c9d5693749033c1cd196de24a79f14b5a30a0`. This was an in-memory
+derivation only; no new artifact was written.
+
+**Provenance rule:** Because the parent-panel contract and protocol version changed, create new
+versioned numerical-smoke artifacts for the three accepted candidates before invariance. Keep all
+model and scientific settings fixed. The panel manifest records the complete eligibility audit,
+removed-row identities, replacement-row identities, source hashes, length deciles, and components.
+
+**Compute authorization:** The user approved protocol version 0.2 and at most three additional
+`g6.2xlarge` instance-hours for the smoke and invariance commands at $0.9776 per instance-hour,
+approval reference `chat-2026-08-23-acgt-panel-and-benchmark`. The maximum approved command cost is
+$2.9328 before storage and transfer. The user requested that the preserved EC2 instance remain
+running after the commands. Each scientific command keeps an external timeout, but there is no
+automatic post-run instance stop.
+
+**Planned checks:** Run the focused selection regressions, complete offline suite, Ruff lint and
+format checks, Kedro catalog and pipeline registration, exact pinned-input panel derivation, and
+`git diff --check`. Commit and push the preregistered implementation before any paid retry.
+
+**Pre-commit validation:** `uv run --extra dev pytest -q` passed 203 tests. `uv run --extra dev
+ruff check .`, `uv run --extra dev ruff format --check .`, and `git diff --check` passed. A fresh
+read-only derivation from the two exact pinned inputs passed both panel-hash gates, catalog and
+pipeline registration, the 512-row and 512-component checks, all ten stratum quotas, and the
+A/C/G/T-only check. The removed and replacement counts match in every affected stratum. The nested
+smoke identity difference is empty.
+
+**Architecture consult:** The required one-round platform consult could not read the live Notion
+ADR register because `NOTION_API_KEY` is unset. It made no edits. It confirmed that the diff is
+confined to seven research files and does not touch authentication, the biolake gateway,
+infrastructure, platform lineage migrations, or storage paths. Record this live-ADR review gap in
+the draft PR. Do not describe the unavailable review as approval.

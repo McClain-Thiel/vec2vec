@@ -33,6 +33,9 @@ def build_smoke_panel(
         numerical_smoke_rows=int(params["numerical_smoke_rows"]),
         length_strata=int(params["length_strata"]),
         selection_salt=str(params["selection_salt"]),
+        eligible_sequence_alphabet=str(params["eligible_sequence_alphabet"]),
+        expected_prior_panel_sha256=str(params["expected_prior_panel_sha256"]),
+        expected_panel_sha256=str(params["expected_panel_sha256"]),
     )
     manifest = {
         "protocol_version": str(params["protocol_version"]),
@@ -50,6 +53,9 @@ def build_smoke_panel(
                 "numerical_smoke_rows",
                 "length_strata",
                 "selection_salt",
+                "eligible_sequence_alphabet",
+                "expected_prior_panel_sha256",
+                "expected_panel_sha256",
             )
         },
         "summary": summary,

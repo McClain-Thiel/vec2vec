@@ -1,5 +1,5 @@
 fixed_representation_smoke:
-  protocol_version: fixed_representation_bakeoff_v0.1
+  protocol_version: fixed_representation_bakeoff_v0.2
   input_retrieval_version: 2026-08-04T09.02.10.007Z
   input_split_version: 2026-08-17T23.49.47.355Z
   expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
@@ -7,6 +7,9 @@ fixed_representation_smoke:
   numerical_smoke_rows: 32
   length_strata: 10
   selection_salt: fixed_representation_bakeoff_v0.1:invariance_panel
+  eligible_sequence_alphabet: ACGT
+  expected_prior_panel_sha256: 6dddbc33e0bb07ffcd3a2bebfcbf58f8c07573da976d0ef02e62c252e6e1593b
+  expected_panel_sha256: 2516a415c7040e4ef75805294c8c9d5693749033c1cd196de24a79f14b5a30a0
   window_overlap_fraction: 0.25
   minimum_bfloat16_float32_cosine: 0.99
   seed: 20260818

@@ -334,6 +334,49 @@ mix candidate Transformers versions. Run Carbon in the pinned 5.12.1 environment
 GenerTeam candidates together in their pinned 4.49.0 environment, with a separate explicit cap for
 each command.
 
+## 2026-08-23 A/C/G/T-only panel amendment before retry results
+
+The first Carbon-500M invariance attempt stopped before writing a feature because 23 of the frozen
+512 panel rows contained one or more IUPAC ambiguity symbols. The three accepted tokenizers do not
+handle these symbols consistently. Carbon-500M and GENERator-v2 map an ambiguity-bearing 6-mer to
+an out-of-vocabulary token. GENERanno maps an unsupported symbol to `N`. Native tokenizer behavior
+would therefore change the amount and form of information available to each candidate.
+
+Version 0.2 makes an unambiguous source sequence an eligibility condition for the invariance and
+nested numerical-smoke panels. An eligible sequence contains only uppercase `A`, `C`, `G`, and
+`T`. Do not replace a base, infer a base, discard part of a sequence, or use a tokenizer fallback.
+The complete retrieval input and its IUPAC source sequences remain unchanged.
+
+Preserve the version 0.1 selection salt, length deciles, and every eligible version 0.1 panel row.
+For each ineligible version 0.1 panel row, select one replacement from the same length decile by
+the original rule: preserve an eligible shortest or longest row when the removed row supplied that
+extreme, then use deterministic SHA-256 order. Each replacement must use a primary similarity
+component that is not already represented. The amended panel must contain 512 rows, ten unchanged
+length-stratum quotas, 512 distinct primary components, and no symbol outside `A/C/G/T`.
+
+Bind the amendment to version 0.1 panel SHA-256
+`6dddbc33e0bb07ffcd3a2bebfcbf58f8c07573da976d0ef02e62c252e6e1593b`. Record the eligible and
+excluded training counts, ambiguity-symbol counts, an exact exclusion-set hash, and the identities
+and source hashes of all removed and replacement panel rows. A changed version 0.1 panel hash is an
+error.
+
+A read-only derivation from the pinned retrieval and `split_grouped_v2` inputs found 88,474
+eligible and 3,805 excluded training rows. It preserved 489 panel rows, replaced 23 rows, retained
+all 32 numerical-smoke identities, and produced amended panel SHA-256
+`2516a415c7040e4ef75805294c8c9d5693749033c1cd196de24a79f14b5a30a0`. This derivation did not run
+an encoder or read validation outcomes or test rows.
+
+The nested 32-row identities did not change, but their parent-panel contract and protocol version
+did. Write new versioned numerical-smoke artifacts for Carbon-500M, GENERanno prokaryote 500M, and
+GENERator-v2 prokaryote 1.2B before the version 0.2 invariance run. Keep model revisions,
+tokenization, precision, pooling, thresholds, and runtimes unchanged.
+
+The user approved this amendment and at most three additional `g6.2xlarge` instance-hours for the
+new smoke and invariance commands at the recorded price of $0.9776 per instance-hour. The maximum
+approved command cost is $2.9328 before storage and transfer. The user requested that the existing
+instance remain running after the commands, so the scientific command timeouts remain mandatory
+but no automatic post-run instance stop is part of this amendment.
+
 ## Required outputs
 
 - a resolved protocol and candidate manifest;

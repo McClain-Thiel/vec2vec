@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -12,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from vec2vec.lib.constraint_state import retrieval_population_sha256
-from vec2vec.lib.sequences import sequence_sha256
+from vec2vec.lib.sequences import DNA_ALPHABET, sequence_sha256
 from vec2vec.lib.similarity_graph import dataframe_content_sha256
 from vec2vec.lib.text import sha256_text
 
@@ -64,6 +65,9 @@ def build_fixed_representation_panels(
     numerical_smoke_rows: int,
     length_strata: int,
     selection_salt: str,
+    eligible_sequence_alphabet: str,
+    expected_prior_panel_sha256: str | None,
+    expected_panel_sha256: str | None,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Build the frozen training-only invariance and numerical smoke panels."""
     _validate_input_tables(retrieval, split_mapping)
@@ -112,27 +116,53 @@ def build_fixed_representation_panels(
         ),
         axis=1,
     )
-    invariance = _select_invariance_panel(
+    prior_invariance = _select_invariance_panel(
         train,
         rows=invariance_rows,
         strata=length_strata,
     )
-    smoke_ids = set(
-        _select_smoke_panel(
-            invariance,
-            rows=numerical_smoke_rows,
-            strata=length_strata,
-        )["sequence_id"]
+    prior_panel = _finalize_panel(
+        prior_invariance,
+        numerical_smoke_rows=numerical_smoke_rows,
+        strata=length_strata,
     )
-    invariance["in_numerical_smoke_panel"] = invariance["sequence_id"].isin(smoke_ids)
-    invariance = invariance.sort_values(
-        ["length_decile", "length_bp", "selection_sha256"], kind="stable"
-    ).reset_index(drop=True)
+    prior_panel_hash = dataframe_content_sha256(
+        prior_panel,
+        sort_columns=["sequence_id"],
+        value_columns=PANEL_HASH_COLUMNS,
+    )
+    if expected_prior_panel_sha256 is not None and prior_panel_hash != expected_prior_panel_sha256:
+        raise ValueError(
+            "prior invariance panel changed: "
+            f"expected {expected_prior_panel_sha256}, observed {prior_panel_hash}"
+        )
+
+    eligible_train, sequence_eligibility = _eligible_training_rows(
+        train,
+        eligible_sequence_alphabet=eligible_sequence_alphabet,
+    )
+    invariance, amendment = _replace_ineligible_panel_rows(
+        prior_invariance,
+        eligible_train,
+        rows=invariance_rows,
+        strata=length_strata,
+        eligible_sequence_alphabet=eligible_sequence_alphabet,
+    )
+    invariance = _finalize_panel(
+        invariance,
+        numerical_smoke_rows=numerical_smoke_rows,
+        strata=length_strata,
+    )
     panel_hash = dataframe_content_sha256(
         invariance,
         sort_columns=["sequence_id"],
         value_columns=PANEL_HASH_COLUMNS,
     )
+    if expected_panel_sha256 is not None and panel_hash != expected_panel_sha256:
+        raise ValueError(
+            "amended invariance panel changed: "
+            f"expected {expected_panel_sha256}, observed {panel_hash}"
+        )
     summary = {
         "input_population_sha256": observed_population_sha256,
         "panel_sha256": panel_hash,
@@ -141,6 +171,12 @@ def build_fixed_representation_panels(
         "numerical_smoke_rows": int(invariance["in_numerical_smoke_panel"].sum()),
         "primary_components": int(invariance["similarity_component_primary"].nunique()),
         "length_strata": int(length_strata),
+        "sequence_eligibility": sequence_eligibility,
+        "panel_amendment": {
+            "policy": "preserve_prior_eligible_rows_and_replace_ineligible_v0.1",
+            "prior_panel_sha256": prior_panel_hash,
+            **amendment,
+        },
         "strata": {
             str(int(stratum)): {
                 "invariance_rows": int(len(group)),
@@ -365,6 +401,236 @@ def _validate_sequences(frame: pd.DataFrame) -> None:
         observed_sha256 = sequence_sha256(sequence)
         if observed_sha256 != str(row.sequence_sha256):
             raise ValueError(f"sequence {row.sequence_id} SHA-256 mismatch")
+        invalid_symbols = sorted(set(sequence).difference(DNA_ALPHABET))
+        if invalid_symbols:
+            raise ValueError(
+                f"sequence {row.sequence_id} contains non-IUPAC symbols: {invalid_symbols}"
+            )
+
+
+def _eligible_training_rows(
+    train: pd.DataFrame,
+    *,
+    eligible_sequence_alphabet: str,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    if not eligible_sequence_alphabet:
+        raise ValueError("eligible_sequence_alphabet must not be empty")
+    if eligible_sequence_alphabet != eligible_sequence_alphabet.upper():
+        raise ValueError("eligible_sequence_alphabet must use uppercase symbols")
+    if len(set(eligible_sequence_alphabet)) != len(eligible_sequence_alphabet):
+        raise ValueError("eligible_sequence_alphabet must not repeat symbols")
+    allowed_symbols = set(eligible_sequence_alphabet)
+    invalid_allowed_symbols = sorted(allowed_symbols.difference(DNA_ALPHABET))
+    if invalid_allowed_symbols:
+        raise ValueError(
+            f"eligible_sequence_alphabet contains non-IUPAC symbols: {invalid_allowed_symbols}"
+        )
+
+    eligible_indices: list[int] = []
+    excluded_rows: list[dict[str, Any]] = []
+    excluded_symbol_counts: Counter[str] = Counter()
+    for row in train.itertuples(index=True):
+        sequence = str(row.sequence)
+        unsupported_symbol_counts = Counter(
+            symbol for symbol in sequence if symbol not in allowed_symbols
+        )
+        if not unsupported_symbol_counts:
+            eligible_indices.append(int(row.Index))
+            continue
+        excluded_symbol_counts.update(unsupported_symbol_counts)
+        excluded_rows.append(
+            {
+                "sequence_id": str(row.sequence_id),
+                "sequence_sha256": str(row.sequence_sha256),
+                "unsupported_symbol_counts": dict(sorted(unsupported_symbol_counts.items())),
+            }
+        )
+
+    eligible = train.loc[eligible_indices].copy()
+    if eligible.empty:
+        raise ValueError("no training rows satisfy eligible_sequence_alphabet")
+    return eligible, {
+        "allowed_alphabet": eligible_sequence_alphabet,
+        "eligible_training_rows": int(len(eligible)),
+        "excluded_training_rows": int(len(excluded_rows)),
+        "excluded_symbol_counts": dict(sorted(excluded_symbol_counts.items())),
+        "excluded_rows_sha256": sha256_text(
+            "\n".join(
+                "|".join(
+                    [
+                        str(row["sequence_id"]),
+                        str(row["sequence_sha256"]),
+                        ",".join(
+                            f"{symbol}:{count}"
+                            for symbol, count in row["unsupported_symbol_counts"].items()
+                        ),
+                    ]
+                )
+                for row in sorted(excluded_rows, key=lambda row: row["sequence_id"])
+            )
+        ),
+    }
+
+
+def _replace_ineligible_panel_rows(
+    prior_panel: pd.DataFrame,
+    eligible_train: pd.DataFrame,
+    *,
+    rows: int,
+    strata: int,
+    eligible_sequence_alphabet: str,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    targets = _balanced_targets(rows, strata)
+    eligible_indices = set(eligible_train.index)
+    selected = [int(index) for index in prior_panel.index if index in eligible_indices]
+    removed_indices = [int(index) for index in prior_panel.index if index not in eligible_indices]
+    used_components = {
+        str(eligible_train.at[index, "similarity_component_primary"]) for index in selected
+    }
+    replacement_indices: list[int] = []
+
+    for stratum in range(strata):
+        prior_group = prior_panel.loc[prior_panel["length_decile"].eq(stratum)]
+        eligible_group = eligible_train.loc[eligible_train["length_decile"].eq(stratum)]
+        existing = sum(
+            int(eligible_train.at[index, "length_decile"]) == stratum for index in selected
+        )
+        if existing == targets[stratum]:
+            continue
+
+        prior_minimum = int(
+            prior_group.sort_values(["length_bp", "selection_sha256"], kind="stable").index[0]
+        )
+        prior_maximum = int(
+            prior_group.sort_values(
+                ["length_bp", "selection_sha256"],
+                ascending=[False, True],
+                kind="stable",
+            ).index[0]
+        )
+        priority_orders: list[list[int]] = []
+        if prior_minimum not in eligible_indices:
+            priority_orders.append(
+                eligible_group.sort_values(
+                    ["length_bp", "selection_sha256"], kind="stable"
+                ).index.tolist()
+            )
+        if prior_maximum not in eligible_indices and prior_maximum != prior_minimum:
+            priority_orders.append(
+                eligible_group.sort_values(
+                    ["length_bp", "selection_sha256"],
+                    ascending=[False, True],
+                    kind="stable",
+                ).index.tolist()
+            )
+        priority_orders.append(
+            eligible_group.sort_values("selection_sha256", kind="stable").index.tolist()
+        )
+
+        for candidates in priority_orders:
+            if existing >= targets[stratum]:
+                break
+            index = _first_unused_component(
+                eligible_train,
+                candidates,
+                used_components,
+                selected,
+            )
+            selected.append(index)
+            replacement_indices.append(index)
+            used_components.add(str(eligible_train.at[index, "similarity_component_primary"]))
+            existing += 1
+        while existing < targets[stratum]:
+            index = _first_unused_component(
+                eligible_train,
+                priority_orders[-1],
+                used_components,
+                selected,
+            )
+            selected.append(index)
+            replacement_indices.append(index)
+            used_components.add(str(eligible_train.at[index, "similarity_component_primary"]))
+            existing += 1
+
+    result = eligible_train.loc[selected].copy()
+    if len(result) != rows:
+        raise RuntimeError(f"amended invariance panel has {len(result)} rows, expected {rows}")
+    if result["similarity_component_primary"].duplicated().any():
+        raise RuntimeError("amended invariance panel repeats a primary component")
+    if len(removed_indices) != len(replacement_indices):
+        raise RuntimeError("amended invariance panel replacement count changed")
+    allowed_symbols = set(eligible_sequence_alphabet)
+    observed_targets = (
+        result.groupby("length_decile").size().reindex(range(strata), fill_value=0).tolist()
+    )
+    if observed_targets != targets:
+        raise RuntimeError(
+            f"amended invariance panel stratum counts changed: observed {observed_targets}"
+        )
+    if not result["sequence"].map(lambda sequence: set(str(sequence)) <= allowed_symbols).all():
+        raise RuntimeError("amended invariance panel contains an ineligible sequence")
+    removed_rows = [
+        {
+            "sequence_id": str(prior_panel.at[index, "sequence_id"]),
+            "sequence_sha256": str(prior_panel.at[index, "sequence_sha256"]),
+            "length_decile": int(prior_panel.at[index, "length_decile"]),
+            "unsupported_symbol_counts": dict(
+                sorted(
+                    Counter(
+                        symbol
+                        for symbol in str(prior_panel.at[index, "sequence"])
+                        if symbol not in allowed_symbols
+                    ).items()
+                )
+            ),
+        }
+        for index in removed_indices
+    ]
+    replacement_rows = [
+        {
+            "sequence_id": str(eligible_train.at[index, "sequence_id"]),
+            "sequence_sha256": str(eligible_train.at[index, "sequence_sha256"]),
+            "similarity_component_primary": str(
+                eligible_train.at[index, "similarity_component_primary"]
+            ),
+            "length_bp": int(eligible_train.at[index, "length_bp"]),
+            "length_decile": int(eligible_train.at[index, "length_decile"]),
+        }
+        for index in replacement_indices
+    ]
+    removed_by_stratum = Counter(row["length_decile"] for row in removed_rows)
+    replacement_by_stratum = Counter(row["length_decile"] for row in replacement_rows)
+    if removed_by_stratum != replacement_by_stratum:
+        raise RuntimeError("amended invariance panel changed a length-stratum quota")
+    return result, {
+        "preserved_prior_rows": int(len(selected) - len(replacement_indices)),
+        "replaced_rows": int(len(replacement_indices)),
+        "removed_rows": sorted(removed_rows, key=lambda row: row["sequence_id"]),
+        "replacement_rows": sorted(
+            replacement_rows,
+            key=lambda row: row["sequence_id"],
+        ),
+    }
+
+
+def _finalize_panel(
+    invariance: pd.DataFrame,
+    *,
+    numerical_smoke_rows: int,
+    strata: int,
+) -> pd.DataFrame:
+    result = invariance.copy()
+    smoke_ids = set(
+        _select_smoke_panel(
+            result,
+            rows=numerical_smoke_rows,
+            strata=strata,
+        )["sequence_id"]
+    )
+    result["in_numerical_smoke_panel"] = result["sequence_id"].isin(smoke_ids)
+    return result.sort_values(
+        ["length_decile", "length_bp", "selection_sha256"], kind="stable"
+    ).reset_index(drop=True)
 
 
 def _select_invariance_panel(
