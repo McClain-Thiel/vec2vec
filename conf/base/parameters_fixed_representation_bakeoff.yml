@@ -1,0 +1,150 @@
+fixed_representation_bakeoff:
+  protocol_version: fixed_representation_bakeoff_e02b_v0.1
+  protocol_path: studies/set_valued_compositional_embeddings/experiments/E02_fixed_representation_bakeoff.md
+  input_versions:
+    retrieval: 2026-08-04T09.02.10.007Z
+    constraint_state: 2026-08-06T13.27.47.937Z
+    graph: 2026-08-17T22.59.04.326Z
+    split: 2026-08-17T23.49.47.355Z
+    query_benchmark: 2026-08-17T23.51.35.629Z
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  expected_query_artifact_hashes:
+    query_catalog_sha256: 72e2ed5576c10647c17ede29b4c45e6fd9cf7c19c2bb195279e6a329a54a2fd1
+    query_candidate_state_sha256: cd6fc783a497a47f0c90ea3e601c34ecfef1022d814a8dae58e2662450d3afaf
+  eligible_sequence_alphabet: ACGT
+  training_rows: 20000
+  maximum_rows_per_component: 100
+  selection_salt: fixed_representation_bakeoff_e02b_v0.1:alignment_train
+  minimum_verified_rows: 10
+  expected_input_artifact_hashes: null
+  device: cuda
+  precision: bfloat16
+  window_overlap_fraction: 0.25
+  seed: 20260818
+  dna_candidates:
+    carbon_500m:
+      model_id: HuggingFaceBio/Carbon-500M
+      revision: 106e36ff51b5dfbfe0b078ad18ad37a6956c5714
+      transformers_version: 5.12.1
+      model_class: causal_lm
+      trust_remote_code: true
+      model_max_tokens: 8192
+      tokenizer_unit_bp: 6
+      sequence_prefix: <dna>
+      sequence_suffix: </dna>
+      excluded_content_tokens: [<dna>, </dna>]
+      out_of_vocabulary_token: <oov>
+      pooling_layers: 4
+      attention_implementation: sdpa
+    generanno_prokaryote_500m:
+      model_id: GenerTeam/GENERanno-prokaryote-0.5b-base
+      revision: d02db0f24f2c62fa1efde760217cdf75771b0228
+      transformers_version: 4.49.0
+      model_class: masked_lm
+      trust_remote_code: true
+      model_max_tokens: 8192
+      tokenizer_unit_bp: 1
+      sequence_prefix: <s>
+      sequence_suffix: ""
+      excluded_content_tokens: [<s>]
+      out_of_vocabulary_token: N
+      pooling_layers: 1
+      attention_implementation: sdpa
+    generator_v2_prokaryote_1_2b:
+      model_id: GenerTeam/GENERator-v2-prokaryote-1.2b-base
+      revision: 8b2f768b0d293953518ff91d34600f9322ef1f94
+      transformers_version: 4.49.0
+      model_class: causal_lm
+      trust_remote_code: true
+      model_max_tokens: 16384
+      tokenizer_unit_bp: 6
+      sequence_prefix: <s>
+      sequence_suffix: <s>
+      excluded_content_tokens: [<s>]
+      out_of_vocabulary_token: <oov>
+      pooling_layers: 1
+      attention_implementation: sdpa
+  accepted_invariance_artifacts:
+    carbon_500m:
+      version: 2026-08-23T00.50.18.556Z
+      manifest_sha256: b1d3a04a4ac7b44362d7e66b37c5b2a6d0e230f55389b0ea2aab0730ccc91ece
+    generanno_prokaryote_500m:
+      version: 2026-08-23T00.53.22.430Z
+      manifest_sha256: b8186d835ee6e3142f5c9e3a2c598443d332919bc0131719735afe922507ac65
+    generator_v2_prokaryote_1_2b:
+      version: 2026-08-23T01.18.17.964Z
+      manifest_sha256: e95ace20a95a2d88b9cb444e560bc8d264ae8cdff55b8c198f042f6812299934
+  text_candidates:
+    bge_base_en_v1_5:
+      model_id: BAAI/bge-base-en-v1.5
+      revision: a5beb1e3e68b9ab74eb54cfd186867f64f240e1a
+      transformers_version: 5.12.1
+      trust_remote_code: false
+      max_tokens: 512
+      pooling: cls
+      document_prefix: ""
+      query_prefix: "Represent this sentence for searching relevant passages: "
+      normalize: true
+      attention_implementation: sdpa
+      batch_size: 128
+    gte_modernbert_base:
+      model_id: Alibaba-NLP/gte-modernbert-base
+      revision: e7f32e3c00f91d699e8c43b53106206bcc72bb22
+      transformers_version: 5.12.1
+      trust_remote_code: false
+      max_tokens: 8192
+      pooling: cls
+      document_prefix: ""
+      query_prefix: ""
+      normalize: true
+      attention_implementation: sdpa
+      batch_size: 128
+    qwen3_embedding_0_6b:
+      model_id: Qwen/Qwen3-Embedding-0.6B
+      revision: 97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3
+      transformers_version: 5.12.1
+      trust_remote_code: false
+      max_tokens: 32768
+      pooling: last_token
+      document_prefix: ""
+      query_prefix: "Instruct: Given a plasmid constraint query, retrieve plasmid descriptions that satisfy the recorded constraint\nQuery:"
+      normalize: true
+      attention_implementation: sdpa
+      batch_size: 32
+  tfidf:
+    candidate_id: tfidf_6mer_svd_512
+    analyzer: char
+    ngram_size: 6
+    lowercase: false
+    norm: l2
+    use_idf: true
+    smooth_idf: true
+    sublinear_tf: false
+    svd_components: 512
+    svd_algorithm: randomized
+    svd_iterations: 7
+    seed: 20260818
+  probe:
+    seeds: [13, 42, 20260818]
+    projection_dimension: 512
+    whitening_epsilon: 0.000001
+    removed_principal_components: 0
+    bias: false
+    epochs: 60
+    batch_size: 4096
+    learning_rate: 0.001
+    weight_decay: 0.01
+    initial_temperature: 0.07
+    maximum_logit_scale: 100.0
+    cutoffs: [1, 5, 10, 50]
+    bootstrap_draws: 2000
+    bootstrap_seed: 20260818
+    practical_tie_utility: 0.01
+    minimum_incumbent_improvement: 0.01
+    cost_tie_fraction: 0.10
+  accepted_input_artifact: null
+  accepted_feature_artifacts: null
+  # Set only by an approval-gated runner for one exact paid stage.
+  compute_authorization: null
+
+fixed_representation_bakeoff_feature_candidate: carbon_500m

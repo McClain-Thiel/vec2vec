@@ -17,15 +17,16 @@ unique verified or contradicted plasmid-constraint states. A 30-application hand
 positive mapping. These remain narrow Addgene metadata states, not biological ground truth — the
 benchmark measures recorded-metadata consistency, not plasmid function.
 
-**Status:** Gate 0 complete. Gate 1 is active. The DNA numerical smoke check accepted Carbon-500M,
-GENERanno prokaryote 500M, and GENERator-v2 prokaryote 1.2B for the full invariance check.
-Carbon-3B exceeded both 22.03 GiB and 44.39 GiB GPUs under the fixed protocol. Gate 2 training
-cannot start until the Gate 1 representation pair and feature hashes are frozen.
+**Status:** Gate 0 complete. Gate 1 is active. Carbon-500M, GENERanno prokaryote 500M, and
+GENERATOR-v2 prokaryote 1.2B passed the numerical and full-panel invariance gates. Carbon-3B
+exceeded both 22.03 GiB and 44.39 GiB GPUs under the fixed protocol. The E02b validation-only
+four-DNA-by-three-text alignment benchmark is implemented but not executed. Gate 2 training cannot
+start until the Gate 1 representation pair and feature hashes are frozen.
 
-**Next decision:** run the 512-row invariance checks for the three candidates that passed the
-[E02 numerical smoke check](reports/14_gate1_numerical_smoke.md). Carbon-500M remains the incumbent
-because it won the prior PlasmidCLIP target-retrieval comparison. Keep the test split unread during
-selection.
+**Next decision:** freeze and independently validate the E02b input artifact, estimate the real
+feature-extraction and probe cost, then request a bounded paid-run approval. Carbon-500M plus
+BGE-base remains the incumbent. The earlier eligibility audit read the old test artifacts, so E02b
+is validation-only and cannot support a confirmatory test claim.
 
 **Current reports:** [Gate 0 completion](reports/12_gate0_completion.md) records the accepted graph,
 v2 split, query benchmark, and remaining limitations. The

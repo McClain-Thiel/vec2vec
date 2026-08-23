@@ -13,6 +13,7 @@ from vec2vec.pipelines import (
     dataset,
     descriptions,
     facet_audit,
+    fixed_representation_bakeoff,
     fixed_representation_invariance,
     fixed_representation_smoke,
     processing,
@@ -38,6 +39,7 @@ def register_pipelines() -> dict[str, Pipeline]:
     - ``constraint_benchmark_smoke`` calls the strong model once per facet.
     - ``constraint_benchmark_judge`` calls it on the fixed 240-application sample.
     - ``fixed_representation_invariance`` calls one pinned DNA encoder on 512 rows.
+    - ``fixed_representation_bakeoff_*`` runs the explicit E02b input, feature, and probe stages.
     - ``import_descriptions`` adopts already-published descriptions instead.
 
     Historical v3 pilot, validator, and comparison outputs remain catalog-readable, but their
@@ -65,6 +67,21 @@ def register_pipelines() -> dict[str, Pipeline]:
         "similarity_split": similarity_split.create_pipeline(),
         "fixed_representation_invariance": fixed_representation_invariance.create_pipeline(),
         "fixed_representation_smoke": fixed_representation_smoke.create_pipeline(),
+        "fixed_representation_bakeoff_inputs": (
+            fixed_representation_bakeoff.create_input_pipeline()
+        ),
+        "fixed_representation_bakeoff_dna_features": (
+            fixed_representation_bakeoff.create_dna_feature_pipeline()
+        ),
+        "fixed_representation_bakeoff_text_features": (
+            fixed_representation_bakeoff.create_text_feature_pipeline()
+        ),
+        "fixed_representation_bakeoff_tfidf_features": (
+            fixed_representation_bakeoff.create_tfidf_feature_pipeline()
+        ),
+        "fixed_representation_bakeoff_alignment": (
+            fixed_representation_bakeoff.create_alignment_pipeline()
+        ),
         "facet_audit_sample": facet_audit.create_pipeline(),
         "facet_audit_review_export": facet_audit.create_review_export_pipeline(),
     }

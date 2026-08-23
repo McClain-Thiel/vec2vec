@@ -2063,3 +2063,33 @@ test feature, model score, ranking, or test metric, but the process read test ro
 Under the frozen protocol this access contaminates the current test set for confirmatory use. E02b
 selection remains validation-only. Any later confirmatory evaluation requires a new test protocol
 or a demonstrably untouched holdout; do not report the current test split as unread.
+
+## 2026-08-23 13:17:25 BST — E02b representation and probe recipes frozen
+
+**Status:** preregistered before E02b feature extraction, probe fitting, validation ranking, or
+candidate selection. The only E02b work at this point was deterministic input auditing and code
+under test. No model feature or validation result existed.
+
+The three pinned text-model cards specify different representation contracts. Freeze BGE-base to
+normalized first-token pooling, no document prefix, and its documented English retrieval-query
+prefix. Freeze GTE-ModernBERT to normalized first-token pooling without role prefixes. Freeze
+Qwen3-Embedding to left padding, normalized last-token pooling, no document prefix, and this
+task-specific query instruction:
+`Given a plasmid constraint query, retrieve plasmid descriptions that satisfy the recorded constraint`.
+The serialized Qwen query form is
+`Instruct: <task>\nQuery:<canonical query>`. Use the exact pinned revisions and Transformers 5.12.1.
+Do not truncate. Stop above 512, 8,192, and 32,768 tokens for BGE, GTE, and Qwen, respectively.
+
+The TF-IDF baseline was underspecified in E02 v0.1. Freeze character 6-mers, case preservation,
+standard smoothed inverse-document frequency, L2 TF-IDF normalization, randomized 512-dimensional
+truncated SVD with seven power iterations and seed 20260818, then L2-normalize the SVD output. Fit
+all state on the approved 20,000 training rows and persist it.
+
+Freeze full-rank train-only principal-component whitening with epsilon `1e-6`, zero removed
+components, and bias-free 512-dimensional heads. Every epoch uses all training rows; the final
+batch can be smaller than 4,096 and cannot be dropped. Stable frozen gallery order resolves score
+ties. Use 2,000 whole-component bootstrap draws with seed 20260818 and persist every draw.
+
+These choices resolve implementation details before outcomes. They do not change the approved
+E02b population, candidate set, three seeds, optimizer, 60 epochs, primary metric, selection rule,
+or validation-only scope. The earlier test-contamination record remains in force.

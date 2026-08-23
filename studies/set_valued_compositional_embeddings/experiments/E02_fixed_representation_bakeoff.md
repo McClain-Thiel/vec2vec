@@ -1,6 +1,6 @@
 # E02 Fixed-Representation Bake-off
 
-- **Status:** planned; protocol frozen before feature extraction or model evaluation
+- **Status:** active; E02b harness implemented before feature extraction or model evaluation
 - **Gate:** 1
 - **Protocol version:** `fixed_representation_bakeoff_v0.1`
 - **Frozen:** 2026-08-18 Europe/London
@@ -391,6 +391,57 @@ but no automatic post-run instance stop is part of this amendment.
 Store paths and serialization rules in the Kedro Data Catalog. Record the Git commit, dirty state,
 resolved configuration, package versions, model and tokenizer revisions, hardware, precision,
 seeds, and feature hashes.
+
+## 2026-08-23 E02b retrieval-recipe amendment before feature extraction
+
+Apply the approved uppercase `A`/`C`/`G`/`T` eligibility rule before every representation. Build
+the 20,000-row training panel from eligible training rows. Filter validation rows without
+replacement. Evaluate the 6-mer baseline and the three DNA models that passed protocol v0.2
+invariance. Record Carbon-3B as technically ineligible within the approved hardware envelope.
+
+Freeze these text recipes from the pinned model cards:
+
+- BGE-base uses the first-token (`[CLS]`) vector, L2 normalization, no document prefix, and
+  `Represent this sentence for searching relevant passages: ` before retrieval queries.
+- GTE-ModernBERT uses the first-token vector and L2 normalization, with no role prefix.
+- Qwen3-Embedding uses left padding, the last non-padding token, L2 normalization, no document
+  prefix, and
+  `Instruct: Given a plasmid constraint query, retrieve plasmid descriptions that satisfy the recorded constraint\nQuery:`
+  before retrieval queries.
+
+Do not truncate a text. Stop if BGE exceeds 512 tokens, GTE exceeds 8,192 tokens, or Qwen exceeds
+32,768 tokens. Use bfloat16 and Transformers 5.12.1 for all three text models. Extract each unique
+source sequence, paired description, and query-role text once per candidate. Reuse its frozen
+vector for rows with the same source hash.
+
+The 6-mer baseline uses lowercase-disabled character 6-mers, standard smoothed inverse-document
+frequency, L2-normalized TF-IDF, and randomized truncated SVD with 512 components, seven power
+iterations, and seed 20260818. Fit the vocabulary, inverse-document frequencies, and SVD only on
+the 20,000 training rows. L2-normalize the SVD vectors. Persist the fitted state and its hashes.
+
+Fit full-rank train-only centering and principal-component whitening with epsilon `1e-6`. Remove
+zero components. Use bias-free projection heads. Shuffle training rows once per seed and epoch.
+Use every row: the final batch can contain fewer than 4,096 rows and cannot be discarded. Resolve
+equal retrieval scores by the stable, ascending frozen gallery order. Use 2,000 whole-component
+bootstrap draws with seed 20260818 and persist every draw.
+
+This amendment is preregistered after the input-eligibility audit and before any E02b feature,
+probe, validation ranking, or candidate result. The current test split was read during that audit
+and is contaminated for later confirmatory use. E02b remains validation-only.
+
+Run paid neural feature extraction and alignment only through
+`scripts/run_fixed_representation_bakeoff.py`. The runner requires the exact stage, candidate when
+applicable, durable approval reference, region, instance type, total instance-hour limit, and
+observed hourly price. It binds every accepted input, invariance, and feature artifact version. It
+runs Kedro input loading, computation, and output persistence in one externally timed child
+process. The library code also checks the same deadline between model batches, sequences, probe
+batches, and bootstrap draws. A configured time limit is therefore an enforced stop rule, not only
+provenance text.
+
+Before a later stage can load an artifact, perform an independent persisted read-back, recompute
+its table and manifest hashes, record its physical bytes, and freeze its exact version and hashes
+in `parameters_fixed_representation_bakeoff.yml`. Feature acceptance must also record measured
+extraction GPU-hours. The train-fitted TF-IDF baseline records zero extraction GPU-hours.
 
 ## Known limitations
 

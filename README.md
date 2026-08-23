@@ -7,9 +7,9 @@ The PlasmidCLIP data pipeline, rebuilt on Kedro with an S3 data catalog.
 It turns the raw Addgene release into a paired
 **(plasmid DNA sequence, natural-language description)** dataset with
 leakage-aware splits, constraint-based relevance labels, and the audits needed
-to trust both. Gate 1 encoder selection, its numerical DNA smoke harness, and
-the full-panel invariance harness are implemented. Full encoder features and
-model training have not started.
+to trust both. Gate 1 numerical and invariance checks are complete for three
+DNA candidates. The validation-only E02b feature and alignment benchmark is
+implemented, but its real feature extraction and probe runs have not started.
 
 ## Pipelines
 
@@ -22,6 +22,11 @@ model training have not started.
 | `facet_audit_sample` | Draws the frozen, component-aware E00 metadata-review sample. It does not accept labels. | no |
 | `fixed_representation_smoke` | Runs the paid Gate 1 bfloat16-versus-float32 DNA encoder smoke check on training rows only. | **no — paid** |
 | `fixed_representation_invariance` | Runs the paid Gate 1 original/rotation/reverse-complement and collapse checks on the frozen 512-row training panel. | **no — paid** |
+| `fixed_representation_bakeoff_inputs` | Freezes the E02b A/C/G/T-only training panel, reduced validation gallery, queries, states, and exclusions. | no |
+| `fixed_representation_bakeoff_tfidf_features` | Fits the train-only 6-mer TF-IDF/SVD DNA baseline and persists its state. | no |
+| `fixed_representation_bakeoff_dna_features` | Extracts one accepted neural DNA representation under an approval-gated deadline. | **no — paid** |
+| `fixed_representation_bakeoff_text_features` | Extracts one frozen document/query text representation under an approval-gated deadline. | **no — paid** |
+| `fixed_representation_bakeoff_alignment` | Fits the complete four-by-three-by-three probe factorial and selects from validation utility only. | **no — paid** |
 | `constraint_evidence` | Applies enabled exact rules to training metadata and draws a compact validation benchmark. It does not read test rows or call a model. | no |
 | `constraint_state` | Applies the frozen rule contract to all splits and writes the stable constraint vocabulary plus sparse verified/contradicted states. | no |
 | `split_audit` | Searches every cross-split pair for near-duplicate sequences and reports split concentration. Found the current `split_grouped` fails its near-duplicate rule. | no |
@@ -65,6 +70,19 @@ python scripts/run_fixed_representation_invariance.py \
   --observed-instance-price-usd-per-hour <price>
 python scripts/validate_fixed_representation_invariance_artifacts.py \
   --version <candidate-output-version>  # read-only persisted-artifact check
+kedro run --pipeline fixed_representation_bakeoff_inputs
+python scripts/validate_fixed_representation_bakeoff_inputs.py \
+  --version <input-output-version>  # read-only persisted-artifact check
+# After the input and feature artifact hashes are frozen in configuration, use the bounded runner
+# for each paid stage. It requires the approval reference, host, time cap, and observed price.
+python scripts/run_fixed_representation_bakeoff.py \
+  --stage dna_features \
+  --candidate carbon_500m \
+  --approval-reference <approval-reference> \
+  --region <aws-region> \
+  --instance-type <instance-type> \
+  --instance-hour-limit <total-hours> \
+  --observed-instance-price-usd-per-hour <price>
 kedro viz                          # requires the `viz` extra
 ```
 
@@ -153,7 +171,9 @@ The [Gate 0 completion report](studies/set_valued_compositional_embeddings/repor
 records the accepted artifact versions and remaining limitations. The
 [Gate 1 encoder review](studies/set_valued_compositional_embeddings/reports/13_encoder_prior_and_candidates.md)
 and [fixed-representation protocol](studies/set_valued_compositional_embeddings/experiments/E02_fixed_representation_bakeoff.md)
-define the next work. Paid GPU extraction has not started.
+define the active E02b validation-only comparison. Paid E02b GPU extraction has not started. A
+prior eligibility audit read the old test artifacts, so a later confirmatory evaluation requires
+a new untouched holdout or a separately frozen test protocol.
 
 ## Setup
 

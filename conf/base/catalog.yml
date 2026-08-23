@@ -163,6 +163,21 @@ retrieval_dataset@fixed_representation_smoke:
       - leakage_component
       - split_grouped
 
+# Full-sequence view for the preregistered E02b reduced-population bake-off.
+retrieval_dataset@fixed_representation_bakeoff:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence
+      - sequence_sha256
+      - description
+      - length_bp
+      - leakage_component
+      - split_grouped
+
 # The audit only reads structured metadata, so it skips the sequence column —
 # by far the widest in the table. Transcoded so Kedro still orders the writer
 # before this reader.
@@ -633,6 +648,182 @@ e02_fixed_representation_invariance_diagnostics:
 e02_fixed_representation_invariance_manifest:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_manifest.json
+  versioned: true
+
+# E02b uses a reduced A/C/G/T-only population. Keep its input, feature, model,
+# and validation products distinct from the original E02 artifacts.
+e02b_pairs:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e02b/pairs.parquet
+  versioned: true
+
+e02b_exclusions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02b/exclusions.parquet
+  versioned: true
+
+e02b_queries:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e02b/queries.parquet
+  versioned: true
+
+e02b_query_states:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e02b/query_states.parquet
+  versioned: true
+
+e02b_input_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e02b/input_manifest.json
+  versioned: true
+
+_e02b_dna_features: &e02b_dna_features
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/e02b/dna_features.parquet
+
+e02b_dna_features:
+  <<: *e02b_dna_features
+  versioned: true
+
+e02b_dna_features_tfidf_6mer_svd_512:
+  <<: *e02b_dna_features
+  versioned: true
+
+e02b_dna_features_carbon_500m:
+  <<: *e02b_dna_features
+  versioned: true
+
+e02b_dna_features_generanno_prokaryote_500m:
+  <<: *e02b_dna_features
+  versioned: true
+
+e02b_dna_features_generator_v2_prokaryote_1_2b:
+  <<: *e02b_dna_features
+  versioned: true
+
+e02b_dna_coverage:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02b/dna_coverage.parquet
+  versioned: true
+
+_e02b_dna_manifest: &e02b_dna_manifest
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e02b/dna_manifest.json
+
+e02b_dna_manifest:
+  <<: *e02b_dna_manifest
+  versioned: true
+
+e02b_dna_manifest_tfidf_6mer_svd_512:
+  <<: *e02b_dna_manifest
+  versioned: true
+
+e02b_dna_manifest_carbon_500m:
+  <<: *e02b_dna_manifest
+  versioned: true
+
+e02b_dna_manifest_generanno_prokaryote_500m:
+  <<: *e02b_dna_manifest
+  versioned: true
+
+e02b_dna_manifest_generator_v2_prokaryote_1_2b:
+  <<: *e02b_dna_manifest
+  versioned: true
+
+e02b_tfidf_vocabulary:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e02b/tfidf_vocabulary.parquet
+  versioned: true
+
+e02b_tfidf_svd_state:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e02b/tfidf_svd_state.parquet
+  versioned: true
+
+_e02b_text_features: &e02b_text_features
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/e02b/text_features.parquet
+
+e02b_text_features:
+  <<: *e02b_text_features
+  versioned: true
+
+e02b_text_features_bge_base_en_v1_5:
+  <<: *e02b_text_features
+  versioned: true
+
+e02b_text_features_gte_modernbert_base:
+  <<: *e02b_text_features
+  versioned: true
+
+e02b_text_features_qwen3_embedding_0_6b:
+  <<: *e02b_text_features
+  versioned: true
+
+_e02b_text_manifest: &e02b_text_manifest
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e02b/text_manifest.json
+
+e02b_text_manifest:
+  <<: *e02b_text_manifest
+  versioned: true
+
+e02b_text_manifest_bge_base_en_v1_5:
+  <<: *e02b_text_manifest
+  versioned: true
+
+e02b_text_manifest_gte_modernbert_base:
+  <<: *e02b_text_manifest
+  versioned: true
+
+e02b_text_manifest_qwen3_embedding_0_6b:
+  <<: *e02b_text_manifest
+  versioned: true
+
+# Frozen alignment-probe state and validation-only comparison evidence.
+e02b_whitening_state:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e02b/whitening_state.parquet
+  versioned: true
+
+e02b_probe_checkpoints:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e02b/probe_checkpoints.parquet
+  versioned: true
+
+e02b_training_history:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02b/training_history.parquet
+  versioned: true
+
+e02b_paired_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02b/paired_metrics.parquet
+  versioned: true
+
+e02b_query_rankings:
+  <<: *parquet
+  filepath: ${globals:lake}/07_model_output/e02b/query_rankings.parquet
+  versioned: true
+
+e02b_query_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02b/query_metrics.parquet
+  versioned: true
+
+e02b_query_summaries:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02b/query_summaries.parquet
+  versioned: true
+
+e02b_bootstrap_draws:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e02b/bootstrap_draws.parquet
+  versioned: true
+
+e02b_selection_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e02b/selection_report.json
   versioned: true
 
 e00_constraint_benchmark_summary:

@@ -39,6 +39,7 @@ viz = [
 notebook = [
     "ipython>=8.10",
     "jupyterlab>=3.0",
+    "marimo>=0.15",
     "notebook",
 ]
 dev = [
@@ -52,6 +53,7 @@ similarity-graph = [
 ]
 modeling = [
     "accelerate==1.14.0",
+    "scikit-learn>=1.7",
     "torch==2.11.0",
     "transformers==5.12.1",
 ]
