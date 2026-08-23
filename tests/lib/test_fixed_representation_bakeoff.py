@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from vec2vec.lib import (
+    fixed_representation,
     fixed_representation_bakeoff,
     fixed_representation_bakeoff_validation,
     fixed_representation_features,
@@ -265,3 +267,72 @@ def test_text_feature_extraction_rejects_a_changed_query_table() -> None:
 
     with pytest.raises(ValueError, match="query table hash changed"):
         fixed_representation_features._validate_query_artifact(changed, manifest)
+
+
+def test_tfidf_readback_validates_vectors_vocabulary_and_state() -> None:
+    pairs = pd.DataFrame(
+        {
+            "sequence_sha256": ["sequence-a", "sequence-b", "sequence-c"],
+        }
+    )
+    matrix = np.asarray([[1.0, 0.0], [0.0, 1.0], [2**-0.5, 2**-0.5]], dtype=np.float32)
+    features = pd.DataFrame(
+        {
+            "candidate_id": "tfidf",
+            "sequence_sha256": pairs["sequence_sha256"],
+            "embedding_dimension": 2,
+            "embedding": [row.tolist() for row in matrix],
+            "embedding_sha256": [fixed_representation.embedding_sha256(row) for row in matrix],
+        }
+    )
+    vocabulary = pd.DataFrame(
+        {
+            "term": ["AAAAAA", "CCCCCC"],
+            "term_index": [0, 1],
+            "idf": [1.0, 2.0],
+        }
+    )
+    svd_state = pd.DataFrame(
+        {
+            "component": [0, 1],
+            "singular_value": [2.0, 1.0],
+            "vector": [[1.0, 0.0], [0.0, 1.0]],
+        }
+    )
+    input_manifest = {"input": "accepted"}
+    output_hashes = {
+        "features_sha256": dataframe_content_sha256(
+            features, sort_columns=["candidate_id", "sequence_sha256"]
+        ),
+        "vocabulary_sha256": dataframe_content_sha256(vocabulary, sort_columns=["term_index"]),
+        "svd_state_sha256": dataframe_content_sha256(svd_state, sort_columns=["component"]),
+    }
+    manifest = {
+        "feature_kind": "tfidf_dna",
+        "candidate_id": "tfidf",
+        "input_manifest_sha256": (
+            fixed_representation_bakeoff_validation.json_content_sha256(input_manifest)
+        ),
+        "training_rows": 2,
+        "elapsed_seconds": 1.0,
+        "output_hashes": output_hashes,
+        "decision": {
+            "status": "frozen_features_complete",
+            "validation_rankings_computed": False,
+        },
+    }
+
+    report = fixed_representation_bakeoff_validation.validate_tfidf_features(
+        pairs,
+        input_manifest,
+        features,
+        vocabulary,
+        svd_state,
+        manifest,
+        expected_candidate_id="tfidf",
+        expected_dimension=2,
+        expected_training_rows=2,
+    )
+
+    assert report["status"] == "passed_e02b_tfidf_readback"
+    assert report["extraction_gpu_hours"] == 0.0
