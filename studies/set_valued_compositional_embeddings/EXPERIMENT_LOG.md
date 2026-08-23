@@ -2111,3 +2111,26 @@ nullable float after Parquet read-back. The scientific values were unchanged, bu
 JSON hash distinguished `0` from `0.0`. Store this provenance field as nullable decimal text and
 add an explicit Parquet round-trip regression test. Rerun the input pipeline from a new clean Git
 commit. Preserve this failed version as technical-failure evidence.
+
+## 2026-08-23 15:17:44 BST — E02b input artifact accepted
+
+**Status:** passed independent persisted-artifact read-back. This run did not load a model, extract
+a feature, fit a probe, calculate a ranking, or select a candidate.
+
+The clean worktree at Git commit `25847aad6ec15edb410c4067cccbf8bd7ccc2c3d` produced E02b input
+version `2026-08-23T14.16.15.778Z`. Independent read-back observed 20,000 training rows across all
+7,774 eligible training components, 10,852 validation rows across 1,646 components, 4,297 excluded
+rows, 108 queries (28 atomic and 80 pair conjunction), and 446,758 sparse query-state rows. Every
+query retained at least ten eligible verified validation rows.
+
+All persisted hashes matched the manifest:
+
+- manifest: `57911ecee4654f17cc456a537f4295de155a3cf3269a3dfc289c95ee630f4a46`;
+- pairs: `cc7690d9bc979028dd3af0e292b715f6c7c391daac269be0fc5a7b7c17a86aa9`;
+- exclusions: `f4b561f3a8173c75b7619d27b222924118afddfb3391f21e20346a48a242bf45`;
+- queries: `a440e26a32468a9e613aaa2034b476b453a8bae988c08128df3f14f251c4552c`;
+- query states: `06afff85e1d4b3d96f7c62eeadd3ba50892b26cae558aec64a5bcba41c37ce8b`.
+
+The five artifacts use 31,212,396 bytes in total. Freeze this exact version and these hashes before
+TF-IDF or neural feature extraction. E02b remains validation-only because the earlier eligibility
+audit contaminated the old test artifacts for confirmatory use.

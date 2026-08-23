@@ -142,7 +142,15 @@ fixed_representation_bakeoff:
     practical_tie_utility: 0.01
     minimum_incumbent_improvement: 0.01
     cost_tie_fraction: 0.10
-  accepted_input_artifact: null
+  accepted_input_artifact:
+    version: 2026-08-23T14.16.15.778Z
+    manifest_sha256: 57911ecee4654f17cc456a537f4295de155a3cf3269a3dfc289c95ee630f4a46
+    pairs_sha256: cc7690d9bc979028dd3af0e292b715f6c7c391daac269be0fc5a7b7c17a86aa9
+    exclusions_sha256: f4b561f3a8173c75b7619d27b222924118afddfb3391f21e20346a48a242bf45
+    queries_sha256: a440e26a32468a9e613aaa2034b476b453a8bae988c08128df3f14f251c4552c
+    query_states_sha256: 06afff85e1d4b3d96f7c62eeadd3ba50892b26cae558aec64a5bcba41c37ce8b
+    persisted_bytes: 31212396
+    git_commit: 25847aad6ec15edb410c4067cccbf8bd7ccc2c3d
   accepted_feature_artifacts: null
   # Set only by an approval-gated runner for one exact paid stage.
   compute_authorization: null

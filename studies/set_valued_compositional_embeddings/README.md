@@ -20,11 +20,13 @@ benchmark measures recorded-metadata consistency, not plasmid function.
 **Status:** Gate 0 complete. Gate 1 is active. Carbon-500M, GENERanno prokaryote 500M, and
 GENERATOR-v2 prokaryote 1.2B passed the numerical and full-panel invariance gates. Carbon-3B
 exceeded both 22.03 GiB and 44.39 GiB GPUs under the fixed protocol. The E02b validation-only
-four-DNA-by-three-text alignment benchmark is implemented but not executed. Gate 2 training cannot
-start until the Gate 1 representation pair and feature hashes are frozen.
+four-DNA-by-three-text alignment benchmark is implemented. Its 20,000-row training panel and
+10,852-row validation gallery passed independent persisted-artifact read-back. Feature extraction
+and probe fitting have not started. Gate 2 training cannot start until the Gate 1 representation
+pair and feature hashes are frozen.
 
-**Next decision:** freeze and independently validate the E02b input artifact, estimate the real
-feature-extraction and probe cost, then request a bounded paid-run approval. Carbon-500M plus
+**Next decision:** run the train-fitted TF-IDF/SVD baseline, estimate the neural feature-extraction
+and probe cost from the accepted panel, then request a bounded paid-run approval. Carbon-500M plus
 BGE-base remains the incumbent. The earlier eligibility audit read the old test artifacts, so E02b
 is validation-only and cannot support a confirmatory test claim.
 

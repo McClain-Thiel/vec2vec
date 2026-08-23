@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 
+from vec2vec.lib.fixed_representation_invariance import json_content_sha256
 from vec2vec.lib.similarity_graph import dataframe_content_sha256
 
 
@@ -116,6 +117,7 @@ def validate_bakeoff_inputs(
         "excluded_rows": int(len(exclusions)),
         "queries": int(len(queries)),
         "query_states": int(len(query_states)),
+        "manifest_sha256": json_content_sha256(manifest),
         "output_hashes": observed_hashes,
         "validation_only": True,
         "current_test_split_contaminated_before_e02b": True,
