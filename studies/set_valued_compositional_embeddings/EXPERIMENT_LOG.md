@@ -2134,3 +2134,25 @@ All persisted hashes matched the manifest:
 The five artifacts use 31,212,396 bytes in total. Freeze this exact version and these hashes before
 TF-IDF or neural feature extraction. E02b remains validation-only because the earlier eligibility
 audit contaminated the old test artifacts for confirmatory use.
+
+## 2026-08-23 15:26:20 BST — E02b TF-IDF/SVD baseline accepted
+
+**Status:** passed independent persisted-artifact read-back. This run fit only train-derived
+TF-IDF and SVD state. It did not fit an alignment probe, calculate a validation ranking, or select
+a representation pair.
+
+The clean worktree at Git commit `e75ffa2d00f327b84fb009779d52400deed0667e` loaded the accepted
+E02b input version and completed the frozen 6-mer TF-IDF/SVD node in 124.60 seconds. The output
+version is `2026-08-23T14.21.58.754Z`. It contains 30,821 unique 512-dimensional sequence vectors
+for 30,852 source rows, all 4,096 A/C/G/T 6-mers, and all 512 persisted SVD components.
+
+Independent read-back found finite L2-normalized vectors, exact per-row embedding hashes,
+contiguous vocabulary and component indices, and exact table hashes:
+
+- manifest: `2c6d5c0023d884951580df7e5202fd356e5c15ca8c298a0628abb4462a219cbb`;
+- features: `d783f66cb234bd228d9de304884b23849d75d9b5eef2a7510d61b0cc83486a41`;
+- vocabulary: `39b75ff9154f34f2265971d9cb623dcb5215f8d693b3a914607a7bfb531be6e6`;
+- SVD state: `dcdddf96c4aed4d3706afd19d902e61b885f1b6b6896cbd0b7a7176d5b016b25`.
+
+The complete feature product uses 93,002,965 bytes and zero GPU-hours. Freeze this exact baseline
+before the neural feature runs.

@@ -151,7 +151,15 @@ fixed_representation_bakeoff:
     query_states_sha256: 06afff85e1d4b3d96f7c62eeadd3ba50892b26cae558aec64a5bcba41c37ce8b
     persisted_bytes: 31212396
     git_commit: 25847aad6ec15edb410c4067cccbf8bd7ccc2c3d
-  accepted_feature_artifacts: null
+  accepted_feature_artifacts:
+    dna:
+      tfidf_6mer_svd_512:
+        version: 2026-08-23T14.21.58.754Z
+        manifest_sha256: 2c6d5c0023d884951580df7e5202fd356e5c15ca8c298a0628abb4462a219cbb
+        features_sha256: d783f66cb234bd228d9de304884b23849d75d9b5eef2a7510d61b0cc83486a41
+        extraction_gpu_hours: 0.0
+        persisted_bytes: 93002965
+    text: {}
   # Set only by an approval-gated runner for one exact paid stage.
   compute_authorization: null
 

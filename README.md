@@ -9,8 +9,8 @@ It turns the raw Addgene release into a paired
 leakage-aware splits, constraint-based relevance labels, and the audits needed
 to trust both. Gate 1 numerical and invariance checks are complete for three
 DNA candidates. The validation-only E02b feature and alignment benchmark is
-implemented, and its input panel passed independent read-back. Real feature
-extraction and probe runs have not started.
+implemented, its input panel passed independent read-back, and its train-fitted
+TF-IDF/SVD baseline is frozen. Neural feature extraction and probe runs have not started.
 
 ## Pipelines
 
