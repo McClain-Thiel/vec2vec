@@ -1,18 +1,23 @@
-# Gate 1 E02b Benchmark Status
+# Gate 1 E02b Benchmark Result
 
 ## Conclusion first
 
-- E02b feature extraction is complete. No DNA-and-text pair has been selected.
+- E02b is complete. The selected validation pair is 6-mer TF-IDF/SVD DNA plus
+  Qwen3-Embedding-0.6B text.
 - Seven representation products passed independent persisted-artifact read-back: TF-IDF/SVD,
   Carbon-500M, GENERanno, GENERator-v2, BGE-base, GTE-ModernBERT, and Qwen3-Embedding.
 - GENERanno version `2026-08-23T16.23.06.763Z` is a rejected partial artifact. It contains the
   feature table but lacks the required coverage and manifest products.
 - GENERanno retry version `2026-08-24T11.03.45.874Z` is complete and accepted. It did not reuse
   the rejected feature table.
-- The complete 4-by-3-by-3 alignment factorial did not start. No validation ranking or old-test
-  model outcome was read.
-- The alignment factorial is authorized and ready to run from the seven accepted feature
-  products.
+- All 36 configurations in the 4-by-3-by-3 alignment factorial completed and passed independent
+  read-back. The selected mean validation `utility@10` is `0.153086`, with whole-component 95%
+  interval `[0.076227, 0.188279]`.
+- The incumbent Carbon-500M plus BGE-base mean is `-0.041049`. The selected improvement is
+  `0.194136`, so the incumbent-retention guard did not apply.
+- Atomic-query utility is `0.602381`, but pair-conjunction utility is `-0.004167`. The selected
+  representation does not by itself solve compositional retrieval.
+- No test row was read. E02b remains validation-only.
 
 ## Question and scope
 
@@ -49,6 +54,56 @@ coverage, a 1,280-dimensional feature table, and these hashes:
 - manifest: `cdbedeeee110900d602d399968a1be0b0d614f65007dc07d689fa4e492a3d13b`;
 - features: `8bd9b216632bbc2d225001ff225910e65a76228f72f8adbcf1d8129bed1d5c37`;
 - coverage: `6d721dea4a3ac83b9866ff4ead7d6fe3ef5fad601dd8107ce50b48889e6f5eb6`.
+
+## Accepted alignment and selection
+
+Alignment version `2026-08-24T16.34.48.358Z` completed all 36 planned configurations at clean Git
+commit `410fa42c280716dde5461535d7a1baef109bec57`. It used seeds 13, 42, and 20260818. Independent
+read-back verified 194,400 ranking rows, 15,552 query-metric rows, 72,000 bootstrap rows, the
+whitening refit, every checkpoint and training history, and the frozen selection rule.
+
+| DNA | Text | Mean utility@10 | Whole-component 95% interval |
+| --- | --- | ---: | ---: |
+| TF-IDF/SVD | Qwen3 | 0.153086 | [0.076227, 0.188279] |
+| GENERanno | Qwen3 | 0.141049 | [0.057701, 0.157716] |
+| Carbon-500M | Qwen3 | 0.071296 | [0.025926, 0.124691] |
+| TF-IDF/SVD | GTE | 0.047531 | [-0.016674, 0.060185] |
+| GENERator-v2 | Qwen3 | 0.043827 | [-0.001543, 0.077778] |
+| GENERanno | BGE | 0.031173 | [-0.025309, 0.055556] |
+| TF-IDF/SVD | BGE | 0.017284 | [-0.037037, 0.054938] |
+| GENERanno | GTE | -0.001543 | [-0.058958, 0.037353] |
+| Carbon-500M | GTE | -0.026543 | [-0.068835, 0.007724] |
+| Carbon-500M | BGE | -0.041049 | [-0.088580, 0.008642] |
+| GENERator-v2 | GTE | -0.045370 | [-0.080864, -0.024383] |
+| GENERator-v2 | BGE | -0.050309 | [-0.094761, -0.015733] |
+
+The selected and runner-up mean difference is `0.012037`. It exceeds the fixed `0.01` practical
+tie threshold, so overlapping bootstrap intervals do not trigger the cost tie-break. The selected
+pair is also the cheapest top candidate: its feature extraction used `0.057724` GPU-hours because
+the DNA baseline used no GPU.
+
+| Pair | Seed 13 | Seed 42 | Seed 20260818 | Mean |
+| --- | ---: | ---: | ---: | ---: |
+| TF-IDF/SVD + Qwen3 | 0.155556 | 0.158333 | 0.145370 | 0.153086 |
+| Carbon-500M + BGE | -0.039815 | -0.039815 | -0.043519 | -0.041049 |
+
+For the selected pair at K=10, the seed-mean verified, contradicted, and unknown fractions are
+`0.425617`, `0.272531`, and `0.301852`. Atomic-query utility is `0.602381`. Pair-conjunction
+utility is `-0.004167`, with verified and contradicted fractions `0.346250` and `0.350417`. This
+difference is the main scientific limitation of the selection result.
+
+The descriptive mean across text encoders ranks DNA as TF-IDF/SVD `0.072634`, GENERanno
+`0.056893`, Carbon-500M `0.001235`, and GENERator-v2 `-0.017284`. The descriptive mean across DNA
+encoders ranks text as Qwen3 `0.102315`, GTE `-0.006481`, and BGE `-0.010725`. These are factorial
+summaries, not causal effects.
+
+Across seeds, the selected pair's sequence-to-description R@1/R@10 are approximately
+`0.1279`/`0.3711`; description-to-sequence R@1/R@10 are approximately `0.1434`/`0.3926`. The
+incumbent values are approximately `0.0810`/`0.2815` and `0.0813`/`0.2825`.
+
+The alignment outputs use 245,589,153 bytes. The selection-report hash is
+`a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25`. All eight table hashes are
+frozen in `parameters_fixed_representation_bakeoff.yml` and the experiment log.
 
 ## Rejected GENERanno partial version
 
@@ -91,17 +146,21 @@ transfer. Scaling the previously reported total command time to the corrected ra
 approximately `$8.230789`. Complete EC2 host cost is higher because the host remained running
 outside the measured commands.
 
-The no-partial-artifact and no-silent-retry rules still apply to the rejected version. The
-accepted feature configuration is now complete. No alignment compute had started when this status
-was recorded.
+The accepted alignment wrapper used 1,085.08 seconds and `$0.398828`. The GENERanno retry and
+alignment together used 5.2558 wrapper hours and `$6.954491` of the additional ten-hour and
+`$13.2320` cap. Adding the corrected previously recorded commands gives an approximate E02b
+measured-command total of `$15.185280`. Complete EC2 host cost is higher because the host remained
+running outside the measured commands.
 
 ## Limitations and next action
 
 - The rejected GENERanno feature table did not receive coverage or manifest validation and remains
   unaccepted. The complete retry is a separate accepted version.
-- No alignment result, bootstrap interval, main effect, interaction, or selection exists.
-- The user authorized the retry and alignment on 2026-08-24. The retry used 4.9544 wrapper hours
-  and `$6.555663` of the additional command budget. The alignment has a separate three-hour and
-  `$3.9696` cap.
-- Run the frozen 36-configuration alignment factorial from a clean commit that contains all seven
-  accepted artifact identities. Validate every persisted output before selection.
+- The primary neural-DNA hypothesis was not supported. The train-fitted TF-IDF/SVD baseline won
+  the frozen validation selection.
+- Selection on one validation split makes the selected estimate optimistic. The old test split is
+  contaminated and cannot provide a confirmatory claim.
+- Positive atomic retrieval does not transfer to pair conjunctions under this paired-identity
+  probe. Gate 2 must test set supervision and composition directly.
+- Freeze TF-IDF/SVD plus Qwen3 for the Gate 2 protocol. Full-population extraction is a separate
+  post-selection action and requires a resolved cost estimate and approval.

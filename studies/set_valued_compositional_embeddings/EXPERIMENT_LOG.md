@@ -2434,3 +2434,66 @@ The rejected version `2026-08-23T16.23.06.763Z` remains preserved and rejected. 
 to create or validate the accepted version. All seven frozen feature products are now accepted.
 The authorized 4-DNA by 3-text by 3-seed alignment factorial can start after this registry change
 passes tests and is present in a clean remote checkout.
+
+## 2026-08-24 18:05:00 BST — E02b alignment accepted and validation pair selected
+
+**Status:** complete validation-only selection. All 36 planned DNA-by-text-by-seed configurations
+completed and passed independent persisted-artifact read-back. No test row was read. Gate 2 did
+not start.
+
+The detached alignment command used clean Git commit
+`410fa42c280716dde5461535d7a1baef109bec57` on the NVIDIA L4 in the corrected on-demand
+`g6.4xlarge` host. It used the four accepted DNA candidates, three accepted text candidates, and
+seeds 13, 42, and 20260818. The command started at 2026-08-24 16:34:47 UTC and completed at
+16:52:52 UTC. The wrapper measured 1,085.08 seconds and `$0.398828` at `$1.3232` per instance-hour,
+below the three-hour and `$3.9696` limits. The alignment node measured 1,053.36 seconds.
+
+Version `2026-08-24T16.34.48.358Z` contains all nine planned outputs. Independent read-back
+recomputed the frozen feature bindings, whitening state, 36 training histories and checkpoints,
+194,400 validation rankings, 15,552 query-metric rows, and 72,000 whole-component bootstrap rows.
+It verified the complete factorial and reapplied the selection rule. The outputs use 245,589,153
+bytes.
+
+The selected pair is 6-mer TF-IDF/SVD DNA plus Qwen3-Embedding-0.6B text. Its mean validation
+query-macro `utility@10` is `0.153086` with a whole-component 95% interval of
+`[0.076227, 0.188279]`. Seed utilities are `0.155556`, `0.158333`, and `0.145370`. The selected
+mean contains verified, contradicted, and unknown fractions `0.425617`, `0.272531`, and `0.301852`
+at K=10. Atomic-query utility is `0.602381`; pair-conjunction utility is `-0.004167`. The positive
+combined result therefore does not establish successful conjunction retrieval.
+
+The Carbon-500M plus BGE-base incumbent mean is `-0.041049` with interval
+`[-0.088580, 0.008642]`. The selected pair improves the frozen primary metric by `0.194136`, which
+exceeds the `0.01` retention guard. It is not a practical tie under the preregistered rule. The
+runner-up is GENERanno plus Qwen at `0.141049` with interval `[0.057701, 0.157716]`.
+
+Paired identity retrieval also favors the selected pair. Across seeds, its sequence-to-description
+R@1/R@10 are approximately `0.1279`/`0.3711`, and description-to-sequence R@1/R@10 are
+approximately `0.1434`/`0.3926`. The incumbent values are approximately `0.0810`/`0.2815` and
+`0.0813`/`0.2825`, respectively. These are secondary metrics and did not control selection.
+
+Freeze these identities:
+
+- selection report: `a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25`;
+- whitening state: `1415be70f5eb8a4be5ad6c42f62dc53d4ef569c7c4889178cf9ea3556c12d8be`;
+- probe checkpoints: `d8c81804272afe3c9af971b90cf39abc81cfc8c9db151c6fa5e9c38bd6e255ea`;
+- training history: `fbd52828e593215fdce38b88fc41408b63fccb8a0c756c7a6deba51f7c7f2fa3`;
+- paired metrics: `92cd682a145459d5d35db025770b387fc0c9db976a86b37a9bbf2599d866a427`;
+- query rankings: `cd8e488f078d284a792f5d0a05a2fc7b1b47f5cdc3ee5b3cb31ed86deb947dac`;
+- query metrics: `c0f0b0346e1585c82bee31018beaa34b43b3f66a506e0810c46118367bb17bc0`;
+- query summaries: `b924889bc91205379b8c609f68dbbc07b84d9b240e01feabf1c3bfbcca3f2f69`;
+- bootstrap draws: `0c8f65a9b12c0ad1dc032dc9249b39f7c814fa3c6b051afd595f22b66da2f8a7`.
+
+The retry and alignment together used 5.2558 wrapper instance-hours and `$6.954491` of the
+additional ten-hour and `$13.2320` cap. Adding the corrected previously recorded commands gives an
+approximate E02b measured-command total of `$15.185280`. Complete host charges are higher because
+the shared host also ran outside the timed commands.
+
+The primary hypothesis that a neural prokaryote-specific or larger DNA encoder would win was not
+supported by this validation selection. TF-IDF/SVD had the highest descriptive mean across text
+encoders (`0.072634`), followed by GENERanno (`0.056893`), Carbon-500M (`0.001235`), and
+GENERATOR-v2 (`-0.017284`). Qwen had the highest descriptive mean across DNA encoders (`0.102315`);
+GTE and BGE were `-0.006481` and `-0.010725`. These factorial means are descriptive, not causal.
+
+Next, freeze this pair for the Gate 2 experiment definition. Full-population extraction is a
+separate post-selection action and requires a resolved cost estimate and approval. Do not use the
+contaminated current test split for a confirmatory claim.

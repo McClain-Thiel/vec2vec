@@ -1,6 +1,6 @@
 # E02 Fixed-Representation Bake-off
 
-- **Status:** active; E02b harness implemented before feature extraction or model evaluation
+- **Status:** complete; TF-IDF/SVD DNA plus Qwen3 text selected on validation
 - **Gate:** 1
 - **Protocol version:** `fixed_representation_bakeoff_v0.1`
 - **Frozen:** 2026-08-18 Europe/London
@@ -483,6 +483,22 @@ The manifest hash is
 17,835.84 seconds and `$6.555663`. The accepted products use 209,933,751 bytes. The rejected prior
 version remains preserved and was not reused. See the experiment log and benchmark status report
 for full execution provenance.
+
+## Observed 2026-08-24 alignment outcome
+
+Alignment version `2026-08-24T16.34.48.358Z` completed all 36 planned configurations and passed
+independent persisted-artifact read-back. The selected validation pair is 6-mer TF-IDF/SVD DNA
+plus Qwen3-Embedding-0.6B text. Its mean `utility@10` is `0.153086`, with whole-component 95%
+interval `[0.076227, 0.188279]`. The three seed values are `0.155556`, `0.158333`, and `0.145370`.
+The Carbon-500M plus BGE-base incumbent mean is `-0.041049`. The selected improvement is
+`0.194136`, so the incumbent was not retained.
+
+The selected atomic-query utility is `0.602381`, but pair-conjunction utility is `-0.004167`.
+This experiment selects a representation pair; it does not establish successful composition. The
+alignment outputs use 245,589,153 bytes. The selection report hash is
+`a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25`. Configuration and the
+experiment log freeze all table hashes and runtime provenance. No test row was read. Gate 2 did
+not start.
 
 ## Known limitations
 

@@ -17,22 +17,24 @@ unique verified or contradicted plasmid-constraint states. A 30-application hand
 positive mapping. These remain narrow Addgene metadata states, not biological ground truth — the
 benchmark measures recorded-metadata consistency, not plasmid function.
 
-**Status:** Gate 0 complete. Gate 1 is active. Carbon-500M, GENERanno prokaryote 500M, and
+**Status:** Gate 0 and Gate 1 complete. Carbon-500M, GENERanno prokaryote 500M, and
 GENERATOR-v2 prokaryote 1.2B passed the numerical and full-panel invariance gates. Carbon-3B
 exceeded both 22.03 GiB and 44.39 GiB GPUs under the fixed protocol. The E02b validation-only
-four-DNA-by-three-text alignment benchmark is implemented. Its 20,000-row training panel and
-10,852-row validation gallery passed independent persisted-artifact read-back. The train-fitted
+four-DNA-by-three-text alignment benchmark used a 20,000-row training panel and a 10,852-row
+validation gallery. Both inputs passed independent persisted-artifact read-back. The train-fitted
 6-mer TF-IDF/SVD baseline, Carbon-500M, GENERator-v2, and all three text feature products are
 frozen. The first GENERanno full-panel command lost its remote login session and produced only a
 feature table. That partial version remains rejected. A separate detached retry completed and
 passed independent read-back for its features, coverage, and manifest. All seven planned feature
-products are now accepted. No alignment probe or validation ranking has run. Gate 2 training
-cannot start until the Gate 1 representation pair and feature hashes are frozen.
+products and all 36 alignment configurations are accepted. TF-IDF/SVD DNA plus Qwen3 text is the
+selected validation pair: mean `utility@10` `0.153086`, whole-component 95% interval
+`[0.076227, 0.188279]`. It improved on the Carbon-500M plus BGE incumbent by `0.194136`. Atomic
+utility was `0.602381`, but pair-conjunction utility was `-0.004167`. Gate 2 has not started.
 
-**Next action:** run the authorized frozen 4-DNA by 3-text by 3-seed alignment factorial, then
-independently validate every output before applying the preregistered selection rule. Carbon-500M
-plus BGE-base remains the incumbent. The earlier eligibility audit read the old test artifacts, so
-E02b is validation-only and cannot support a confirmatory test claim.
+**Next action:** freeze TF-IDF/SVD plus Qwen3 in the Gate 2 set-supervision and composition
+protocol. Resolve the cost of any full-population feature expansion before requesting paid compute.
+The earlier eligibility audit read the old test artifacts, so E02b is validation-only and cannot
+support a confirmatory test claim.
 
 **Current reports:** [Gate 0 completion](reports/12_gate0_completion.md) records the accepted graph,
 v2 split, query benchmark, and remaining limitations. The
@@ -40,9 +42,9 @@ v2 split, query benchmark, and remaining limitations. The
 PlasmidCLIP evidence, current primary-source search, exact candidate revisions, and exclusions. The
 [Gate 1 numerical smoke report](reports/14_gate1_numerical_smoke.md) records the accepted S3
 artifacts, independent read-back, compute failures, and cost estimate.
-The [E02b benchmark status report](reports/15_gate1_e02b_benchmark_status.md) records the accepted
-feature products, rejected partial GENERanno version, compute used, and alignment blocker.
-The study has no interpretation notebook because model evaluation has not started. See the
+The [E02b benchmark result](reports/15_gate1_e02b_benchmark_status.md) records the accepted
+feature and alignment products, rejected partial GENERanno version, complete leaderboard,
+selection, compute, and limitations. The study has no interpretation notebook yet. See the
 [experiment log](EXPERIMENT_LOG.md) for the chronological record.
 
 ## Research questions
