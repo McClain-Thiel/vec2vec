@@ -2369,3 +2369,131 @@ host charges are higher because the host remained running between commands.
 provenance. Do not retry, reconstruct the missing products, change parameters, or start alignment
 without new user authorization. The next decision is whether to approve one exact GENERanno retry
 with orchestration that is independent of a terminal or login session.
+
+## 2026-08-24 12:00:33 BST — E02b host provenance corrected and completion authorized
+
+**Status:** authorization recorded before retry results. No encoder or alignment command was
+running when this entry was written.
+
+AWS read-back identified SSH host `g6-big`, hostname `ip-172-31-90-236`, as on-demand instance
+`i-0cda00ffb3cacfc12`, type `g6.4xlarge`, in `us-east-1b`. The 2026-08-23 E02b manifests recorded
+the same host as `g6.2xlarge` at `$0.9776` per hour. AWS's current price record gives `$1.3232` per
+on-demand Linux `g6.4xlarge` instance-hour. This is a provenance and derived-cost error. It does
+not change any model output or artifact hash. Preserve the immutable manifests and attach the
+correction in configuration.
+
+At the corrected rate, the rejected 17,852-second GENERanno command cost approximately
+`$6.561602`, not `$4.847810`. Scaling the previously reported completed-plus-failed command time
+to the corrected rate gives approximately `$8.230789`, not `$6.081030`. Complete host charges are
+higher because the instance remained running outside the measured commands.
+
+The partial GENERanno version contains a complete-looking 30,821-row feature table but no coverage
+or manifest. The pipeline has no persisted extraction checkpoint. Do not reuse or complete it.
+Run the full stage under a new version with the same input, accepted invariance artifact, model and
+tokenizer revisions, precision, pooling, windowing, seed, and seven-hour deadline. Use a detached
+system service so SSH session removal cannot terminate the run.
+
+The user authorized the GENERanno retry and the full frozen alignment factorial with approval
+reference `chat-2026-08-24-e02b-finish-benchmark`. The actual host is `g6.4xlarge` at `$1.3232`
+per hour. The GENERanno cap is seven hours and `$9.2624`; the alignment cap is three hours and
+`$3.9696`. The combined additional cap is ten hours and `$13.2320` before storage and transfer.
+No other paid stage is authorized.
+
+## 2026-08-24 17:31:00 BST — E02b GENERanno DNA features accepted after detached retry
+
+**Status:** passed independent persisted-artifact read-back. The retry extracted the frozen DNA
+features only. It did not fit an alignment probe, calculate a validation ranking, or select a
+candidate.
+
+The detached systemd command used clean Git commit
+`6534e2eda05776218e4f61979f6b3d729496c957`, Transformers 4.49.0, bfloat16, the pinned
+`GenerTeam/GENERanno-prokaryote-0.5b-base` revision
+`d02db0f24f2c62fa1efde760217cdf75771b0228`, accepted input version
+`2026-08-23T14.16.15.778Z`, and accepted invariance version
+`2026-08-23T00.53.22.430Z`. It ran on the NVIDIA L4 in on-demand `g6.4xlarge` instance
+`i-0cda00ffb3cacfc12` in `us-east-1b`. The service started at 2026-08-24 11:03:44 UTC and
+completed successfully at 16:01:00 UTC. The wrapper measured 17,835.84 seconds and a command
+charge of `$6.555663` at `$1.3232` per instance-hour, below the seven-hour and `$9.2624` limits.
+The feature node measured 17,754.93 seconds, or 4.931926 GPU-hours.
+
+Version `2026-08-24T11.03.45.874Z` contains 30,821 unique L2-normalized 1,280-dimensional vectors
+for 30,852 source rows and 42,700 circular-window coverage rows. Independent read-back verified
+every source identity, complete base coverage, model and tokenizer revisions, runtime recipe,
+accepted input and invariance identities, clean Git state, compute authorization, and physical
+object size. The three persisted products use 209,933,751 bytes.
+
+Freeze these identities:
+
+- manifest: `cdbedeeee110900d602d399968a1be0b0d614f65007dc07d689fa4e492a3d13b`;
+- features: `8bd9b216632bbc2d225001ff225910e65a76228f72f8adbcf1d8129bed1d5c37`;
+- coverage: `6d721dea4a3ac83b9866ff4ead7d6fe3ef5fad601dd8107ce50b48889e6f5eb6`;
+- extraction GPU-hours: `4.931926208106387`;
+- persisted bytes: `209,933,751`.
+
+The rejected version `2026-08-23T16.23.06.763Z` remains preserved and rejected. It was not used
+to create or validate the accepted version. All seven frozen feature products are now accepted.
+The authorized 4-DNA by 3-text by 3-seed alignment factorial can start after this registry change
+passes tests and is present in a clean remote checkout.
+
+## 2026-08-24 18:05:00 BST — E02b alignment accepted and validation pair selected
+
+**Status:** complete validation-only selection. All 36 planned DNA-by-text-by-seed configurations
+completed and passed independent persisted-artifact read-back. No test row was read. Gate 2 did
+not start.
+
+The detached alignment command used clean Git commit
+`410fa42c280716dde5461535d7a1baef109bec57` on the NVIDIA L4 in the corrected on-demand
+`g6.4xlarge` host. It used the four accepted DNA candidates, three accepted text candidates, and
+seeds 13, 42, and 20260818. The command started at 2026-08-24 16:34:47 UTC and completed at
+16:52:52 UTC. The wrapper measured 1,085.08 seconds and `$0.398828` at `$1.3232` per instance-hour,
+below the three-hour and `$3.9696` limits. The alignment node measured 1,053.36 seconds.
+
+Version `2026-08-24T16.34.48.358Z` contains all nine planned outputs. Independent read-back
+recomputed the frozen feature bindings, whitening state, 36 training histories and checkpoints,
+194,400 validation rankings, 15,552 query-metric rows, and 72,000 whole-component bootstrap rows.
+It verified the complete factorial and reapplied the selection rule. The outputs use 245,589,153
+bytes.
+
+The selected pair is 6-mer TF-IDF/SVD DNA plus Qwen3-Embedding-0.6B text. Its mean validation
+query-macro `utility@10` is `0.153086` with a whole-component 95% interval of
+`[0.076227, 0.188279]`. Seed utilities are `0.155556`, `0.158333`, and `0.145370`. The selected
+mean contains verified, contradicted, and unknown fractions `0.425617`, `0.272531`, and `0.301852`
+at K=10. Atomic-query utility is `0.602381`; pair-conjunction utility is `-0.004167`. The positive
+combined result therefore does not establish successful conjunction retrieval.
+
+The Carbon-500M plus BGE-base incumbent mean is `-0.041049` with interval
+`[-0.088580, 0.008642]`. The selected pair improves the frozen primary metric by `0.194136`, which
+exceeds the `0.01` retention guard. It is not a practical tie under the preregistered rule. The
+runner-up is GENERanno plus Qwen at `0.141049` with interval `[0.057701, 0.157716]`.
+
+Paired identity retrieval also favors the selected pair. Across seeds, its sequence-to-description
+R@1/R@10 are approximately `0.1279`/`0.3711`, and description-to-sequence R@1/R@10 are
+approximately `0.1434`/`0.3926`. The incumbent values are approximately `0.0810`/`0.2815` and
+`0.0813`/`0.2825`, respectively. These are secondary metrics and did not control selection.
+
+Freeze these identities:
+
+- selection report: `a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25`;
+- whitening state: `1415be70f5eb8a4be5ad6c42f62dc53d4ef569c7c4889178cf9ea3556c12d8be`;
+- probe checkpoints: `d8c81804272afe3c9af971b90cf39abc81cfc8c9db151c6fa5e9c38bd6e255ea`;
+- training history: `fbd52828e593215fdce38b88fc41408b63fccb8a0c756c7a6deba51f7c7f2fa3`;
+- paired metrics: `92cd682a145459d5d35db025770b387fc0c9db976a86b37a9bbf2599d866a427`;
+- query rankings: `cd8e488f078d284a792f5d0a05a2fc7b1b47f5cdc3ee5b3cb31ed86deb947dac`;
+- query metrics: `c0f0b0346e1585c82bee31018beaa34b43b3f66a506e0810c46118367bb17bc0`;
+- query summaries: `b924889bc91205379b8c609f68dbbc07b84d9b240e01feabf1c3bfbcca3f2f69`;
+- bootstrap draws: `0c8f65a9b12c0ad1dc032dc9249b39f7c814fa3c6b051afd595f22b66da2f8a7`.
+
+The retry and alignment together used 5.2558 wrapper instance-hours and `$6.954491` of the
+additional ten-hour and `$13.2320` cap. Adding the corrected previously recorded commands gives an
+approximate E02b measured-command total of `$15.185280`. Complete host charges are higher because
+the shared host also ran outside the timed commands.
+
+The primary hypothesis that a neural prokaryote-specific or larger DNA encoder would win was not
+supported by this validation selection. TF-IDF/SVD had the highest descriptive mean across text
+encoders (`0.072634`), followed by GENERanno (`0.056893`), Carbon-500M (`0.001235`), and
+GENERATOR-v2 (`-0.017284`). Qwen had the highest descriptive mean across DNA encoders (`0.102315`);
+GTE and BGE were `-0.006481` and `-0.010725`. These factorial means are descriptive, not causal.
+
+Next, freeze this pair for the Gate 2 experiment definition. Full-population extraction is a
+separate post-selection action and requires a resolved cost estimate and approval. Do not use the
+contaminated current test split for a confirmatory claim.

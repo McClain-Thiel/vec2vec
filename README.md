@@ -8,9 +8,9 @@ It turns the raw Addgene release into a paired
 **(plasmid DNA sequence, natural-language description)** dataset with
 leakage-aware splits, constraint-based relevance labels, and the audits needed
 to trust both. Gate 0 is complete. The validation-only E02b benchmark has frozen
-inputs and six accepted feature products: TF-IDF/SVD, Carbon-500M, GENERator-v2,
-BGE, GTE, and Qwen. The GENERanno extraction stopped with an incomplete artifact,
-so the factorial alignment and encoder selection have not run.
+inputs and seven accepted feature products: TF-IDF/SVD, Carbon-500M, GENERanno,
+GENERATOR-v2, BGE, GTE, and Qwen. All 36 alignment configurations passed read-back.
+TF-IDF/SVD DNA plus Qwen3 text is the selected validation pair.
 
 ## Pipelines
 
@@ -150,12 +150,13 @@ The [Gate 0 completion report](studies/set_valued_compositional_embeddings/repor
 records the accepted artifact versions and remaining limitations. The
 [Gate 1 encoder review](studies/set_valued_compositional_embeddings/reports/13_encoder_prior_and_candidates.md)
 and [fixed-representation protocol](studies/set_valued_compositional_embeddings/experiments/E02_fixed_representation_bakeoff.md)
-define the active E02b validation-only comparison. Six feature products passed independent
-persisted read-back. The GENERanno run produced only a partial feature object and is rejected.
-The 4-DNA by 3-text by 3-seed alignment remains blocked until GENERanno is rerun successfully or
-the preregistered candidate set is amended. A prior eligibility audit read the old test artifacts,
-so a later confirmatory evaluation requires a new untouched holdout or a separately frozen test
-protocol.
+define the active E02b validation-only comparison. Seven feature products passed independent
+persisted read-back. The first GENERanno run produced only a partial feature object and remains
+rejected; a separate detached retry produced a complete accepted version. The 4-DNA by 3-text by
+3-seed alignment selected TF-IDF/SVD plus Qwen3 at validation `utility@10` `0.153086`, compared
+with `-0.041049` for the Carbon-500M plus BGE incumbent. Pair-conjunction utility remained near
+zero. A prior eligibility audit read the old test artifacts, so a later confirmatory evaluation
+requires a new untouched holdout or a separately frozen test protocol.
 
 ## Setup
 

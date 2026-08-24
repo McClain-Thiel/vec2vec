@@ -1,6 +1,6 @@
 # E02 Fixed-Representation Bake-off
 
-- **Status:** active; E02b harness implemented before feature extraction or model evaluation
+- **Status:** complete; TF-IDF/SVD DNA plus Qwen3 text selected on validation
 - **Gate:** 1
 - **Protocol version:** `fixed_representation_bakeoff_v0.1`
 - **Frozen:** 2026-08-18 Europe/London
@@ -442,6 +442,63 @@ Before a later stage can load an artifact, perform an independent persisted read
 its table and manifest hashes, record its physical bytes, and freeze its exact version and hashes
 in `parameters_fixed_representation_bakeoff.yml`. Feature acceptance must also record measured
 extraction GPU-hours. The train-fitted TF-IDF baseline records zero extraction GPU-hours.
+
+## 2026-08-24 host-provenance correction and retry authorization before retry results
+
+AWS identified instance `i-0cda00ffb3cacfc12`, hostname `ip-172-31-90-236`, as an on-demand
+`g6.4xlarge` in `us-east-1b`. The 2026-08-23 feature manifests recorded this host as a
+`g6.2xlarge` at `$0.9776` per hour. The current AWS price record gives `$1.3232` per on-demand
+Linux instance-hour for the actual `g6.4xlarge`. This changes execution provenance and derived
+costs. It does not change feature values, feature hashes, model revisions, or scientific
+configuration. Do not rewrite the immutable manifests. Store the correction beside their
+accepted-artifact records.
+
+The rejected GENERanno version contains a complete-looking feature table with 30,821 unique
+sequence hashes, but it lacks the required coverage and manifest artifacts. The current pipeline
+has no persisted extraction checkpoint. Do not load or complete this partial version. Repeat the
+complete GENERanno stage under a new version.
+
+The retry uses the merged repository after the cleanup review. Comparison with failed-run commit
+`3afc292f85222f22d477bbac40be37c55d7dac56` found no scientific change in the neural feature
+extraction path: the JSON hash helper moved to the shared serialization module, and unused code
+was deleted. The retry must keep the same input and invariance versions, model and tokenizer
+revisions, precision, pooling, windowing, seed, and seven-hour stage deadline. Run it as a detached
+system service so SSH session removal cannot terminate the process.
+
+The user approved the retry and alignment completion on 2026-08-24 with approval reference
+`chat-2026-08-24-e02b-finish-benchmark`. Use the observed `g6.4xlarge` price of `$1.3232` per hour.
+The GENERanno limit is seven hours (`$9.2624` maximum), and the alignment limit is three hours
+(`$3.9696` maximum). The total additional command limit is ten instance-hours and `$13.2320`
+before storage and transfer. No other paid stage is authorized by this approval.
+
+## Observed 2026-08-24 GENERanno retry outcome
+
+The detached retry completed within its fixed deadline. Version
+`2026-08-24T11.03.45.874Z` passed independent persisted-artifact read-back with 30,821 unique
+1,280-dimensional sequence vectors, 42,700 coverage-window rows, and complete source coverage.
+The manifest hash is
+`cdbedeeee110900d602d399968a1be0b0d614f65007dc07d689fa4e492a3d13b`; the feature hash is
+`8bd9b216632bbc2d225001ff225910e65a76228f72f8adbcf1d8129bed1d5c37`; and the coverage hash is
+`6d721dea4a3ac83b9866ff4ead7d6fe3ef5fad601dd8107ce50b48889e6f5eb6`. The wrapper measured
+17,835.84 seconds and `$6.555663`. The accepted products use 209,933,751 bytes. The rejected prior
+version remains preserved and was not reused. See the experiment log and benchmark status report
+for full execution provenance.
+
+## Observed 2026-08-24 alignment outcome
+
+Alignment version `2026-08-24T16.34.48.358Z` completed all 36 planned configurations and passed
+independent persisted-artifact read-back. The selected validation pair is 6-mer TF-IDF/SVD DNA
+plus Qwen3-Embedding-0.6B text. Its mean `utility@10` is `0.153086`, with whole-component 95%
+interval `[0.076227, 0.188279]`. The three seed values are `0.155556`, `0.158333`, and `0.145370`.
+The Carbon-500M plus BGE-base incumbent mean is `-0.041049`. The selected improvement is
+`0.194136`, so the incumbent was not retained.
+
+The selected atomic-query utility is `0.602381`, but pair-conjunction utility is `-0.004167`.
+This experiment selects a representation pair; it does not establish successful composition. The
+alignment outputs use 245,589,153 bytes. The selection report hash is
+`a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25`. Configuration and the
+experiment log freeze all table hashes and runtime provenance. No test row was read. Gate 2 did
+not start.
 
 ## Known limitations
 

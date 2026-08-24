@@ -49,8 +49,13 @@ def approved_compute_authorization(
     if not math.isfinite(total_limit) or total_limit <= 0.0:
         raise ValueError("approved total instance-hour limit must be finite and positive")
     limits = approved.get("stage_instance_hour_limits")
-    if not isinstance(limits, dict) or set(limits) != APPROVED_PAID_STAGES:
-        raise ValueError("approved paid-stage set changed from the frozen E02b factorial")
+    if not isinstance(limits, dict) or not limits:
+        raise ValueError("approved compute authorization needs at least one paid stage")
+    unexpected_stages = set(limits).difference(APPROVED_PAID_STAGES)
+    if unexpected_stages:
+        raise ValueError(
+            f"approved compute authorization has unknown stages: {sorted(unexpected_stages)}"
+        )
     normalized_limits: dict[str, float] = {}
     for approved_stage, value in limits.items():
         try:

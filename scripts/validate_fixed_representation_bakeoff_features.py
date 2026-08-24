@@ -78,8 +78,8 @@ def main() -> None:
     }
     if kind == "dna":
         accepted_invariance = configuration["accepted_invariance_artifacts"][candidate_id]
-        expected_compute = fixed_representation_bakeoff.approved_compute_authorization(
-            configuration, stage=f"dna_features:{candidate_id}"
+        expected_compute = _expected_compute_authorization(
+            configuration, kind=kind, candidate_id=candidate_id
         )
         report = validate_neural_dna_features(
             pairs,
@@ -99,8 +99,8 @@ def main() -> None:
     else:
         if queries is None:
             raise RuntimeError("text validation did not load E02b queries")
-        expected_compute = fixed_representation_bakeoff.approved_compute_authorization(
-            configuration, stage=f"text_features:{candidate_id}"
+        expected_compute = _expected_compute_authorization(
+            configuration, kind=kind, candidate_id=candidate_id
         )
         report = validate_text_features(
             pairs,
@@ -129,6 +129,17 @@ def main() -> None:
         "persisted_bytes": sizes["total"],
     }
     print(json.dumps(report, indent=2, sort_keys=True))
+
+
+def _expected_compute_authorization(
+    configuration: dict[str, Any], *, kind: str, candidate_id: str
+) -> dict[str, Any]:
+    accepted = configuration.get("accepted_feature_artifacts", {}).get(kind, {}).get(candidate_id)
+    if isinstance(accepted, dict) and isinstance(accepted.get("compute_authorization"), dict):
+        return dict(accepted["compute_authorization"])
+    return fixed_representation_bakeoff.approved_compute_authorization(
+        configuration, stage=f"{kind}_features:{candidate_id}"
+    )
 
 
 def _load_invariance_manifest(

@@ -248,9 +248,10 @@ def test_paid_stage_requires_exact_compute_authorization() -> None:
         "region": "us-east-1",
         "instance_type": "g6.2xlarge",
         "observed_instance_price_usd_per_hour": 0.9776,
-        "total_instance_hour_limit": 7.0,
+        "total_instance_hour_limit": 2.0,
         "stage_instance_hour_limits": {
-            stage: 1.0 for stage in fixed_representation_bakeoff.APPROVED_PAID_STAGES
+            "dna_features:carbon_500m": 1.0,
+            "alignment_probe": 1.0,
         },
     }
     observed = fixed_representation_bakeoff.approved_compute_authorization(
@@ -275,6 +276,17 @@ def test_paid_stage_requires_exact_compute_authorization() -> None:
                     "instance_type": "g6.2xlarge",
                     "instance_hour_limit": 1.0,
                     "observed_instance_price_usd_per_hour": 0.98,
+                }
+            },
+            stage="alignment_probe",
+        )
+
+    with pytest.raises(ValueError, match="unknown stages"):
+        fixed_representation_bakeoff.approved_compute_authorization(
+            {
+                "approved_compute_authorization": {
+                    **approved,
+                    "stage_instance_hour_limits": {"not-a-stage": 1.0},
                 }
             },
             stage="alignment_probe",

@@ -165,12 +165,39 @@ fixed_representation_bakeoff:
         features_sha256: bb86fd296a3ba2ed2fdafcb7e21b89c918a11b2a4c2ec9ba8727af0c0713be9a
         extraction_gpu_hours: 0.30318436455498965
         persisted_bytes: 162999200
+        compute_authorization:
+          stage: dna_features:carbon_500m
+          approval_reference: chat-2026-08-23-e02b-complete-benchmark
+          region: us-east-1
+          instance_type: g6.2xlarge
+          instance_hour_limit: 0.75
+          observed_instance_price_usd_per_hour: 0.9776
+      generanno_prokaryote_500m:
+        version: 2026-08-24T11.03.45.874Z
+        manifest_sha256: cdbedeeee110900d602d399968a1be0b0d614f65007dc07d689fa4e492a3d13b
+        features_sha256: 8bd9b216632bbc2d225001ff225910e65a76228f72f8adbcf1d8129bed1d5c37
+        extraction_gpu_hours: 4.931926208106387
+        persisted_bytes: 209933751
+        compute_authorization:
+          stage: dna_features:generanno_prokaryote_500m
+          approval_reference: chat-2026-08-24-e02b-finish-benchmark
+          region: us-east-1
+          instance_type: g6.4xlarge
+          instance_hour_limit: 7.0
+          observed_instance_price_usd_per_hour: 1.3232
       generator_v2_prokaryote_1_2b:
         version: 2026-08-23T15.30.18.164Z
         manifest_sha256: b1d96a4afbcb60f0e970529d1c0d5813c237d3ed7acce5f201336b9f655b1074
         features_sha256: 72642a470e4f150316170dae620795f7b246b46b6cbcad0b59571930296bf7a1
         extraction_gpu_hours: 0.7816696715965453
         persisted_bytes: 313980591
+        compute_authorization:
+          stage: dna_features:generator_v2_prokaryote_1_2b
+          approval_reference: chat-2026-08-23-e02b-complete-benchmark
+          region: us-east-1
+          instance_type: g6.2xlarge
+          instance_hour_limit: 1.5
+          observed_instance_price_usd_per_hour: 0.9776
     text:
       bge_base_en_v1_5:
         version: 2026-08-23T15.16.22.538Z
@@ -178,31 +205,92 @@ fixed_representation_bakeoff:
         features_sha256: 5a69bb6647ac977778c0a3d6253bbbe94a8b9db2a2790ea3eac6590e6899f14a
         extraction_gpu_hours: 0.010602783840149642
         persisted_bytes: 92373563
+        compute_authorization:
+          stage: text_features:bge_base_en_v1_5
+          approval_reference: chat-2026-08-23-e02b-complete-benchmark
+          region: us-east-1
+          instance_type: g6.2xlarge
+          instance_hour_limit: 0.5
+          observed_instance_price_usd_per_hour: 0.9776
       gte_modernbert_base:
         version: 2026-08-23T15.19.38.226Z
         manifest_sha256: a94551c87aec31085c97c7fcbf362722b196cc510c3dcd3fef7fb9249ee1edd9
         features_sha256: 90139f7e41c1cf30b929c7ceebcca3496466a6b21620897734c62826166a7443
         extraction_gpu_hours: 0.02344021446382006
         persisted_bytes: 92409461
+        compute_authorization:
+          stage: text_features:gte_modernbert_base
+          approval_reference: chat-2026-08-23-e02b-complete-benchmark
+          region: us-east-1
+          instance_type: g6.2xlarge
+          instance_hour_limit: 0.75
+          observed_instance_price_usd_per_hour: 0.9776
       qwen3_embedding_0_6b:
         version: 2026-08-23T15.23.41.974Z
         manifest_sha256: 17d2d025a560f34355ca244cfd629178ec0c6c5767159bebf6d44116dcda7235
         features_sha256: c5cbf04e7d034ea4dbe0ad874adc728e6d8ae8c75ee7cbac278cbb7c44218d8d
         extraction_gpu_hours: 0.05772405528359943
         persisted_bytes: 118110567
+        compute_authorization:
+          stage: text_features:qwen3_embedding_0_6b
+          approval_reference: chat-2026-08-23-e02b-complete-benchmark
+          region: us-east-1
+          instance_type: g6.2xlarge
+          instance_hour_limit: 0.75
+          observed_instance_price_usd_per_hour: 0.9776
+  accepted_alignment_artifact:
+    version: 2026-08-24T16.34.48.358Z
+    selection_report_sha256: a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25
+    output_hashes:
+      whitening_state_sha256: 1415be70f5eb8a4be5ad6c42f62dc53d4ef569c7c4889178cf9ea3556c12d8be
+      probe_checkpoints_sha256: d8c81804272afe3c9af971b90cf39abc81cfc8c9db151c6fa5e9c38bd6e255ea
+      training_history_sha256: fbd52828e593215fdce38b88fc41408b63fccb8a0c756c7a6deba51f7c7f2fa3
+      paired_metrics_sha256: 92cd682a145459d5d35db025770b387fc0c9db976a86b37a9bbf2599d866a427
+      query_rankings_sha256: cd8e488f078d284a792f5d0a05a2fc7b1b47f5cdc3ee5b3cb31ed86deb947dac
+      query_metrics_sha256: c0f0b0346e1585c82bee31018beaa34b43b3f66a506e0810c46118367bb17bc0
+      query_summaries_sha256: b924889bc91205379b8c609f68dbbc07b84d9b240e01feabf1c3bfbcca3f2f69
+      bootstrap_draws_sha256: 0c8f65a9b12c0ad1dc032dc9249b39f7c814fa3c6b051afd595f22b66da2f8a7
+    persisted_bytes: 245589153
+    completed_configurations: 36
+    wrapper_elapsed_seconds: 1085.0826635695994
+    observed_instance_cost_usd: 0.398828161232026
+    selected_pair:
+      dna_candidate_id: tfidf_6mer_svd_512
+      text_candidate_id: qwen3_embedding_0_6b
+      mean_utility_at_10: 0.15308641975308643
+      bootstrap_lower: 0.07622685185185185
+      bootstrap_upper: 0.18827932098765432
+    compute_authorization:
+      stage: alignment_probe
+      approval_reference: chat-2026-08-24-e02b-finish-benchmark
+      region: us-east-1
+      instance_type: g6.4xlarge
+      instance_hour_limit: 3.0
+      observed_instance_price_usd_per_hour: 1.3232
+  execution_provenance_correction:
+    observed_at: 2026-08-24T10:51:44Z
+    instance_id: i-0cda00ffb3cacfc12
+    hostname: ip-172-31-90-236
+    recorded_instance_type: g6.2xlarge
+    actual_instance_type: g6.4xlarge
+    recorded_instance_price_usd_per_hour: 0.9776
+    actual_on_demand_instance_price_usd_per_hour: 1.3232
+    affected_feature_versions:
+      - 2026-08-23T14.54.08.128Z
+      - 2026-08-23T15.16.22.538Z
+      - 2026-08-23T15.19.38.226Z
+      - 2026-08-23T15.23.41.974Z
+      - 2026-08-23T15.30.18.164Z
+    rejected_partial_version: 2026-08-23T16.23.06.763Z
+    scientific_artifact_hashes_affected: false
   approved_compute_authorization:
-    approval_reference: chat-2026-08-23-e02b-complete-benchmark
+    approval_reference: chat-2026-08-24-e02b-finish-benchmark
     region: us-east-1
-    instance_type: g6.2xlarge
-    observed_instance_price_usd_per_hour: 0.9776
-    total_instance_hour_limit: 15.0
+    instance_type: g6.4xlarge
+    observed_instance_price_usd_per_hour: 1.3232
+    total_instance_hour_limit: 10.0
     stage_instance_hour_limits:
-      "dna_features:carbon_500m": 0.75
       "dna_features:generanno_prokaryote_500m": 7.0
-      "dna_features:generator_v2_prokaryote_1_2b": 1.5
-      "text_features:bge_base_en_v1_5": 0.5
-      "text_features:gte_modernbert_base": 0.75
-      "text_features:qwen3_embedding_0_6b": 0.75
       alignment_probe: 3.0
   # Set only by an approval-gated runner for one exact paid stage.
   compute_authorization: null
