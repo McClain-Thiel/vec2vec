@@ -355,7 +355,7 @@ whole components and state how resampled components are weighted.
 | [E00-Q](experiments/E00_query_benchmark_v0.1.md) | Frozen symbolic queries, galleries, and controls | 0 | Complete; Gate 0 data-support flag passed both splits |
 | E00-J | Agent-assisted facet review pilot | 0 | Complete |
 | [E01](experiments/E01_training_constraint_evidence.md) | Rule-derived training constraint evidence | 0 | [Accepted for noisy supervision](reports/08_constraint_accuracy_benchmark.md) |
-| [E02](experiments/E02_fixed_representation_bakeoff.md) | Frozen DNA and text representation selection | 1 | Active; 3 of 4 DNA candidates passed numerical smoke |
+| [E02](experiments/E02_fixed_representation_bakeoff.md) | Frozen DNA and text representation selection | 1 | Complete; TF-IDF/SVD plus Qwen3 selected on validation |
 | E03 | Paired identity control on controlled queries | 2 | Planned |
 | E04 | Verified-set supervision | 2 | Planned |
 | E05 | Atomic-only symbolic addition | 3 | Planned |
