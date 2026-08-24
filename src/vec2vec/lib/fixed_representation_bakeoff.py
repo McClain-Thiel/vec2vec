@@ -15,18 +15,6 @@ from vec2vec.lib.sequences import sequence_sha256
 from vec2vec.lib.similarity_graph import dataframe_content_sha256
 from vec2vec.lib.text import sha256_text
 
-PAIR_HASH_COLUMNS = [
-    "sequence_id",
-    "sequence_sha256",
-    "description_sha256",
-    "split_grouped_v2",
-    "similarity_component_primary",
-    "length_bp",
-    "component_size",
-    "selection_pass",
-    "selection_sha256",
-]
-
 APPROVED_PAID_STAGES = {
     "dna_features:carbon_500m",
     "dna_features:generanno_prokaryote_500m",

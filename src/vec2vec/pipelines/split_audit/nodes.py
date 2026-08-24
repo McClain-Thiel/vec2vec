@@ -26,10 +26,15 @@ def run_split_audit(
     params: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     """Run the global lower-bound search and concentration measurements."""
+    configured_splits = tuple(str(value) for value in params["split_labels"])
+    if configured_splits != split_audit.SPLIT_LABELS:
+        raise ValueError(
+            f"split_labels must be exactly {split_audit.SPLIT_LABELS}, observed {configured_splits}"
+        )
     validation = split_audit.validate_retrieval(
         retrieval,
         expected_population_sha256=str(params["expected_input_population_sha256"]),
-        allowed_splits=tuple(str(value) for value in params["split_labels"]),
+        allowed_splits=configured_splits,
     )
     primary_rule = split_audit.similarity_rule(params["primary_rule"])
     sensitivity_rule = split_audit.similarity_rule(params["sensitivity_rule"])

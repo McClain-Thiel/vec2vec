@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from vec2vec.lib import annotations as annotations_lib
 
@@ -63,6 +64,33 @@ def test_rows_without_coordinates_are_dropped():
         }
     )
     assert len(annotations_lib.normalize_plasmidkit(raw)) == 1
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "normalized_column"),
+    [
+        ("plasmid_id", 1.5, "addgene_id"),
+        ("start", 10.5, "start"),
+        ("end", float("inf"), "end"),
+    ],
+)
+def test_discrete_annotation_values_must_be_finite_integers(column, value, normalized_column):
+    raw = pd.DataFrame(
+        {
+            "plasmid_id": [1],
+            "Feature": ["GFP"],
+            "Type": ["CDS"],
+            "method": ["blast"],
+            "start": [1],
+            "end": [717],
+            "strand": ["+"],
+            "confidence": [0.9],
+        }
+    )
+    raw[column] = pd.Series([value], dtype=object)
+
+    with pytest.raises(ValueError, match=f"{normalized_column} values must be finite integers"):
+        annotations_lib.normalize_plasmidkit(raw)
 
 
 def test_feature_lists_deduplicate_and_order_by_source(annotations):

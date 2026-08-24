@@ -93,19 +93,6 @@ def test_component_bootstrap_resamples_complete_components() -> None:
     )
     scores = [np.asarray([[4.0, 3.0, 2.0, 1.0]], dtype=np.float32)]
 
-    lower, upper = alignment_probe.whole_component_bootstrap_utility(
-        scores,
-        queries,
-        gallery,
-        states,
-        k=2,
-        draws=200,
-        seed=42,
-    )
-
-    assert lower == pytest.approx(-1.0)
-    assert upper == pytest.approx(1.0)
-
     draws = alignment_probe.whole_component_bootstrap_draws(
         scores,
         queries,

@@ -146,23 +146,6 @@ retrieval_dataset@full:
   filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
   versioned: true
 
-# Gate 1 sequence view. The old split identity columns stay in this projection
-# only so the node can recheck the frozen retrieval-population hash before it
-# joins the separate split_grouped_v2 mapping.
-retrieval_dataset@fixed_representation_smoke:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
-  versioned: true
-  load_args:
-    columns:
-      - sequence_id
-      - sequence
-      - sequence_sha256
-      - description
-      - length_bp
-      - leakage_component
-      - split_grouped
-
 # Full-sequence view for the preregistered E02b reduced-population bake-off.
 retrieval_dataset@fixed_representation_bakeoff:
   <<: *parquet
@@ -591,58 +574,10 @@ e00_constraint_benchmark_decisions:
   filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_decisions.parquet
   versioned: true
 
-# Gate 1 numerical smoke artifacts. Each candidate run writes a separate
-# version, so a failed or superseded representation is never overwritten.
-e02_fixed_representation_smoke_panel:
-  <<: *parquet
-  filepath: ${globals:lake}/05_model_input/e02/fixed_representation_smoke_panel.parquet
-  versioned: true
-
-e02_fixed_representation_smoke_panel_manifest:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_smoke_panel_manifest.json
-  versioned: true
-
-e02_fixed_representation_smoke_features:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/e02/fixed_representation_smoke_features.parquet
-  versioned: true
-
-e02_fixed_representation_smoke_coverage:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_smoke_coverage.parquet
-  versioned: true
-
-e02_fixed_representation_smoke_diagnostics:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_smoke_diagnostics.parquet
-  versioned: true
-
+# E02b validates these frozen precursor manifests but cannot rerun their superseded pipelines.
 e02_fixed_representation_smoke_manifest:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e02/fixed_representation_smoke_manifest.json
-  versioned: true
-
-# Gate 1 invariance artifacts. These remain separate from the numerical-smoke
-# products because the full panel has a different scientific acceptance gate.
-e02_fixed_representation_invariance_features:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/e02/fixed_representation_invariance_features.parquet
-  versioned: true
-
-e02_fixed_representation_invariance_coverage:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_coverage.parquet
-  versioned: true
-
-e02_fixed_representation_invariance_similarities:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_similarities.parquet
-  versioned: true
-
-e02_fixed_representation_invariance_diagnostics:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_diagnostics.json
   versioned: true
 
 e02_fixed_representation_invariance_manifest:

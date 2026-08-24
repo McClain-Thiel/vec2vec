@@ -11,7 +11,7 @@ from vec2vec.lib.fixed_representation_alignment_validation import (
     OUTPUT_SORT_COLUMNS,
     validate_alignment_outputs,
 )
-from vec2vec.lib.fixed_representation_invariance import json_content_sha256
+from vec2vec.lib.serialization import json_content_sha256
 from vec2vec.lib.similarity_graph import dataframe_content_sha256
 from vec2vec.lib.text import sha256_text
 

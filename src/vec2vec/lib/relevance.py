@@ -153,8 +153,18 @@ class RelevanceIndex:
         for name, values in columns.items():
             if len(values) != size:
                 raise ValueError(f"column {name} has {len(values)} rows, expected {size}")
+        invalid_hashes = [
+            index
+            for index, value in enumerate(sequence_hashes)
+            if not isinstance(value, str) or not value
+        ]
+        if invalid_hashes:
+            raise ValueError(
+                "sequence_hashes must contain non-empty strings; "
+                f"invalid row indices: {invalid_hashes[:5]}"
+            )
 
-        self.sequence_hashes = tuple(str(value) for value in sequence_hashes)
+        self.sequence_hashes = tuple(sequence_hashes)
         self.field_values = {
             field: tuple(normalize_values(value) for value in columns[field])
             for field in self.fields
@@ -181,7 +191,7 @@ class RelevanceIndex:
         if missing:
             raise ValueError(f"missing relevance columns: {sorted(missing)}")
         return cls(
-            frame["sequence_sha256"].astype(str).tolist(),
+            frame["sequence_sha256"].tolist(),
             {field: frame[field].tolist() for field in fields},
             fields=fields,
         )

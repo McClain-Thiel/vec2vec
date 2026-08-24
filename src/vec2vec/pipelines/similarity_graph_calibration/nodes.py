@@ -967,6 +967,7 @@ def _prepare_target_cache(
     *,
     expected_population_sha256: str,
 ) -> tuple[Path, Path, dict[str, Any]]:
+    root.mkdir(parents=True, exist_ok=True)
     fasta = root / "all_targets.fasta"
     index = root / "all_targets.mmi"
     manifest_path = root / "target_cache_manifest.json"
@@ -985,8 +986,14 @@ def _prepare_target_cache(
             "fasta_bytes": fasta.stat().st_size,
             "fasta_sha256": _file_sha256(fasta),
         }
-        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
-    if not index.exists():
+    index_is_valid = (
+        index.exists()
+        and manifest.get("index_bytes") == index.stat().st_size
+        and manifest.get("index_sha256") == _file_sha256(index)
+    )
+    if not index_is_valid:
+        temporary_index = index.with_suffix(".mmi.tmp")
+        temporary_index.unlink(missing_ok=True)
         command = [
             str(search["executable"]),
             "-x",
@@ -994,13 +1001,28 @@ def _prepare_target_cache(
             "-t",
             "8",
             "-d",
-            str(index),
+            str(temporary_index),
             str(fasta),
         ]
-        result = subprocess.run(command, check=False, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError(f"minimap2 index build failed:\n{result.stderr[-4000:]}")
+        try:
+            result = subprocess.run(command, check=False, capture_output=True, text=True)
+            if result.returncode != 0:
+                raise RuntimeError(f"minimap2 index build failed:\n{result.stderr[-4000:]}")
+            if not temporary_index.is_file() or temporary_index.stat().st_size == 0:
+                raise RuntimeError("minimap2 index build produced no index data")
+            temporary_index.replace(index)
+        finally:
+            temporary_index.unlink(missing_ok=True)
     manifest["index_bytes"] = index.stat().st_size
+    manifest["index_sha256"] = _file_sha256(index)
+    temporary_manifest = manifest_path.with_suffix(".json.tmp")
+    try:
+        temporary_manifest.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        temporary_manifest.replace(manifest_path)
+    finally:
+        temporary_manifest.unlink(missing_ok=True)
     return fasta, index, manifest
 
 
@@ -1106,11 +1128,21 @@ def _validate_nested_rules(
 
 
 def _check_free_disk(execution: dict[str, Any]) -> None:
-    free = shutil.disk_usage(Path(execution["scratch_root"]).resolve().parent).free
+    free = shutil.disk_usage(_existing_directory(Path(execution["scratch_root"]))).free
     if free < execution["minimum_free_disk_bytes"]:
         raise RuntimeError(
             f"free disk {free} is below calibration minimum {execution['minimum_free_disk_bytes']}"
         )
+
+
+def _existing_directory(path: Path) -> Path:
+    """Return the nearest existing directory usable for a preflight disk check."""
+    candidate = path.resolve()
+    while not candidate.exists():
+        candidate = candidate.parent
+    if not candidate.is_dir():
+        candidate = candidate.parent
+    return candidate
 
 
 def _check_wall_and_disk(started: float, execution: dict[str, Any]) -> None:

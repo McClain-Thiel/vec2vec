@@ -62,6 +62,11 @@ def packets() -> pd.DataFrame:
     return pd.DataFrame.from_records(records)
 
 
+@pytest.fixture(autouse=True)
+def openrouter_key(monkeypatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "not-a-real-key")
+
+
 def _valid_response(row: dict, semantic_support: str = "supported") -> str:
     return agent_judge.JudgeDecision(
         audit_row_id=row["audit_row_id"],
@@ -85,7 +90,7 @@ def test_judge_retains_valid_serialized_decisions(monkeypatch, packets):
         return openrouter.Completion(text=_valid_response(row), cost_usd=0.01)
 
     monkeypatch.setattr(nodes.openrouter, "complete", complete)
-    decisions = nodes.judge_packets(packets.head(2), {**PARAMS, "max_rows": 2}, {"api_key": "test"})
+    decisions = nodes.judge_packets(packets.head(2), {**PARAMS, "max_rows": 2})
 
     assert set(decisions["status"]) == {"valid"}
     assert set(decisions["semantic_support"]) == {"supported"}
@@ -116,7 +121,7 @@ def test_invalid_response_is_retained_and_its_cost_is_counted(monkeypatch, packe
         lambda *args, **kwargs: openrouter.Completion(text="not JSON", cost_usd=0.03),
     )
     one_row_params = {**PARAMS, "max_rows": 1}
-    decisions = nodes.judge_packets(packets.head(1), one_row_params, {"api_key": "test"})
+    decisions = nodes.judge_packets(packets.head(1), one_row_params)
     summary = nodes.summarize(packets.head(1), decisions, one_row_params)
 
     assert decisions.iloc[0]["status"] == "invalid_response"
@@ -134,7 +139,7 @@ def test_extraction_failure_retains_upstream_cost_and_identity(monkeypatch, pack
 
     monkeypatch.setattr(nodes.openrouter, "complete", fail)
     params = {**PARAMS, "max_rows": 1}
-    decisions = nodes.judge_packets(packets.head(1), params, {"api_key": "test"})
+    decisions = nodes.judge_packets(packets.head(1), params)
 
     assert decisions.iloc[0]["status"] == "request_error"
     assert decisions.iloc[0]["cost_usd"] == 0.04
@@ -152,16 +157,17 @@ def test_cost_cap_marks_remaining_packets_without_calling(monkeypatch, packets):
         return openrouter.Completion(text=_valid_response(row), cost_usd=0.6)
 
     monkeypatch.setattr(nodes.openrouter, "complete", complete)
-    decisions = nodes.judge_packets(packets, PARAMS, {"api_key": "test"})
+    decisions = nodes.judge_packets(packets, PARAMS)
 
     assert calls == 2
     assert decisions["status"].tolist() == ["valid", "valid", "not_run_cost_cap"]
     assert decisions["cost_usd"].sum() == 1.2
 
 
-def test_judge_requires_an_api_key(packets):
-    with pytest.raises(ValueError, match="api_key"):
-        nodes.judge_packets(packets, PARAMS, {})
+def test_judge_requires_an_api_key(packets, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+        nodes.judge_packets(packets, PARAMS)
 
 
 def test_paid_judge_pipeline_is_not_in_the_default_pipeline():
@@ -216,7 +222,7 @@ def test_constraint_benchmark_summarizes_model_reference_accuracy(monkeypatch):
         return openrouter.Completion(text=_valid_response(row, support), cost_usd=0.01)
 
     monkeypatch.setattr(nodes.openrouter, "complete", complete)
-    decisions = nodes.judge_packets(benchmark_packets, params, {"api_key": "test"})
+    decisions = nodes.judge_packets(benchmark_packets, params)
     summary = nodes.summarize(benchmark_packets, decisions, params)
 
     assert decisions["human_review_required"].tolist() == [False, True, False]

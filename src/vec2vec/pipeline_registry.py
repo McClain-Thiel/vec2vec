@@ -14,8 +14,6 @@ from vec2vec.pipelines import (
     descriptions,
     facet_audit,
     fixed_representation_bakeoff,
-    fixed_representation_invariance,
-    fixed_representation_smoke,
     processing,
     query_benchmark,
     similarity_graph,
@@ -38,7 +36,6 @@ def register_pipelines() -> dict[str, Pipeline]:
     - ``constraint_benchmark_packets`` prepares the fixed accuracy check without a paid call.
     - ``constraint_benchmark_smoke`` calls the strong model once per facet.
     - ``constraint_benchmark_judge`` calls it on the fixed 240-application sample.
-    - ``fixed_representation_invariance`` calls one pinned DNA encoder on 512 rows.
     - ``fixed_representation_bakeoff_*`` runs the explicit E02b input, feature, and probe stages.
     - ``import_descriptions`` adopts already-published descriptions instead.
 
@@ -65,8 +62,6 @@ def register_pipelines() -> dict[str, Pipeline]:
         "similarity_graph_calibration": similarity_graph_calibration.create_pipeline(),
         "similarity_graph": similarity_graph.create_pipeline(),
         "similarity_split": similarity_split.create_pipeline(),
-        "fixed_representation_invariance": fixed_representation_invariance.create_pipeline(),
-        "fixed_representation_smoke": fixed_representation_smoke.create_pipeline(),
         "fixed_representation_bakeoff_inputs": (
             fixed_representation_bakeoff.create_input_pipeline()
         ),

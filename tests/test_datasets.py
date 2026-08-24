@@ -68,6 +68,19 @@ def test_chunked_parquet_refuses_to_write_nothing(tmp_path):
         ChunkedParquetDataset(filepath=str(tmp_path / "empty.parquet")).save(iter([]))
 
 
+def test_chunked_parquet_preserves_the_previous_file_when_a_later_chunk_is_invalid(tmp_path):
+    path = tmp_path / "records.parquet"
+    dataset = ChunkedParquetDataset(filepath=str(path))
+    dataset.save(pd.DataFrame({"id": [1]}))
+
+    invalid_chunks = iter([pd.DataFrame({"id": [2]}), pd.DataFrame({"id": ["not-an-integer"]})])
+    with pytest.raises(DatasetError, match="not-an-integer"):
+        dataset.save(invalid_chunks)
+
+    assert dataset.load()["id"].tolist() == [1]
+    assert list(tmp_path.glob("records.parquet.tmp-*")) == []
+
+
 def test_optional_partitioned_reads_an_absent_prefix_as_empty(tmp_path):
     dataset = OptionalPartitionedDataset(
         path=str(tmp_path / "missing"),

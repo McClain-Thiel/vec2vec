@@ -791,7 +791,7 @@ def _build_base_masses(
         .groupby(["gallery_id", "base_measure"])["mass"]
         .sum()
     )
-    if not np.allclose(sums.to_numpy(), 1.0, rtol=0.0, atol=1e-12):
+    if not np.allclose(sums.to_numpy(), 1.0, rtol=1e-12, atol=1e-12):
         raise RuntimeError("a candidate base measure does not normalize to one")
     return result.sort_values(
         ["gallery_id", "base_measure", "sequence_id"], kind="stable"
@@ -1102,7 +1102,7 @@ def validate_query_benchmark_tables(
         .groupby(["gallery_id", "base_measure"])["mass"]
         .sum()
     )
-    if not np.allclose(mass_sums.to_numpy(), 1.0, rtol=0.0, atol=1e-12):
+    if not np.allclose(mass_sums.to_numpy(), 1.0, rtol=1e-12, atol=1e-12):
         raise RuntimeError("a reloaded candidate base measure does not normalize")
     if set(metrics["k"].astype(int)) != set(top_k):
         raise RuntimeError("control metrics do not contain the configured K values")

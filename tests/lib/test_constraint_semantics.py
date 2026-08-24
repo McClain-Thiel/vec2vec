@@ -161,3 +161,30 @@ def test_plannotate_profile_rejects_a_mixed_source(retrieval):
             expected_source="plannotate",
             provenance={},
         )
+
+
+def test_plannotate_profile_matches_string_equivalent_sequence_ids(retrieval):
+    retrieval = retrieval.copy()
+    retrieval["sequence_id"] = [1, 2, 3, 4]
+    annotations = pd.DataFrame(
+        {
+            "sequence_id": ["1"],
+            "source": ["plannotate"],
+            "feature": ["AmpR"],
+            "feature_type": ["CDS"],
+            "start": [1],
+            "end": [10],
+            "strand": ["+"],
+            "confidence": [1.0],
+        }
+    )
+
+    profile = constraint_semantics.profile_plannotate(
+        retrieval,
+        annotations,
+        expected_source="plannotate",
+        provenance={},
+    )
+
+    assert profile["annotation_rows_in_retrieval"] == 1
+    assert profile["retrieval_sequences_with_annotations"] == 1

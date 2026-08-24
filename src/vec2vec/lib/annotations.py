@@ -13,6 +13,7 @@ consumer which convention applies, and no coordinates are silently rewritten.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 #: Annotation sources in the order their features are surfaced to consumers.
@@ -41,11 +42,15 @@ def _strand_from_frame(frame: pd.Series) -> pd.Series:
 def _finalize(frame: pd.DataFrame, source: str) -> pd.DataFrame:
     """Apply the shared identity columns and dtypes to one normalized source."""
     frame = frame.dropna(subset=["addgene_id", "start", "end"]).copy()
-    frame["addgene_id"] = frame["addgene_id"].astype("int64")
+    for column in ("addgene_id", "start", "end"):
+        numeric = pd.to_numeric(frame[column], errors="coerce")
+        invalid = numeric.isna() | ~np.isfinite(numeric) | numeric.ne(np.trunc(numeric))
+        if invalid.any():
+            examples = frame.loc[invalid, column].head(5).tolist()
+            raise ValueError(f"{source} {column} values must be finite integers: {examples}")
+        frame[column] = numeric.astype("int64")
     frame["sequence_id"] = "addgene_" + frame["addgene_id"].astype(str)
     frame["source"] = source
-    frame["start"] = frame["start"].astype("int64")
-    frame["end"] = frame["end"].astype("int64")
     for column in ("feature", "feature_type", "description", "strand"):
         frame[column] = frame[column].astype("string").str.strip()
     frame["confidence"] = pd.to_numeric(frame["confidence"], errors="coerce").astype("float64")

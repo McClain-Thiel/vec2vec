@@ -6,6 +6,7 @@ the reported upstream cost so a run can be capped in dollars.
 
 from __future__ import annotations
 
+import os
 import random
 import time
 from dataclasses import dataclass
@@ -20,6 +21,14 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 REASONING_MODELS = ("z-ai/glm-5.2", "z-ai/glm-4.6")
 
 _MAX_BACKOFF_SECONDS = 30.0
+
+
+def api_key_from_environment() -> str:
+    """Return the OpenRouter key without placing it in Kedro parameters or run metadata."""
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY is not set")
+    return api_key
 
 
 @dataclass(frozen=True)

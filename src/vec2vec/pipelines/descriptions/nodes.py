@@ -10,9 +10,10 @@ or a Ctrl-C costs you at most one batch.
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -40,9 +41,19 @@ class _Budget:
 
     cap_usd: float | None
     spent_usd: float = 0.0
-    exhausted: bool = field(default=False)
+    exhausted: bool = False
+
+    def __post_init__(self) -> None:
+        if self.cap_usd is None:
+            return
+        self.cap_usd = float(self.cap_usd)
+        if not math.isfinite(self.cap_usd) or self.cap_usd < 0.0:
+            raise ValueError("cost_cap_usd must be finite and non-negative")
+        self.exhausted = self.cap_usd == 0.0
 
     def charge(self, amount: float) -> None:
+        if not math.isfinite(amount) or amount < 0.0:
+            raise ValueError(f"completion cost must be finite and non-negative: {amount}")
         self.spent_usd += amount
         if self.cap_usd is not None and self.spent_usd >= self.cap_usd:
             self.exhausted = True
@@ -74,7 +85,7 @@ def _describe_batch(
     model = str(settings["model"])
     concurrency = int(settings["concurrency"])
     generated: list[dict[str, Any]] = []
-    failures = 0
+    failures: list[str] = []
 
     def describe(
         client: httpx.Client, row: dict[str, Any]
@@ -89,7 +100,7 @@ def _describe_batch(
                 temperature=float(settings["temperature"]),
                 provider=settings["provider"],
             )
-        except Exception as error:  # noqa: BLE001 - one plasmid must not sink the batch
+        except Exception as error:  # noqa: BLE001 - collect concurrent call failures
             return row, None, f"{type(error).__name__}: {error}"
         return row, completion, None
 
@@ -98,7 +109,7 @@ def _describe_batch(
         for row, completion, error in results:
             budget.charge(completion.cost_usd if completion else 0.0)
             if completion is None or not completion.text:
-                failures += 1
+                failures.append(f"{row['sequence_id']}: {error or 'empty completion'}")
                 logger.warning("Description failed for %s: %s", row["sequence_id"], error)
                 continue
             generated.append(
@@ -116,9 +127,14 @@ def _describe_batch(
     logger.info(
         "Batch complete: %s written, %s failed, $%.3f spent in total",
         len(generated),
-        failures,
+        len(failures),
         budget.spent_usd,
     )
+    if failures:
+        examples = "; ".join(failures[:5])
+        raise RuntimeError(
+            f"description generation failed for {len(failures)} of {len(rows)} plasmids: {examples}"
+        )
     return pd.DataFrame(generated, columns=list(DESCRIPTION_COLUMNS))
 
 
@@ -127,7 +143,6 @@ def generate_descriptions(
     features: pd.DataFrame,
     completed: dict[str, Callable[[], pd.DataFrame]],
     params: dict[str, Any],
-    credentials: dict[str, Any],
 ) -> dict[str, Callable[[], pd.DataFrame]]:
     """Return one lazy partition per batch of plasmids still needing a description.
 
@@ -136,9 +151,7 @@ def generate_descriptions(
     ``cost_cap_usd`` is reached, remaining batches return empty and the run stops
     spending.
     """
-    api_key = credentials.get("api_key")
-    if not api_key:
-        raise ValueError("OpenRouter credentials are missing an 'api_key' entry")
+    api_key = openrouter.api_key_from_environment()
 
     rows = _prompt_rows(metadata, features)
     done = _completed_ids(completed)
@@ -167,11 +180,17 @@ def generate_descriptions(
 
         return build
 
-    # Offset partition names past the existing ones so a resume never overwrites.
-    offset = len(completed)
+    partition_names: list[str] = []
+    candidate = 0
+    batch_count = -(-len(records) // batch_size)
+    while len(partition_names) < batch_count:
+        name = f"part-{candidate:05d}"
+        if name not in completed:
+            partition_names.append(name)
+        candidate += 1
     return {
-        f"part-{offset + index:05d}": make_partition(records[start : start + batch_size])
-        for index, start in enumerate(range(0, len(records), batch_size))
+        name: make_partition(records[start : start + batch_size])
+        for name, start in zip(partition_names, range(0, len(records), batch_size), strict=True)
     }
 
 

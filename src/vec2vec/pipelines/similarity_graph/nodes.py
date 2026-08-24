@@ -473,8 +473,8 @@ def _check_limits(
 ) -> None:
     if time.monotonic() - started > execution["full_run_wall_limit_seconds"]:
         raise RuntimeError("global graph reached its fixed wall-time limit")
-    scratch_parent = Path(execution["scratch_root"]).resolve().parent
-    if shutil.disk_usage(scratch_parent).free < execution["minimum_free_disk_bytes"]:
+    scratch_root = calibration_nodes._existing_directory(Path(execution["scratch_root"]))
+    if shutil.disk_usage(scratch_root).free < execution["minimum_free_disk_bytes"]:
         raise RuntimeError("global graph reached its fixed free-disk floor")
     cpu_hours = sum(float(record["cpu_seconds"]) for record in run_records) / 3600.0
     if cpu_hours > execution["maximum_cpu_hours"]:

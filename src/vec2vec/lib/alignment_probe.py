@@ -282,31 +282,6 @@ def query_rankings_and_metrics(
     return pd.DataFrame(ranking_rows), pd.DataFrame(metric_rows), scores
 
 
-def whole_component_bootstrap_utility(
-    scores_by_seed: list[np.ndarray],
-    queries: pd.DataFrame,
-    gallery: pd.DataFrame,
-    query_states: pd.DataFrame,
-    *,
-    k: int,
-    draws: int,
-    seed: int,
-) -> tuple[float, float]:
-    """Bootstrap mean utility by resampling complete validation components."""
-    draw_table = whole_component_bootstrap_draws(
-        scores_by_seed,
-        queries,
-        gallery,
-        query_states,
-        k=k,
-        draws=draws,
-        seed=seed,
-    )
-    combined = draw_table.loc[draw_table["query_kind"].eq("combined"), "utility"]
-    lower, upper = np.quantile(combined, [0.025, 0.975])
-    return float(lower), float(upper)
-
-
 def whole_component_bootstrap_draws(
     scores_by_seed: list[np.ndarray],
     queries: pd.DataFrame,

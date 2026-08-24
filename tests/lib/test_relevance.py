@@ -132,6 +132,12 @@ def test_ragged_columns_and_bad_fields_are_rejected():
         relevance.RelevanceIndex(["a"], {"backbone": ["x"]}, fields=["backbone", "backbone"])
 
 
+@pytest.mark.parametrize("identity", [None, 1, ""])
+def test_missing_or_non_string_sequence_hashes_are_rejected(identity):
+    with pytest.raises(ValueError, match="sequence_hashes must contain non-empty strings"):
+        relevance.RelevanceIndex([identity], {"backbone": ["x"]}, fields=["backbone"])
+
+
 def test_unindexed_fields_and_empty_requirements_are_rejected(index):
     with pytest.raises(ValueError, match="not indexed"):
         index.candidates_with_field_values("backbone", {"x"})

@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 from collections.abc import Iterable
 from typing import Any
+from uuid import uuid4
 
 import pandas as pd
 import pyarrow as pa
@@ -82,11 +83,18 @@ class ChunkedParquetDataset(FsspecDataset, AbstractDataset[Saveable, pd.DataFram
         parent, _, _ = path.rpartition("/")
         if parent:
             filesystem.makedirs(parent, exist_ok=True)
-        with filesystem.open(path, "wb") as handle:
-            with pq.ParquetWriter(handle, table.schema, **self._save_args) as writer:
-                writer.write_table(table)
-                for chunk in chunks:
-                    writer.write_table(_as_table(chunk).cast(table.schema))
+        temporary_path = f"{path}.tmp-{uuid4().hex}"
+        try:
+            with filesystem.open(temporary_path, "wb") as handle:
+                with pq.ParquetWriter(handle, table.schema, **self._save_args) as writer:
+                    writer.write_table(table)
+                    for chunk in chunks:
+                        writer.write_table(_as_table(chunk).cast(table.schema))
+            filesystem.move(temporary_path, path)
+        except BaseException:
+            if filesystem.exists(temporary_path):
+                filesystem.rm(temporary_path)
+            raise
 
     def _describe(self) -> dict[str, Any]:
         return {

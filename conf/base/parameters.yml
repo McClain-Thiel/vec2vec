@@ -1,5 +1,5 @@
 # Tunables for the data pipelines. Nothing here is a secret or a path:
-# storage locations live in `globals.yml`, credentials in `conf/local`.
+# storage locations live in `globals.yml`; runtime secrets come from the environment or provider.
 
 addgene:
   # Addgene fragment sequences are inserts and guides, not whole plasmids.
@@ -73,6 +73,3 @@ constraint_semantics:
     database_version: null
     circular_setting: null
     coordinate_convention: source_qstart_qend_preserved_uninterpreted
-
-openrouter:
-  api_key: ${oc.env:OPENROUTER_API_KEY,null}

@@ -256,3 +256,21 @@ def test_rejects_contract_drift_and_unmapped_conflicts(retrieval):
     params["conflict_groups"][0]["values"] = ["high", "medium"]
     with pytest.raises(ValueError, match="unmapped constraints"):
         constraint_state.build_constraint_state_tables(retrieval, params, evidence, facets)
+
+
+@pytest.mark.parametrize("column", ["sequence_id", "sequence_sha256", "split_grouped"])
+def test_rejects_non_string_identity_values(retrieval, column):
+    evidence = evidence_params()
+    facets = facet_params()
+    _, contract_hash = build_mapping_contract(facets, evidence["enabled_sections"])
+    params = state_params(
+        expected_contract=contract_hash,
+        expected_population=constraint_state.retrieval_population_sha256(retrieval),
+        expected_state_input=constraint_state.retrieval_state_input_sha256(retrieval),
+    )
+    invalid = retrieval.copy()
+    invalid[column] = invalid[column].astype(object)
+    invalid.loc[0, column] = 1
+
+    with pytest.raises(ValueError, match=f"{column} values must be strings"):
+        constraint_state.build_constraint_state_tables(invalid, params, evidence, facets)

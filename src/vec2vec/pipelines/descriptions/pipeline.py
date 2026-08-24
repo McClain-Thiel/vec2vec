@@ -36,7 +36,6 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "addgene_annotation_features",
                     "description_partitions_completed",
                     "params:descriptions",
-                    "params:openrouter",
                 ],
                 outputs="description_partitions",
                 name="generate_descriptions",

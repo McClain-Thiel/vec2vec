@@ -7,10 +7,10 @@ The PlasmidCLIP data pipeline, rebuilt on Kedro with an S3 data catalog.
 It turns the raw Addgene release into a paired
 **(plasmid DNA sequence, natural-language description)** dataset with
 leakage-aware splits, constraint-based relevance labels, and the audits needed
-to trust both. Gate 1 numerical and invariance checks are complete for three
-DNA candidates. The validation-only E02b feature and alignment benchmark is
-implemented, its input panel passed independent read-back, and its train-fitted
-TF-IDF/SVD baseline is frozen. Neural feature extraction and probe runs have not started.
+to trust both. Gate 0 is complete. The validation-only E02b benchmark has frozen
+inputs and six accepted feature products: TF-IDF/SVD, Carbon-500M, GENERator-v2,
+BGE, GTE, and Qwen. The GENERanno extraction stopped with an incomplete artifact,
+so the factorial alignment and encoder selection have not run.
 
 ## Pipelines
 
@@ -21,8 +21,6 @@ TF-IDF/SVD baseline is frozen. Neural feature extraction and probe runs have not
 | `audit` | Builds the structured-query curriculum and measures how many provable hard negatives it yields. | yes |
 | `constraint_semantics` | Profiles raw constraint values, grouped-split concentration, and the pLannotate-only annotation view for the E00 feasibility gate. | no |
 | `facet_audit_sample` | Draws the frozen, component-aware E00 metadata-review sample. It does not accept labels. | no |
-| `fixed_representation_smoke` | Runs the paid Gate 1 bfloat16-versus-float32 DNA encoder smoke check on training rows only. | **no — paid** |
-| `fixed_representation_invariance` | Runs the paid Gate 1 original/rotation/reverse-complement and collapse checks on the frozen 512-row training panel. | **no — paid** |
 | `fixed_representation_bakeoff_inputs` | Freezes the E02b A/C/G/T-only training panel, reduced validation gallery, queries, states, and exclusions. | no |
 | `fixed_representation_bakeoff_tfidf_features` | Fits the train-only 6-mer TF-IDF/SVD DNA baseline and persists its state. | no |
 | `fixed_representation_bakeoff_dna_features` | Extracts one accepted neural DNA representation under an approval-gated deadline. | **no — paid** |
@@ -51,26 +49,6 @@ kedro run --pipelines similarity_graph_calibration
 kedro run --pipelines similarity_graph      # long-running; see the study experiment spec first
 kedro run --pipelines similarity_split
 kedro run --pipelines query_benchmark
-python scripts/run_fixed_representation_smoke.py --candidate carbon_500m  # paid GPU run
-# Requires an approval reference, region, current instance type, total time cap, and hourly price.
-python scripts/run_fixed_representation_invariance.py \
-  --candidate carbon_500m \
-  --approval-reference <approval-reference> \
-  --region <aws-region> \
-  --instance-type <instance-type> \
-  --instance-hour-limit <total-hours> \
-  --observed-instance-price-usd-per-hour <price>  # paid GPU run
-# Run the two GenerTeam candidates together in their pinned Transformers 4.49 environment.
-python scripts/run_fixed_representation_invariance.py \
-  --candidate generanno_prokaryote_500m \
-  --candidate generator_v2_prokaryote_1_2b \
-  --approval-reference <approval-reference> \
-  --region <aws-region> \
-  --instance-type <instance-type> \
-  --instance-hour-limit <total-hours> \
-  --observed-instance-price-usd-per-hour <price>
-python scripts/validate_fixed_representation_invariance_artifacts.py \
-  --version <candidate-output-version>  # read-only persisted-artifact check
 kedro run --pipeline fixed_representation_bakeoff_inputs
 python scripts/validate_fixed_representation_bakeoff_inputs.py \
   --version <input-output-version>  # read-only persisted-artifact check
@@ -172,9 +150,12 @@ The [Gate 0 completion report](studies/set_valued_compositional_embeddings/repor
 records the accepted artifact versions and remaining limitations. The
 [Gate 1 encoder review](studies/set_valued_compositional_embeddings/reports/13_encoder_prior_and_candidates.md)
 and [fixed-representation protocol](studies/set_valued_compositional_embeddings/experiments/E02_fixed_representation_bakeoff.md)
-define the active E02b validation-only comparison. Paid E02b GPU extraction has not started. A
-prior eligibility audit read the old test artifacts, so a later confirmatory evaluation requires
-a new untouched holdout or a separately frozen test protocol.
+define the active E02b validation-only comparison. Six feature products passed independent
+persisted read-back. The GENERanno run produced only a partial feature object and is rejected.
+The 4-DNA by 3-text by 3-seed alignment remains blocked until GENERanno is rerun successfully or
+the preregistered candidate set is amended. A prior eligibility audit read the old test artifacts,
+so a later confirmatory evaluation requires a new untouched holdout or a separately frozen test
+protocol.
 
 ## Setup
 

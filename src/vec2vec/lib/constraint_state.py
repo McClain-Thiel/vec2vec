@@ -64,6 +64,12 @@ def _validate_retrieval(retrieval: pd.DataFrame, allowed_splits: Sequence[str]) 
         raise ValueError(f"retrieval dataset is missing columns: {sorted(missing)}")
     if retrieval.empty:
         raise ValueError("retrieval dataset is empty")
+    string_columns = ("sequence_id", "sequence_sha256", "split_grouped")
+    for column in string_columns:
+        invalid = ~retrieval[column].map(lambda value: isinstance(value, str))
+        if invalid.any():
+            examples = retrieval.loc[invalid, column].head(5).tolist()
+            raise ValueError(f"retrieval {column} values must be strings: {examples}")
     if retrieval["sequence_id"].isna().any() or retrieval["sequence_id"].duplicated().any():
         raise ValueError("retrieval dataset needs unique, non-missing sequence_id values")
     identity = ["sequence_sha256", "leakage_component", "split_grouped"]

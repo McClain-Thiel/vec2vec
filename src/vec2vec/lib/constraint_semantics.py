@@ -258,8 +258,10 @@ def profile_plannotate(
     annotation_ids = set(annotations["sequence_id"].astype(str))
     matched_ids = retrieval_ids & annotation_ids
     population = annotations.loc[annotations["sequence_id"].astype(str).isin(retrieval_ids)].copy()
-    lengths = retrieval.set_index("sequence_id")["length_bp"]
-    population["_length_bp"] = population["sequence_id"].map(lengths)
+    lengths = retrieval.assign(_sequence_id=retrieval["sequence_id"].astype(str)).set_index(
+        "_sequence_id"
+    )["length_bp"]
+    population["_length_bp"] = population["sequence_id"].astype(str).map(lengths)
     if population["_length_bp"].isna().any():
         raise RuntimeError("matched pLannotate rows failed to resolve a sequence length")
 

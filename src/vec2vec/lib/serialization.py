@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping
 from typing import Any
@@ -35,3 +36,18 @@ def stable_json(value: Any) -> str:
         sort_keys=True,
         separators=(",", ":"),
     )
+
+
+def json_content_sha256(value: Any) -> str:
+    """Hash finite JSON-compatible content without coercing scientific values."""
+    try:
+        payload = json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as error:
+        raise ValueError("content is not finite, JSON-compatible data") from error
+    return hashlib.sha256(payload).hexdigest()

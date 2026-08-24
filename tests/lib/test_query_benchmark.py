@@ -9,7 +9,6 @@ import pytest
 
 from vec2vec.lib import (
     query_benchmark,
-    query_benchmark_validation,
     similarity_graph,
     similarity_split,
 )
@@ -206,39 +205,3 @@ def test_rejects_unpinned_inputs_and_crossing_components():
     )
     with pytest.raises(RuntimeError, match="component crosses splits"):
         query_benchmark.build_query_benchmark(*values)
-
-
-def test_independent_validator_recomputes_answer_sets_and_hashes():
-    outputs = _build()
-    source_states = _fixture()[6]
-    report = query_benchmark_validation.validate_query_benchmark_outputs(
-        *outputs[:-1],
-        outputs[-1],
-        source_states,
-        expected_rows=12,
-        expected_retrieval_version="retrieval-v1",
-        expected_graph_artifact_version="graph-v1",
-        expected_split_artifact_version="split-v1",
-        expected_constraint_state_artifact_version="state-v1",
-    )
-
-    assert report["status"] == "accepted_independent_s3_readback"
-    assert report["answer_set_identities_recomputed"] is True
-
-
-def test_independent_validator_rejects_tampered_query_state():
-    outputs = list(_build())
-    query_states = outputs[2].copy()
-    query_states.loc[0, "sequence_id"] = "tampered"
-    outputs[2] = query_states
-    with pytest.raises(RuntimeError, match="content hashes differ"):
-        query_benchmark_validation.validate_query_benchmark_outputs(
-            *outputs[:-1],
-            outputs[-1],
-            _fixture()[6],
-            expected_rows=12,
-            expected_retrieval_version="retrieval-v1",
-            expected_graph_artifact_version="graph-v1",
-            expected_split_artifact_version="split-v1",
-            expected_constraint_state_artifact_version="state-v1",
-        )

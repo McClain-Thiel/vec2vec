@@ -47,6 +47,11 @@ def stub_api(monkeypatch):
     return calls
 
 
+@pytest.fixture(autouse=True)
+def openrouter_key(monkeypatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "not-a-real-key")
+
+
 def materialize(partitions: dict) -> pd.DataFrame:
     """Save-time behaviour: call each lazy partition in order, as Kedro would."""
     frames = [build() for _, build in sorted(partitions.items())]
@@ -54,7 +59,7 @@ def materialize(partitions: dict) -> pd.DataFrame:
 
 
 def test_generation_batches_and_records_provenance(metadata, features, stub_api):
-    partitions = nodes.generate_descriptions(metadata, features, {}, PARAMS, {"api_key": "k"})
+    partitions = nodes.generate_descriptions(metadata, features, {}, PARAMS)
     assert sorted(partitions) == ["part-00000", "part-00001", "part-00002"]
 
     written = materialize(partitions)
@@ -68,9 +73,7 @@ def test_generation_batches_and_records_provenance(metadata, features, stub_api)
 
 def test_generation_skips_plasmids_that_already_have_a_description(metadata, features, stub_api):
     completed = {"part-00000": lambda: pd.DataFrame({"sequence_id": ["addgene_1", "addgene_2"]})}
-    partitions = nodes.generate_descriptions(
-        metadata, features, completed, PARAMS, {"api_key": "k"}
-    )
+    partitions = nodes.generate_descriptions(metadata, features, completed, PARAMS)
     written = materialize(partitions)
 
     assert set(written["sequence_id"]) == {"addgene_3", "addgene_4", "addgene_5"}
@@ -79,9 +82,22 @@ def test_generation_skips_plasmids_that_already_have_a_description(metadata, fea
     assert min(partitions) == "part-00001"
 
 
+def test_generation_fills_partition_name_gaps_without_overwriting(metadata, features, stub_api):
+    completed = {"part-00001": lambda: pd.DataFrame({"sequence_id": ["addgene_1"]})}
+    partitions = nodes.generate_descriptions(metadata, features, completed, PARAMS)
+
+    assert sorted(partitions) == ["part-00000", "part-00002"]
+    assert set(materialize(partitions)["sequence_id"]) == {
+        "addgene_2",
+        "addgene_3",
+        "addgene_4",
+        "addgene_5",
+    }
+
+
 def test_generation_stops_spending_at_the_cost_cap(metadata, features, stub_api):
     partitions = nodes.generate_descriptions(
-        metadata, features, {}, {**PARAMS, "cost_cap_usd": 0.015}, {"api_key": "k"}
+        metadata, features, {}, {**PARAMS, "cost_cap_usd": 0.015}
     )
     written = materialize(partitions)
     # The first batch of two exceeds the cap; nothing after it is charged.
@@ -89,22 +105,32 @@ def test_generation_stops_spending_at_the_cost_cap(metadata, features, stub_api)
     assert len(stub_api) == 2
 
 
-def test_generation_survives_a_failing_plasmid(metadata, features, monkeypatch):
+def test_generation_fails_loudly_when_a_plasmid_call_fails(metadata, features, monkeypatch):
     def complete(client, messages, **kwargs):
         if "pTest1" in messages[1]["content"]:
             raise RuntimeError("upstream refused")
         return openrouter.Completion(text="ok", cost_usd=0.0)
 
     monkeypatch.setattr(nodes.openrouter, "complete", complete)
-    written = materialize(
-        nodes.generate_descriptions(metadata, features, {}, PARAMS, {"api_key": "k"})
+    with pytest.raises(RuntimeError, match="failed for 1 of 2 plasmids"):
+        materialize(nodes.generate_descriptions(metadata, features, {}, PARAMS))
+
+
+def test_generation_validates_and_honours_zero_cost_cap(metadata, features, stub_api):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        nodes.generate_descriptions(metadata, features, {}, {**PARAMS, "cost_cap_usd": -1.0})
+
+    partitions = nodes.generate_descriptions(
+        metadata, features, {}, {**PARAMS, "cost_cap_usd": 0.0}
     )
-    assert set(written["sequence_id"]) == {f"addgene_{index}" for index in range(2, 6)}
+    assert materialize(partitions).empty
+    assert stub_api == []
 
 
-def test_generation_requires_a_key(metadata, features):
-    with pytest.raises(ValueError, match="api_key"):
-        nodes.generate_descriptions(metadata, features, {}, PARAMS, {})
+def test_generation_requires_a_key(metadata, features, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+        nodes.generate_descriptions(metadata, features, {}, PARAMS)
 
 
 def test_merge_deduplicates_across_partitions():

@@ -30,7 +30,6 @@ def create_targeted_pipeline(**kwargs) -> Pipeline:
                 inputs=[
                     "e00_agent_judge_targeted_packets",
                     "params:agent_judge_targeted",
-                    "params:openrouter",
                 ],
                 outputs="e00_agent_judge_targeted_decisions",
                 name="judge_e00_agent_judge_targeted_packets",
@@ -67,7 +66,6 @@ def create_targeted_smoke_pipeline(**kwargs) -> Pipeline:
                 inputs=[
                     "e00_agent_judge_targeted_smoke_packets",
                     "params:agent_judge_targeted_smoke",
-                    "params:openrouter",
                 ],
                 outputs="e00_agent_judge_targeted_smoke_decisions",
                 name="judge_e00_agent_judge_targeted_smoke_packet",
@@ -121,7 +119,6 @@ def create_constraint_benchmark_smoke_pipeline(**kwargs) -> Pipeline:
                 inputs=[
                     "e00_constraint_benchmark_smoke_packets",
                     "params:constraint_benchmark_smoke",
-                    "params:openrouter",
                 ],
                 outputs="e00_constraint_benchmark_smoke_decisions",
                 name="judge_e00_constraint_benchmark_smoke_packets",
@@ -149,7 +146,6 @@ def create_constraint_benchmark_pipeline(**kwargs) -> Pipeline:
                 inputs=[
                     "e00_constraint_benchmark_packets",
                     "params:constraint_benchmark_judge",
-                    "params:openrouter",
                 ],
                 outputs="e00_constraint_benchmark_decisions",
                 name="judge_e00_constraint_benchmark_packets",

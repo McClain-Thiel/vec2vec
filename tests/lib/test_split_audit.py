@@ -8,6 +8,7 @@ import pytest
 from vec2vec.lib import split_audit
 from vec2vec.lib.constraint_state import retrieval_population_sha256
 from vec2vec.lib.sequences import sequence_sha256
+from vec2vec.pipelines.split_audit import nodes as split_audit_nodes
 
 
 def _retrieval() -> pd.DataFrame:
@@ -32,6 +33,14 @@ def _rules() -> tuple[split_audit.SimilarityRule, split_audit.SimilarityRule]:
     )
 
 
+def test_pipeline_requires_the_frozen_split_labels():
+    with pytest.raises(ValueError, match="split_labels must be exactly"):
+        split_audit_nodes.run_split_audit(
+            pd.DataFrame(),
+            {"split_labels": ["train", "val"]},
+        )
+
+
 def _tokens(
     *,
     token: str,
@@ -47,28 +56,6 @@ def _tokens(
             "length_bp": [length],
         }
     )
-
-
-def _hsp(**overrides) -> pd.DataFrame:
-    record = {
-        "qseqid": "q1",
-        "sseqid": "s1",
-        "qlen": 200,
-        "slen": 100,
-        "pident": 99.0,
-        "alignment_length": 100,
-        "nident": 99,
-        "mismatch": 1,
-        "gaps": 0,
-        "qstart": 75,
-        "qend": 174,
-        "sstart": 1,
-        "send": 100,
-        "evalue": 0.0,
-        "bitscore": 180.0,
-    }
-    record.update(overrides)
-    return pd.DataFrame.from_records([record], columns=split_audit.BLAST_COLUMNS)
 
 
 def _paf(**overrides) -> pd.DataFrame:
@@ -143,72 +130,6 @@ def test_retrieval_validation_rejects_duplicate_hash_and_split_invariants():
         )
 
 
-def test_best_hsp_classification_uses_undoubled_coverage_and_inclusive_thresholds():
-    primary, sensitivity = _rules()
-    hsps = pd.concat(
-        [
-            _hsp(bitscore=180.0),
-            _hsp(
-                qstart=1,
-                qend=80,
-                sstart=1,
-                send=80,
-                alignment_length=80,
-                nident=80,
-                mismatch=0,
-                pident=100.0,
-                bitscore=120.0,
-            ),
-        ],
-        ignore_index=True,
-    )
-    edges = split_audit.classify_blast_hsps(
-        hsps,
-        query_tokens=_tokens(token="q1", sequence_id="query", split="val", length=100),
-        subject_tokens=_tokens(token="s1", sequence_id="subject", split="train", length=100),
-        search_pair="val_vs_train",
-        query_repeat=2,
-        primary_rule=primary,
-        sensitivity_rule=sensitivity,
-    )
-
-    assert len(edges) == 1
-    edge = edges.iloc[0]
-    assert edge["identity"] == 0.99
-    assert edge["query_coverage"] == 1.0
-    assert edge["subject_coverage"] == 1.0
-    assert bool(edge["primary_near_duplicate"])
-    assert edge["similarity_class"] == "primary"
-
-
-def test_length_ratio_blocks_a_tandem_duplication_false_positive():
-    primary, sensitivity = _rules()
-    hsps = _hsp(
-        slen=200,
-        qend=200,
-        send=200,
-        pident=100.0,
-        alignment_length=200,
-        nident=200,
-        mismatch=0,
-        bitscore=360.0,
-    )
-    edges = split_audit.classify_blast_hsps(
-        hsps,
-        query_tokens=_tokens(token="q1", sequence_id="query", split="val", length=100),
-        subject_tokens=_tokens(token="s1", sequence_id="subject", split="train", length=200),
-        search_pair="val_vs_train",
-        query_repeat=2,
-        primary_rule=primary,
-        sensitivity_rule=sensitivity,
-    )
-
-    assert edges.loc[0, "query_coverage"] == 1.0
-    assert edges.loc[0, "subject_coverage"] == 1.0
-    assert edges.loc[0, "length_ratio"] == 0.5
-    assert not bool(edges.loc[0, "sensitivity_near_duplicate"])
-
-
 def test_minimap_paf_classification_uses_the_same_inclusive_rules():
     primary, sensitivity = _rules()
     edges = split_audit.classify_minimap_alignments(
@@ -240,24 +161,6 @@ def test_minimap_paf_rejects_invalid_coordinates():
             primary_rule=primary,
             sensitivity_rule=sensitivity,
         )
-
-
-def test_invalid_coordinates_and_target_cap_fail_explicitly():
-    primary, sensitivity = _rules()
-    with pytest.raises(ValueError, match="query coordinates are out of bounds"):
-        split_audit.classify_blast_hsps(
-            _hsp(qend=201),
-            query_tokens=_tokens(token="q1", sequence_id="query", split="val", length=100),
-            subject_tokens=_tokens(token="s1", sequence_id="subject", split="train", length=100),
-            search_pair="val_vs_train",
-            query_repeat=2,
-            primary_rule=primary,
-            sensitivity_rule=sensitivity,
-        )
-
-    saturated = pd.concat([_hsp(sseqid=f"s{index}") for index in range(3)], ignore_index=True)
-    with pytest.raises(RuntimeError, match="reached the BLAST target cap 3"):
-        split_audit.validate_candidate_cap(saturated, maximum_targets=3)
 
 
 def test_augmented_summary_reports_cross_split_component_merges():

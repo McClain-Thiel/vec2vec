@@ -11,7 +11,7 @@ import pandas as pd
 
 from vec2vec.lib import fixed_representation
 from vec2vec.lib.dna_encoder import EncoderRecipe, FrozenDnaEncoder
-from vec2vec.lib.fixed_representation_invariance import json_content_sha256
+from vec2vec.lib.serialization import json_content_sha256
 from vec2vec.lib.similarity_graph import dataframe_content_sha256
 from vec2vec.lib.text import sha256_text
 from vec2vec.lib.text_encoder import FrozenTextEncoder, TextEncoderRecipe

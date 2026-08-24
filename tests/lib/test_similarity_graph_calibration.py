@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -13,14 +15,75 @@ from vec2vec.lib.similarity_graph_calibration import (
 )
 from vec2vec.lib.split_audit import SimilarityRule
 from vec2vec.pipelines.similarity_graph_calibration.nodes import (
+    _check_free_disk,
     _get_ray_descriptors_with_disk_guard,
     _load_shard_checkpoint,
+    _prepare_target_cache,
     _shard_checkpoint_directory,
     _shard_checkpoint_identity,
     _split_uncheckpointed_exact_shards,
     _validated_checkpoint_descriptor,
     _write_shard_checkpoint,
 )
+
+
+def test_target_cache_rebuilds_an_unmanifested_partial_index_atomically(tmp_path, monkeypatch):
+    root = tmp_path / "missing" / "cache"
+    root.mkdir(parents=True)
+    partial_index = root / "all_targets.mmi"
+    partial_index.write_bytes(b"partial")
+    calls = []
+
+    def build_index(command, **kwargs):
+        calls.append(command)
+        target = Path(command[command.index("-d") + 1])
+        target.write_bytes(b"complete-index")
+        return SimpleNamespace(returncode=0, stderr="")
+
+    monkeypatch.setattr(
+        "vec2vec.pipelines.similarity_graph_calibration.nodes.subprocess.run", build_index
+    )
+    tokens = pd.DataFrame({"token": ["one"], "sequence": ["ACGT"]})
+    _, index, manifest = _prepare_target_cache(
+        root,
+        tokens,
+        {"executable": "minimap2", "preset": "asm20"},
+        expected_population_sha256="population",
+    )
+
+    assert len(calls) == 1
+    assert index.read_bytes() == b"complete-index"
+    assert manifest["index_bytes"] == len(b"complete-index")
+    assert json.loads((root / "target_cache_manifest.json").read_text()) == manifest
+    assert list(root.glob("*.tmp")) == []
+
+    _prepare_target_cache(
+        root,
+        tokens,
+        {"executable": "minimap2", "preset": "asm20"},
+        expected_population_sha256="population",
+    )
+    assert len(calls) == 1
+
+
+def test_free_disk_preflight_uses_nearest_existing_directory(tmp_path, monkeypatch):
+    observed = []
+
+    def disk_usage(path):
+        observed.append(Path(path))
+        return SimpleNamespace(free=100)
+
+    monkeypatch.setattr(
+        "vec2vec.pipelines.similarity_graph_calibration.nodes.shutil.disk_usage", disk_usage
+    )
+    _check_free_disk(
+        {
+            "scratch_root": str(tmp_path / "not-yet-created" / "nested"),
+            "minimum_free_disk_bytes": 1,
+        }
+    )
+
+    assert observed == [tmp_path.resolve()]
 
 
 def test_calibration_selection_is_stable_and_has_fixed_counts():

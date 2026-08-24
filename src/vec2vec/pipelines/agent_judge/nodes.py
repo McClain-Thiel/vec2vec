@@ -74,13 +74,9 @@ def select_smoke_packets(packets: pd.DataFrame, params: dict[str, Any]) -> pd.Da
     return selected.sort_values("pilot_index", kind="stable").reset_index(drop=True)
 
 
-def judge_packets(
-    packets: pd.DataFrame, params: dict[str, Any], credentials: dict[str, Any]
-) -> pd.DataFrame:
+def judge_packets(packets: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
     """Judge packets in order, retaining invalid responses and request failures."""
-    api_key = credentials.get("api_key")
-    if not api_key:
-        raise ValueError("OpenRouter credentials are missing an 'api_key' entry")
+    api_key = openrouter.api_key_from_environment()
     if packets.empty:
         raise ValueError("agent-judge packet table is empty")
     agent_judge.validate_pilot_packets(packets, params)
