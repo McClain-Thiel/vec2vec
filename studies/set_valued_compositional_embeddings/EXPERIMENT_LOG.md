@@ -2369,3 +2369,32 @@ host charges are higher because the host remained running between commands.
 provenance. Do not retry, reconstruct the missing products, change parameters, or start alignment
 without new user authorization. The next decision is whether to approve one exact GENERanno retry
 with orchestration that is independent of a terminal or login session.
+
+## 2026-08-24 12:00:33 BST — E02b host provenance corrected and completion authorized
+
+**Status:** authorization recorded before retry results. No encoder or alignment command was
+running when this entry was written.
+
+AWS read-back identified SSH host `g6-big`, hostname `ip-172-31-90-236`, as on-demand instance
+`i-0cda00ffb3cacfc12`, type `g6.4xlarge`, in `us-east-1b`. The 2026-08-23 E02b manifests recorded
+the same host as `g6.2xlarge` at `$0.9776` per hour. AWS's current price record gives `$1.3232` per
+on-demand Linux `g6.4xlarge` instance-hour. This is a provenance and derived-cost error. It does
+not change any model output or artifact hash. Preserve the immutable manifests and attach the
+correction in configuration.
+
+At the corrected rate, the rejected 17,852-second GENERanno command cost approximately
+`$6.561602`, not `$4.847810`. Scaling the previously reported completed-plus-failed command time
+to the corrected rate gives approximately `$8.230789`, not `$6.081030`. Complete host charges are
+higher because the instance remained running outside the measured commands.
+
+The partial GENERanno version contains a complete-looking 30,821-row feature table but no coverage
+or manifest. The pipeline has no persisted extraction checkpoint. Do not reuse or complete it.
+Run the full stage under a new version with the same input, accepted invariance artifact, model and
+tokenizer revisions, precision, pooling, windowing, seed, and seven-hour deadline. Use a detached
+system service so SSH session removal cannot terminate the run.
+
+The user authorized the GENERanno retry and the full frozen alignment factorial with approval
+reference `chat-2026-08-24-e02b-finish-benchmark`. The actual host is `g6.4xlarge` at `$1.3232`
+per hour. The GENERanno cap is seven hours and `$9.2624`; the alignment cap is three hours and
+`$3.9696`. The combined additional cap is ten hours and `$13.2320` before storage and transfer.
+No other paid stage is authorized.

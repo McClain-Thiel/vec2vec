@@ -443,6 +443,34 @@ its table and manifest hashes, record its physical bytes, and freeze its exact v
 in `parameters_fixed_representation_bakeoff.yml`. Feature acceptance must also record measured
 extraction GPU-hours. The train-fitted TF-IDF baseline records zero extraction GPU-hours.
 
+## 2026-08-24 host-provenance correction and retry authorization before retry results
+
+AWS identified instance `i-0cda00ffb3cacfc12`, hostname `ip-172-31-90-236`, as an on-demand
+`g6.4xlarge` in `us-east-1b`. The 2026-08-23 feature manifests recorded this host as a
+`g6.2xlarge` at `$0.9776` per hour. The current AWS price record gives `$1.3232` per on-demand
+Linux instance-hour for the actual `g6.4xlarge`. This changes execution provenance and derived
+costs. It does not change feature values, feature hashes, model revisions, or scientific
+configuration. Do not rewrite the immutable manifests. Store the correction beside their
+accepted-artifact records.
+
+The rejected GENERanno version contains a complete-looking feature table with 30,821 unique
+sequence hashes, but it lacks the required coverage and manifest artifacts. The current pipeline
+has no persisted extraction checkpoint. Do not load or complete this partial version. Repeat the
+complete GENERanno stage under a new version.
+
+The retry uses the merged repository after the cleanup review. Comparison with failed-run commit
+`3afc292f85222f22d477bbac40be37c55d7dac56` found no scientific change in the neural feature
+extraction path: the JSON hash helper moved to the shared serialization module, and unused code
+was deleted. The retry must keep the same input and invariance versions, model and tokenizer
+revisions, precision, pooling, windowing, seed, and seven-hour stage deadline. Run it as a detached
+system service so SSH session removal cannot terminate the process.
+
+The user approved the retry and alignment completion on 2026-08-24 with approval reference
+`chat-2026-08-24-e02b-finish-benchmark`. Use the observed `g6.4xlarge` price of `$1.3232` per hour.
+The GENERanno limit is seven hours (`$9.2624` maximum), and the alignment limit is three hours
+(`$3.9696` maximum). The total additional command limit is ten instance-hours and `$13.2320`
+before storage and transfer. No other paid stage is authorized by this approval.
+
 ## Known limitations
 
 - Gate 1 selects on one validation split, so its validation estimate is optimistic after model

@@ -9,8 +9,8 @@
   feature table but lacks the required coverage and manifest products.
 - The complete 4-by-3-by-3 alignment factorial did not start. No validation ranking or old-test
   model outcome was read.
-- A new exact GENERanno attempt needs user authorization. The failed version cannot be reused or
-  silently completed.
+- A new complete GENERanno attempt is authorized. The failed version cannot be reused or silently
+  completed.
 
 ## Question and scope
 
@@ -38,7 +38,7 @@ frozen in `parameters_fixed_representation_bakeoff.yml` and the experiment log.
 
 ## Rejected GENERanno partial version
 
-The exact approved command started at 2026-08-23 16:23:05 UTC on the existing `g6.2xlarge`. It
+The exact approved command started at 2026-08-23 16:23:05 UTC on the existing host. It
 used clean Git commit `3afc292f85222f22d477bbac40be37c55d7dac56`, Transformers 4.49.0, the
 accepted E02b input, and the accepted GENERanno invariance artifact.
 
@@ -61,13 +61,21 @@ two required outputs do not. The available evidence does not establish the exact
 feature upload and session removal. This is a technical orchestration failure, not a
 retrieval-quality result.
 
+## Host-provenance correction
+
+AWS identified the host as on-demand `g6.4xlarge` instance `i-0cda00ffb3cacfc12` in
+`us-east-1b`, not the `g6.2xlarge` recorded in the 2026-08-23 manifests. The hostname and private
+IP match the run manifests and SSH target. AWS's current price record gives `$1.3232` per hour for
+the actual instance, not the recorded `$0.9776` rate. The immutable manifests remain unchanged;
+the correction is frozen in configuration. No scientific artifact hash changes.
+
 ## Compute and stopping decision
 
-The failed session lasted approximately 17,852 seconds. At the approved observed price of
-$0.9776 per instance-hour, its derived command charge is approximately $4.847810 before storage
-and transfer. Completed E02b neural feature commands and this failed command total approximately
-$6.081030 in derived instance charges. Complete EC2 host cost is higher because the host remained
-running outside the measured commands.
+The failed session lasted approximately 17,852 seconds. At the corrected price of `$1.3232` per
+instance-hour, its derived command charge is approximately `$6.561602` before storage and
+transfer. Scaling the previously reported total command time to the corrected rate gives
+approximately `$8.230789`. Complete EC2 host cost is higher because the host remained running
+outside the measured commands.
 
 The no-partial-artifact and no-silent-retry rules apply. The accepted feature configuration remains
 incomplete, and the alignment pipeline fails closed without GENERanno. No alignment compute was
@@ -77,6 +85,7 @@ started.
 
 - The GENERanno feature table did not receive coverage or manifest validation and is not accepted.
 - No alignment result, bootstrap interval, main effect, interaction, or selection exists.
-- A retry would consume additional paid compute and requires explicit user authorization.
+- The user authorized the complete retry and alignment on 2026-08-24. Their combined additional
+  limit is ten hours and `$13.2320` before storage and transfer.
 - A retry must use the same model revision, input version, scientific parameters, and seed. Its
   orchestration must survive terminal or login-session closure.
