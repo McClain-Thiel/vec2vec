@@ -2328,3 +2328,44 @@ Freeze these identities:
 - extraction GPU-hours: `0.7816696715965453`.
 
 No validation ranking was computed. GENERator-v2 remains one candidate in the frozen factorial.
+
+## 2026-08-24 01:35:22 BST — E02b GENERanno partial artifact rejected
+
+**Status:** failed technical run. Do not accept or reuse version
+`2026-08-23T16.23.06.763Z`. The alignment factorial did not start, no validation ranking was
+computed, and no candidate was selected.
+
+The exact approved GENERanno command started at 2026-08-23 16:23:05 UTC on the existing
+`g6.2xlarge`. It used clean Git commit
+`3afc292f85222f22d477bbac40be37c55d7dac56`, Transformers 4.49.0, the frozen E02b input,
+accepted invariance version `2026-08-23T00.53.22.430Z`, approval reference
+`chat-2026-08-23-e02b-complete-benchmark`, and the unchanged 7-hour command cap.
+
+**Observed failure evidence:**
+
+- systemd removed remote login session `50226` at 2026-08-23 21:20:37 UTC after 4 hours 57
+  minutes and recorded 4 hours 57 minutes of consumed CPU time;
+- no kernel out-of-memory event appeared in the inspected 21:10–21:30 UTC system log interval;
+- the command log contains pipeline startup but no completion, timeout, Python exception, or
+  post-run cost record;
+- S3 contains a 208,302,597-byte feature object for version
+  `2026-08-23T16.23.06.763Z`, but contains no matching coverage or manifest object;
+- the partial table has 30,821 unique GENERanno sequence hashes, dimension 1,280, and content hash
+  `7b6f6cbf5d0fa495599a50b3a3cbfc75e1727ccfa656145922ad69fd3773f0ed`;
+- independent read-back failed with `FileNotFoundError` for the versioned coverage product.
+
+The feature object exists, and the next two required artifacts do not. The available evidence does
+not establish the exact sequence between feature upload and session removal. The cause of session
+removal is unknown. This is an orchestration failure, not evidence about retrieval quality.
+Coverage, per-row window accounting, runtime manifest, extraction GPU-hours, and final output
+hashes are unavailable, so the partial feature table cannot pass the frozen acceptance contract.
+
+**Derived cost:** the approximately 17,852-second failed session cost approximately $4.847810 at
+$0.9776 per instance-hour, before storage and transfer. Completed E02b neural feature commands and
+this failed command total approximately $6.081030 in measured-command instance charges. Complete
+host charges are higher because the host remained running between commands.
+
+**Stopping decision:** preserve the partial S3 object and both run/read-back logs as failed-run
+provenance. Do not retry, reconstruct the missing products, change parameters, or start alignment
+without new user authorization. The next decision is whether to approve one exact GENERanno retry
+with orchestration that is independent of a terminal or login session.

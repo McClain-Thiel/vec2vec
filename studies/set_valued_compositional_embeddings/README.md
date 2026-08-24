@@ -22,14 +22,18 @@ GENERATOR-v2 prokaryote 1.2B passed the numerical and full-panel invariance gate
 exceeded both 22.03 GiB and 44.39 GiB GPUs under the fixed protocol. The E02b validation-only
 four-DNA-by-three-text alignment benchmark is implemented. Its 20,000-row training panel and
 10,852-row validation gallery passed independent persisted-artifact read-back. The train-fitted
-6-mer TF-IDF/SVD baseline is also frozen. Neural feature extraction and probe fitting have not
-started. Gate 2 training cannot start until the Gate 1 representation pair and feature hashes are
-frozen.
+6-mer TF-IDF/SVD baseline, Carbon-500M, GENERator-v2, and all three text feature products are
+frozen. The GENERanno full-panel command lost its remote login session. The feature table exists,
+but its required coverage and manifest products do not. The exact sequence between feature upload
+and session removal is unknown. Independent read-back failed, so the partial version is rejected.
+No alignment probe or validation ranking has run. Gate 2 training cannot start until the Gate 1
+representation pair and feature hashes are frozen.
 
-**Next decision:** estimate neural feature-extraction and probe cost from the accepted panel, then
-request a bounded paid-run approval. Carbon-500M plus BGE-base remains the incumbent. The earlier
-eligibility audit read the old test artifacts, so E02b is validation-only and cannot support a
-confirmatory test claim.
+**Next decision:** decide whether to authorize one exact GENERanno retry with durable detached
+orchestration. Do not reuse the partial feature table and do not start the alignment factorial
+without an accepted three-artifact GENERanno version. Carbon-500M plus BGE-base remains the
+incumbent. The earlier eligibility audit read the old test artifacts, so E02b is validation-only
+and cannot support a confirmatory test claim.
 
 **Current reports:** [Gate 0 completion](reports/12_gate0_completion.md) records the accepted graph,
 v2 split, query benchmark, and remaining limitations. The
@@ -37,6 +41,8 @@ v2 split, query benchmark, and remaining limitations. The
 PlasmidCLIP evidence, current primary-source search, exact candidate revisions, and exclusions. The
 [Gate 1 numerical smoke report](reports/14_gate1_numerical_smoke.md) records the accepted S3
 artifacts, independent read-back, compute failures, and cost estimate.
+The [E02b benchmark status report](reports/15_gate1_e02b_benchmark_status.md) records the accepted
+feature products, rejected partial GENERanno version, compute used, and alignment blocker.
 The study has no interpretation notebook because model evaluation has not started. See the
 [experiment log](EXPERIMENT_LOG.md) for the chronological record.
 
