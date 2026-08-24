@@ -1,0 +1,45 @@
+# Fixed E00 global similarity graph. This is an explicit, costly pipeline and
+# must never enter __default__. Amend the protocol before changing science.
+similarity_graph:
+  graph_version: global_similarity_graph_v0.1
+  input_retrieval_version: 2026-08-04T09.02.10.007Z
+  calibration_artifact_version: 2026-08-10T09.34.59.159Z
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  candidate_search:
+    executable: minimap2
+    preset: asm20
+    query_repeat: 2
+    minimum_secondary_score_ratio: 0.5
+    normal_cap: 1000
+    adaptive_cap: 10000
+    minimum_approximate_query_coverage: 0.80
+    minimum_approximate_subject_coverage: 0.80
+    minimum_length_ratio: 0.90
+    maximum_approximate_divergence: 0.10
+  exact_search:
+    normal_cap: 1000
+    adaptive_cap: 10000
+    primary_rule:
+      minimum_identity: 0.99
+      minimum_query_coverage: 0.95
+      minimum_subject_coverage: 0.95
+      minimum_length_ratio: 0.95
+    sensitivity_rule:
+      minimum_identity: 0.95
+      minimum_query_coverage: 0.90
+      minimum_subject_coverage: 0.90
+      minimum_length_ratio: 0.90
+  execution:
+    ray_workers: 8
+    threads_per_worker: 4
+    shard_queries: 128
+    adaptive_shard_queries: 32
+    retry_uncheckpointed_exact_shard_queries: 32
+    retry_uncheckpointed_adaptive_exact_shard_queries: 1
+    task_timeout_seconds: 1800
+    full_run_wall_limit_seconds: 43200
+    maximum_task_output_bytes: 2000000000
+    minimum_free_disk_bytes: 100000000000
+    scratch_root: data/09_scratch/similarity_graph
+    maximum_cpu_hours: 500
+    maximum_persisted_bytes: 250000000000

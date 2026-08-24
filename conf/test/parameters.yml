@@ -1,0 +1,21 @@
+# Smaller batches, so the smoke run exercises chunking and partitioning.
+#
+# Kedro REPLACES a top-level parameter key across environments rather than
+# deep-merging it, so each block below must restate every key its base
+# counterpart defines — overriding `chunk_size` alone would silently drop
+# `include_partial` and `limit`.
+
+addgene:
+  include_partial: false
+  chunk_size: 2
+  limit: null
+
+descriptions:
+  model: moonshotai/kimi-k2
+  provider: null
+  max_tokens: 256
+  temperature: 0.2
+  concurrency: 2
+  batch_size: 2
+  cost_cap_usd: 0.01
+  limit: null
