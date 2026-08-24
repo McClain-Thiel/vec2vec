@@ -172,6 +172,19 @@ fixed_representation_bakeoff:
           instance_type: g6.2xlarge
           instance_hour_limit: 0.75
           observed_instance_price_usd_per_hour: 0.9776
+      generanno_prokaryote_500m:
+        version: 2026-08-24T11.03.45.874Z
+        manifest_sha256: cdbedeeee110900d602d399968a1be0b0d614f65007dc07d689fa4e492a3d13b
+        features_sha256: 8bd9b216632bbc2d225001ff225910e65a76228f72f8adbcf1d8129bed1d5c37
+        extraction_gpu_hours: 4.931926208106387
+        persisted_bytes: 209933751
+        compute_authorization:
+          stage: dna_features:generanno_prokaryote_500m
+          approval_reference: chat-2026-08-24-e02b-finish-benchmark
+          region: us-east-1
+          instance_type: g6.4xlarge
+          instance_hour_limit: 7.0
+          observed_instance_price_usd_per_hour: 1.3232
       generator_v2_prokaryote_1_2b:
         version: 2026-08-23T15.30.18.164Z
         manifest_sha256: b1d96a4afbcb60f0e970529d1c0d5813c237d3ed7acce5f201336b9f655b1074

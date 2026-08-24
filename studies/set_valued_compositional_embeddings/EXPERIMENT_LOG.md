@@ -2398,3 +2398,39 @@ reference `chat-2026-08-24-e02b-finish-benchmark`. The actual host is `g6.4xlarg
 per hour. The GENERanno cap is seven hours and `$9.2624`; the alignment cap is three hours and
 `$3.9696`. The combined additional cap is ten hours and `$13.2320` before storage and transfer.
 No other paid stage is authorized.
+
+## 2026-08-24 17:31:00 BST — E02b GENERanno DNA features accepted after detached retry
+
+**Status:** passed independent persisted-artifact read-back. The retry extracted the frozen DNA
+features only. It did not fit an alignment probe, calculate a validation ranking, or select a
+candidate.
+
+The detached systemd command used clean Git commit
+`6534e2eda05776218e4f61979f6b3d729496c957`, Transformers 4.49.0, bfloat16, the pinned
+`GenerTeam/GENERanno-prokaryote-0.5b-base` revision
+`d02db0f24f2c62fa1efde760217cdf75771b0228`, accepted input version
+`2026-08-23T14.16.15.778Z`, and accepted invariance version
+`2026-08-23T00.53.22.430Z`. It ran on the NVIDIA L4 in on-demand `g6.4xlarge` instance
+`i-0cda00ffb3cacfc12` in `us-east-1b`. The service started at 2026-08-24 11:03:44 UTC and
+completed successfully at 16:01:00 UTC. The wrapper measured 17,835.84 seconds and a command
+charge of `$6.555663` at `$1.3232` per instance-hour, below the seven-hour and `$9.2624` limits.
+The feature node measured 17,754.93 seconds, or 4.931926 GPU-hours.
+
+Version `2026-08-24T11.03.45.874Z` contains 30,821 unique L2-normalized 1,280-dimensional vectors
+for 30,852 source rows and 42,700 circular-window coverage rows. Independent read-back verified
+every source identity, complete base coverage, model and tokenizer revisions, runtime recipe,
+accepted input and invariance identities, clean Git state, compute authorization, and physical
+object size. The three persisted products use 209,933,751 bytes.
+
+Freeze these identities:
+
+- manifest: `cdbedeeee110900d602d399968a1be0b0d614f65007dc07d689fa4e492a3d13b`;
+- features: `8bd9b216632bbc2d225001ff225910e65a76228f72f8adbcf1d8129bed1d5c37`;
+- coverage: `6d721dea4a3ac83b9866ff4ead7d6fe3ef5fad601dd8107ce50b48889e6f5eb6`;
+- extraction GPU-hours: `4.931926208106387`;
+- persisted bytes: `209,933,751`.
+
+The rejected version `2026-08-23T16.23.06.763Z` remains preserved and rejected. It was not used
+to create or validate the accepted version. All seven frozen feature products are now accepted.
+The authorized 4-DNA by 3-text by 3-seed alignment factorial can start after this registry change
+passes tests and is present in a clean remote checkout.

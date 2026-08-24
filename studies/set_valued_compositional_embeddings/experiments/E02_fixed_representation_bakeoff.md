@@ -471,6 +471,19 @@ The GENERanno limit is seven hours (`$9.2624` maximum), and the alignment limit 
 (`$3.9696` maximum). The total additional command limit is ten instance-hours and `$13.2320`
 before storage and transfer. No other paid stage is authorized by this approval.
 
+## Observed 2026-08-24 GENERanno retry outcome
+
+The detached retry completed within its fixed deadline. Version
+`2026-08-24T11.03.45.874Z` passed independent persisted-artifact read-back with 30,821 unique
+1,280-dimensional sequence vectors, 42,700 coverage-window rows, and complete source coverage.
+The manifest hash is
+`cdbedeeee110900d602d399968a1be0b0d614f65007dc07d689fa4e492a3d13b`; the feature hash is
+`8bd9b216632bbc2d225001ff225910e65a76228f72f8adbcf1d8129bed1d5c37`; and the coverage hash is
+`6d721dea4a3ac83b9866ff4ead7d6fe3ef5fad601dd8107ce50b48889e6f5eb6`. The wrapper measured
+17,835.84 seconds and `$6.555663`. The accepted products use 209,933,751 bytes. The rejected prior
+version remains preserved and was not reused. See the experiment log and benchmark status report
+for full execution provenance.
+
 ## Known limitations
 
 - Gate 1 selects on one validation split, so its validation estimate is optimistic after model

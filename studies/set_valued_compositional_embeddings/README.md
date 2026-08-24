@@ -23,17 +23,16 @@ exceeded both 22.03 GiB and 44.39 GiB GPUs under the fixed protocol. The E02b va
 four-DNA-by-three-text alignment benchmark is implemented. Its 20,000-row training panel and
 10,852-row validation gallery passed independent persisted-artifact read-back. The train-fitted
 6-mer TF-IDF/SVD baseline, Carbon-500M, GENERator-v2, and all three text feature products are
-frozen. The GENERanno full-panel command lost its remote login session. The feature table exists,
-but its required coverage and manifest products do not. The exact sequence between feature upload
-and session removal is unknown. Independent read-back failed, so the partial version is rejected.
-No alignment probe or validation ranking has run. Gate 2 training cannot start until the Gate 1
-representation pair and feature hashes are frozen.
+frozen. The first GENERanno full-panel command lost its remote login session and produced only a
+feature table. That partial version remains rejected. A separate detached retry completed and
+passed independent read-back for its features, coverage, and manifest. All seven planned feature
+products are now accepted. No alignment probe or validation ranking has run. Gate 2 training
+cannot start until the Gate 1 representation pair and feature hashes are frozen.
 
-**Next decision:** decide whether to authorize one exact GENERanno retry with durable detached
-orchestration. Do not reuse the partial feature table and do not start the alignment factorial
-without an accepted three-artifact GENERanno version. Carbon-500M plus BGE-base remains the
-incumbent. The earlier eligibility audit read the old test artifacts, so E02b is validation-only
-and cannot support a confirmatory test claim.
+**Next action:** run the authorized frozen 4-DNA by 3-text by 3-seed alignment factorial, then
+independently validate every output before applying the preregistered selection rule. Carbon-500M
+plus BGE-base remains the incumbent. The earlier eligibility audit read the old test artifacts, so
+E02b is validation-only and cannot support a confirmatory test claim.
 
 **Current reports:** [Gate 0 completion](reports/12_gate0_completion.md) records the accepted graph,
 v2 split, query benchmark, and remaining limitations. The
