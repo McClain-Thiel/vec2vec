@@ -40,7 +40,7 @@ def main() -> None:
         _run(authorization, configuration)
         return
 
-    command = [*sys.argv, "--internal-child"]
+    command = [sys.executable, *sys.argv, "--internal-child"]
     started = time.perf_counter()
     subprocess.run(
         command,
