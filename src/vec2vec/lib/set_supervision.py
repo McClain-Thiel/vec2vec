@@ -30,7 +30,16 @@ def run_set_supervision_comparison(
     params: dict[str, Any],
     *,
     deadline_monotonic: float | None = None,
-) -> tuple[pd.DataFrame, ...]:
+) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    dict[str, Any],
+]:
     """Train both objectives on identical batches and evaluate on validation only."""
     train, gallery, ordered_queries = fixed_representation_alignment._validate_alignment_inputs(
         pairs, queries, validation_states, input_manifest, params
@@ -44,6 +53,8 @@ def run_set_supervision_comparison(
         ordered_queries,
         dna_features,
         text_features,
+        dna_candidate=str(params["accepted_feature_artifacts"]["dna"]["candidate_id"]),
+        text_candidate=str(params["accepted_feature_artifacts"]["text"]["candidate_id"]),
         epsilon=float(params["probe"]["whitening_epsilon"]),
     )
     verified = _training_verified_mask(train, ordered_queries, all_query_states, params)
@@ -184,27 +195,29 @@ def _prepare_matrices(
     dna_features: pd.DataFrame,
     text_features: pd.DataFrame,
     *,
+    dna_candidate: str,
+    text_candidate: str,
     epsilon: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
     dna, dna_state = fixed_representation_alignment._whiten_dna_candidates(
-        train, gallery, {"tfidf_6mer_svd_512": dna_features}, epsilon=epsilon
+        train, gallery, {dna_candidate: dna_features}, epsilon=epsilon
     )
     text, text_state = fixed_representation_alignment._whiten_text_candidates(
         train,
         gallery,
         queries,
-        {"qwen3_embedding_0_6b": text_features},
+        {text_candidate: text_features},
         epsilon=epsilon,
     )
-    query_matrix = text["qwen3_embedding_0_6b"].queries
+    query_matrix = text[text_candidate].queries
     if query_matrix is None:
         raise RuntimeError("selected Qwen feature artifact has no controlled-query matrix")
     states = pd.DataFrame([*dna_state, *text_state]).sort_values(
         ["feature_kind", "candidate_id"], kind="stable", ignore_index=True
     )
     return (
-        dna["tfidf_6mer_svd_512"].train,
-        dna["tfidf_6mer_svd_512"].gallery,
+        dna[dna_candidate].train,
+        dna[dna_candidate].gallery,
         query_matrix,
         states,
     )
