@@ -56,6 +56,7 @@ modeling = [
     "scikit-learn>=1.7",
     "torch==2.11.0",
     "transformers==5.12.1",
+    "wandb>=0.22",
 ]
 modeling-gener = [
     "accelerate==1.14.0",

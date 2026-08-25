@@ -761,6 +761,47 @@ e02b_selection_report:
   filepath: ${globals:lake}/08_reporting/e02b/selection_report.json
   versioned: true
 
+# Gate 2 controlled-query objective comparison.
+e03e04_whitening_state:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e03e04/whitening_state.parquet
+  versioned: true
+
+e03e04_checkpoints:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e03e04/checkpoints.parquet
+  versioned: true
+
+e03e04_training_history:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e03e04/training_history.parquet
+  versioned: true
+
+e03e04_query_rankings:
+  <<: *parquet
+  filepath: ${globals:lake}/07_model_output/e03e04/query_rankings.parquet
+  versioned: true
+
+e03e04_query_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e03e04/query_metrics.parquet
+  versioned: true
+
+e03e04_query_summaries:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e03e04/query_summaries.parquet
+  versioned: true
+
+e03e04_bootstrap_draws:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e03e04/bootstrap_draws.parquet
+  versioned: true
+
+e03e04_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e03e04/report.json
+  versioned: true
+
 e00_constraint_benchmark_summary:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_summary.json

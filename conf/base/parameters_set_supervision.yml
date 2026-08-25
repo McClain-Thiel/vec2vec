@@ -1,0 +1,52 @@
+set_supervision:
+  protocol_version: e03-e04-set-supervision-v0.1
+  protocol_path: studies/set_valued_compositional_embeddings/experiments/E03_E04_set_supervision.md
+  input_versions:
+    e02b_inputs: 2026-08-23T14.16.15.778Z
+    query_benchmark: 2026-08-17T23.51.35.629Z
+    dna_features: 2026-08-23T14.21.58.754Z
+    text_features: 2026-08-23T15.23.41.974Z
+  training_rows: 20000
+  minimum_training_verified_rows: 20
+  expected_training_query_states_sha256: cd6fc783a497a47f0c90ea3e601c34ecfef1022d814a8dae58e2662450d3afaf
+  accepted_input_artifact:
+    manifest_sha256: 57911ecee4654f17cc456a537f4295de155a3cf3269a3dfc289c95ee630f4a46
+    pairs_sha256: cc7690d9bc979028dd3af0e292b715f6c7c391daac269be0fc5a7b7c17a86aa9
+  accepted_feature_artifacts:
+    dna:
+      candidate_id: tfidf_6mer_svd_512
+      manifest_sha256: 2c6d5c0023d884951580df7e5202fd356e5c15ca8c298a0628abb4462a219cbb
+      features_sha256: d783f66cb234bd228d9de304884b23849d75d9b5eef2a7510d61b0cc83486a41
+    text:
+      candidate_id: qwen3_embedding_0_6b
+      manifest_sha256: 17d2d025a560f34355ca244cfd629178ec0c6c5767159bebf6d44116dcda7235
+      features_sha256: c5cbf04e7d034ea4dbe0ad874adc728e6d8ae8c75ee7cbac278cbb7c44218d8d
+  objectives: [paired_identity, verified_set]
+  device: cuda
+  primary_k: 10
+  minimum_practical_improvement: 0.01
+  probe:
+    seeds: [13, 42, 20260818]
+    projection_dimension: 512
+    whitening_epsilon: 0.000001
+    updates: 300
+    learning_rate: 0.001
+    weight_decay: 0.01
+    initial_temperature: 0.07
+    maximum_logit_scale: 100.0
+    cutoffs: [1, 5, 10, 50]
+    bootstrap_draws: 2000
+    bootstrap_seed: 20260818
+  tracking:
+    enabled: true
+    project: vec2vec
+    entity: null
+    group: gate2-set-supervision-v0.1
+    tags: [set-supervision, gate2, validation-only]
+  approved_compute_authorization:
+    approval_reference: chat-2026-08-25-gate2-set-supervision
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 0.5
+    observed_instance_price_usd_per_hour: 1.3232
+  compute_authorization: null
