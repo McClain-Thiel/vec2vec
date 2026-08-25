@@ -16,6 +16,7 @@ from vec2vec.pipelines import (
     fixed_representation_bakeoff,
     processing,
     query_benchmark,
+    set_supervision,
     similarity_graph,
     similarity_graph_calibration,
     similarity_split,
@@ -37,6 +38,7 @@ def register_pipelines() -> dict[str, Pipeline]:
     - ``constraint_benchmark_smoke`` calls the strong model once per facet.
     - ``constraint_benchmark_judge`` calls it on the fixed 240-application sample.
     - ``fixed_representation_bakeoff_*`` runs the explicit E02b input, feature, and probe stages.
+    - ``set_supervision`` runs the approval-gated E03/E04 comparison.
     - ``import_descriptions`` adopts already-published descriptions instead.
 
     Historical v3 pilot, validator, and comparison outputs remain catalog-readable, but their
@@ -77,6 +79,7 @@ def register_pipelines() -> dict[str, Pipeline]:
         "fixed_representation_bakeoff_alignment": (
             fixed_representation_bakeoff.create_alignment_pipeline()
         ),
+        "set_supervision": set_supervision.create_pipeline(),
         "facet_audit_sample": facet_audit.create_pipeline(),
         "facet_audit_review_export": facet_audit.create_review_export_pipeline(),
     }

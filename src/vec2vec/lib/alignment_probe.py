@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -146,6 +147,119 @@ def train_alignment_probe(
         "batches_per_epoch": batches_per_epoch,
         "last_batch_rows": int(len(sequence) % batch_size or batch_size),
         "dropped_rows_per_epoch": 0,
+    }
+    return state, pd.DataFrame(history)
+
+
+def train_controlled_query_probe(
+    sequence_train: np.ndarray,
+    query_train: np.ndarray,
+    verified_mask: np.ndarray,
+    *,
+    objective: str,
+    seed: int,
+    projection_dimension: int,
+    updates: int,
+    learning_rate: float,
+    weight_decay: float,
+    initial_temperature: float,
+    maximum_logit_scale: float,
+    device: str,
+    deadline_monotonic: float | None = None,
+) -> tuple[dict[str, Any], pd.DataFrame]:
+    """Fit one controlled-query probe on deterministic verified-candidate batches."""
+    import torch
+    import torch.nn.functional as functional
+
+    if objective not in {"paired_identity", "verified_set"}:
+        raise ValueError(f"unknown controlled-query objective: {objective}")
+    sequence = _finite_matrix(sequence_train, name="controlled-query sequence features")
+    queries = _finite_matrix(query_train, name="controlled-query text features")
+    labels = np.asarray(verified_mask)
+    if labels.dtype != np.bool_ or labels.shape != (len(queries), len(sequence)):
+        raise ValueError("verified mask must be boolean with query-by-sequence shape")
+    if not labels.any(axis=1).all():
+        raise ValueError("every training query must have at least one verified sequence")
+    if projection_dimension < 1 or updates < 1:
+        raise ValueError("projection dimension and update budget must be positive")
+    if initial_temperature <= 0.0 or maximum_logit_scale <= 0.0:
+        raise ValueError("temperature and logit-scale cap must be positive")
+
+    _ensure_before_deadline(deadline_monotonic, operation="controlled-query probe setup")
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    target = torch.device(device)
+    sequence_tensor = torch.as_tensor(sequence, device=target)
+    query_tensor = torch.as_tensor(queries, device=target)
+    sequence_head = torch.nn.Linear(sequence.shape[1], projection_dimension, bias=False).to(target)
+    text_head = torch.nn.Linear(queries.shape[1], projection_dimension, bias=False).to(target)
+    logit_scale = torch.nn.Parameter(
+        torch.tensor(float(np.log(1.0 / initial_temperature)), device=target)
+    )
+    initial_sequence_head_sha256 = _tensor_sha256(sequence_head.weight)
+    initial_text_head_sha256 = _tensor_sha256(text_head.weight)
+    optimizer = torch.optim.AdamW(
+        [*sequence_head.parameters(), *text_head.parameters(), logit_scale],
+        lr=learning_rate,
+        weight_decay=weight_decay,
+    )
+
+    generator = np.random.default_rng(seed)
+    positive_indices = [np.flatnonzero(row) for row in labels]
+    identity_mask = torch.eye(len(queries), dtype=torch.bool, device=target)
+    sampler_hash = hashlib.sha256()
+    history: list[dict[str, float | int]] = []
+    for update in range(1, updates + 1):
+        _ensure_before_deadline(deadline_monotonic, operation=f"controlled-query update {update}")
+        selected = np.asarray(
+            [values[generator.integers(len(values))] for values in positive_indices],
+            dtype=np.int64,
+        )
+        sampler_hash.update(selected.tobytes())
+        true_positives = labels[:, selected]
+        if not np.diag(true_positives).all():
+            raise RuntimeError("controlled-query sampler selected a non-verified diagonal pair")
+        selected_tensor = torch.as_tensor(selected, dtype=torch.int64, device=target)
+        projected_sequence = functional.normalize(
+            sequence_head(sequence_tensor[selected_tensor]), dim=1
+        )
+        projected_query = functional.normalize(text_head(query_tensor), dim=1)
+        scale = logit_scale.exp().clamp(max=maximum_logit_scale)
+        logits = scale * projected_query @ projected_sequence.T
+        positive_mask = (
+            identity_mask
+            if objective == "paired_identity"
+            else torch.as_tensor(true_positives, dtype=torch.bool, device=target)
+        )
+        loss = symmetric_many_positive_loss(logits, positive_mask)
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        history.append(
+            {
+                "update": update,
+                "loss": float(loss.detach().cpu()),
+                "logit_scale": float(logit_scale.detach().exp().clamp(max=maximum_logit_scale)),
+                "true_positive_pairs": int(true_positives.sum()),
+                "unique_candidate_rows": int(len(np.unique(selected))),
+            }
+        )
+
+    state = {
+        "objective": objective,
+        "seed": seed,
+        "sequence_head": sequence_head.weight.detach().cpu().numpy().astype(np.float32),
+        "text_head": text_head.weight.detach().cpu().numpy().astype(np.float32),
+        "logit_scale": float(logit_scale.detach().cpu()),
+        "updates": updates,
+        "batch_rows": len(queries),
+        "sampler_sha256": sampler_hash.hexdigest(),
+        "initial_sequence_head_sha256": initial_sequence_head_sha256,
+        "initial_text_head_sha256": initial_text_head_sha256,
     }
     return state, pd.DataFrame(history)
 
@@ -439,6 +553,11 @@ def _finite_matrix(
     if not np.isfinite(matrix).all():
         raise ValueError(f"{name} contain a non-finite value")
     return matrix
+
+
+def _tensor_sha256(values: Any) -> str:
+    array = values.detach().cpu().numpy().astype(np.float32)
+    return hashlib.sha256(np.ascontiguousarray(array).tobytes()).hexdigest()
 
 
 def _ensure_before_deadline(deadline_monotonic: float | None, *, operation: str) -> None:

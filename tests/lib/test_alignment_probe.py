@@ -134,3 +134,54 @@ def test_symmetric_many_positive_loss_rewards_either_known_positive() -> None:
     multi_positive_loss = alignment_probe.symmetric_many_positive_loss(logits, all_positive)
 
     assert float(multi_positive_loss) < float(identity_loss)
+
+
+def test_controlled_query_objectives_share_batches_and_initialization() -> None:
+    sequence = np.arange(80, dtype=np.float32).reshape(20, 4) / 80.0
+    queries = np.arange(15, dtype=np.float32).reshape(3, 5) / 15.0
+    verified = np.zeros((3, 20), dtype=bool)
+    verified[0, [0, 1, 2]] = True
+    verified[1, [1, 3, 4]] = True
+    verified[2, [2, 4, 5]] = True
+    arguments = {
+        "seed": 42,
+        "projection_dimension": 3,
+        "updates": 4,
+        "learning_rate": 0.01,
+        "weight_decay": 0.0,
+        "initial_temperature": 0.07,
+        "maximum_logit_scale": 100.0,
+        "device": "cpu",
+    }
+
+    paired, paired_history = alignment_probe.train_controlled_query_probe(
+        sequence, queries, verified, objective="paired_identity", **arguments
+    )
+    sets, set_history = alignment_probe.train_controlled_query_probe(
+        sequence, queries, verified, objective="verified_set", **arguments
+    )
+
+    assert paired["sampler_sha256"] == sets["sampler_sha256"]
+    assert paired["initial_sequence_head_sha256"] == sets["initial_sequence_head_sha256"]
+    assert paired["initial_text_head_sha256"] == sets["initial_text_head_sha256"]
+    assert paired_history["true_positive_pairs"].equals(set_history["true_positive_pairs"])
+    assert not np.array_equal(paired["sequence_head"], sets["sequence_head"])
+
+
+def test_controlled_query_probe_rejects_query_without_verified_sequence() -> None:
+    verified = np.asarray([[True, False], [False, False]])
+    with pytest.raises(ValueError, match="every training query"):
+        alignment_probe.train_controlled_query_probe(
+            np.eye(2, dtype=np.float32),
+            np.eye(2, dtype=np.float32),
+            verified,
+            objective="verified_set",
+            seed=1,
+            projection_dimension=2,
+            updates=1,
+            learning_rate=0.01,
+            weight_decay=0.0,
+            initial_temperature=0.07,
+            maximum_logit_scale=100.0,
+            device="cpu",
+        )
