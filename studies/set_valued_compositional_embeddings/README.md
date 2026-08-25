@@ -17,24 +17,14 @@ unique verified or contradicted plasmid-constraint states. A 30-application hand
 positive mapping. These remain narrow Addgene metadata states, not biological ground truth — the
 benchmark measures recorded-metadata consistency, not plasmid function.
 
-**Status:** Gate 0 and Gate 1 complete. Carbon-500M, GENERanno prokaryote 500M, and
-GENERATOR-v2 prokaryote 1.2B passed the numerical and full-panel invariance gates. Carbon-3B
-exceeded both 22.03 GiB and 44.39 GiB GPUs under the fixed protocol. The E02b validation-only
-four-DNA-by-three-text alignment benchmark used a 20,000-row training panel and a 10,852-row
-validation gallery. Both inputs passed independent persisted-artifact read-back. The train-fitted
-6-mer TF-IDF/SVD baseline, Carbon-500M, GENERator-v2, and all three text feature products are
-frozen. The first GENERanno full-panel command lost its remote login session and produced only a
-feature table. That partial version remains rejected. A separate detached retry completed and
-passed independent read-back for its features, coverage, and manifest. All seven planned feature
-products and all 36 alignment configurations are accepted. TF-IDF/SVD DNA plus Qwen3 text is the
-selected validation pair: mean `utility@10` `0.153086`, whole-component 95% interval
-`[0.076227, 0.188279]`. It improved on the Carbon-500M plus BGE incumbent by `0.194136`. Atomic
-utility was `0.602381`, but pair-conjunction utility was `-0.004167`. Gate 2 has not started.
+**Status:** Gates 0–2 are complete. Gate 1 selected TF-IDF/SVD DNA plus Qwen3 text. Gate 2 then
+compared paired identity with verified-set supervision on identical controlled-query batches.
+Pair-query utility@10 increased from `0.30875` to `0.48792`; the difference was `0.17917`, with
+paired whole-component interval `[0.10375, 0.25294]`. This passes the frozen Gate 2 rule. All
+results remain validation-only because the current test split was previously inspected.
 
-**Next action:** freeze TF-IDF/SVD plus Qwen3 in the Gate 2 set-supervision and composition
-protocol. Resolve the cost of any full-population feature expansion before requesting paid compute.
-The earlier eligibility audit read the old test artifacts, so E02b is validation-only and cannot
-support a confirmatory test claim.
+**Next action:** define Gate 3 atomic-only symbolic addition. Do not train on pair queries in that
+experiment, and do not read the contaminated test outcomes.
 
 **Current reports:** [Gate 0 completion](reports/12_gate0_completion.md) records the accepted graph,
 v2 split, query benchmark, and remaining limitations. The
@@ -356,8 +346,8 @@ whole components and state how resampled components are weighted.
 | E00-J | Agent-assisted facet review pilot | 0 | Complete |
 | [E01](experiments/E01_training_constraint_evidence.md) | Rule-derived training constraint evidence | 0 | [Accepted for noisy supervision](reports/08_constraint_accuracy_benchmark.md) |
 | [E02](experiments/E02_fixed_representation_bakeoff.md) | Frozen DNA and text representation selection | 1 | Complete; TF-IDF/SVD plus Qwen3 selected on validation |
-| E03 | Paired identity control on controlled queries | 2 | Planned |
-| E04 | Verified-set supervision | 2 | Planned |
+| [E03](experiments/E03_E04_set_supervision.md) | Paired identity control on controlled queries | 2 | Complete; utility@10 `0.30875` |
+| [E04](experiments/E03_E04_set_supervision.md) | Verified-set supervision | 2 | Complete; utility@10 `0.48792` |
 | E05 | Atomic-only symbolic addition | 3 | Planned |
 | E06a | Compound supervision without additivity regularization | 3 | Planned |
 | E06b | The same compound supervision with additivity regularization | 3 | Planned |

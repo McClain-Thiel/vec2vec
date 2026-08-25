@@ -2497,3 +2497,16 @@ GTE and BGE were `-0.006481` and `-0.010725`. These factorial means are descript
 Next, freeze this pair for the Gate 2 experiment definition. Full-population extraction is a
 separate post-selection action and requires a resolved cost estimate and approval. Do not use the
 contaminated current test split for a confirmatory claim.
+
+## 2026-08-25 — E03/E04 Gate 2 completed
+
+The frozen comparison used 108 controlled queries, the 20,000-row training panel, TF-IDF/SVD DNA,
+Qwen3 text, two objectives, and three seeds. Artifact `2026-08-25T10.52.39.447Z` passed independent
+read-back for all seven table hashes, 6 checkpoints, 1,800 updates, 32,400 rankings, 2,592 query
+metric rows, and 12,000 bootstrap rows. No test row was read.
+
+Verified-set supervision improved pair-query utility@10 from `0.30875` to `0.48792`. The paired
+difference was `0.17917`, with whole-component interval `[0.10375, 0.25294]`, so the frozen decision
+rule passed. All six W&B runs completed. The accepted clean run used commit `fe6fbaec`, 208.7
+wrapper seconds, and `$0.07672`; total measured cost including a 1.15-second pre-data wrapper
+failure was `$0.07714`. The failed wrapper log remains on `g6-big`.

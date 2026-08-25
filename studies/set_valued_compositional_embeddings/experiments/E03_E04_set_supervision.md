@@ -19,3 +19,10 @@ verified, contradicted, unknown, and utility fractions are secondary. Each seed-
 to W&B and all checkpoints and evaluation tables persist through Kedro. The paid run must have an
 explicit wall-clock and cost cap in configuration before launch. The approved cap is 0.5 hours on
 the existing on-demand `g6.4xlarge` in `us-east-1` at $1.3232 per hour: $0.6616 maximum.
+
+**Outcome.** Artifact `2026-08-25T10.52.39.447Z` passed independent read-back. Verified-set
+supervision improved pair-query utility@10 from `0.30875` to `0.48792`; the difference was
+`0.17917`, with paired whole-component interval `[0.10375, 0.25294]`. The preregistered decision
+rule passed. The clean run used commit `fe6fbaec`, 208.7 wrapper seconds, and `$0.07672`. A prior
+wrapper attempt failed before data loading because it invoked a non-executable script; its log is
+preserved and its approximately `$0.00042` cost is included in the recorded total.

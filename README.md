@@ -7,10 +7,11 @@ The PlasmidCLIP data pipeline, rebuilt on Kedro with an S3 data catalog.
 It turns the raw Addgene release into a paired
 **(plasmid DNA sequence, natural-language description)** dataset with
 leakage-aware splits, constraint-based relevance labels, and the audits needed
-to trust both. Gate 0 is complete. The validation-only E02b benchmark has frozen
+to trust both. Gates 0–2 are complete. The validation-only E02b benchmark has frozen
 inputs and seven accepted feature products: TF-IDF/SVD, Carbon-500M, GENERanno,
 GENERATOR-v2, BGE, GTE, and Qwen. All 36 alignment configurations passed read-back.
-TF-IDF/SVD DNA plus Qwen3 text is the selected validation pair.
+TF-IDF/SVD DNA plus Qwen3 text is the selected validation pair. Verified-set supervision then
+improved pair-query utility@10 from `0.30875` to `0.48792` on the validation gallery.
 
 ## Pipelines
 
@@ -26,6 +27,7 @@ TF-IDF/SVD DNA plus Qwen3 text is the selected validation pair.
 | `fixed_representation_bakeoff_dna_features` | Extracts one accepted neural DNA representation under an approval-gated deadline. | **no — paid** |
 | `fixed_representation_bakeoff_text_features` | Extracts one frozen document/query text representation under an approval-gated deadline. | **no — paid** |
 | `fixed_representation_bakeoff_alignment` | Fits the complete four-by-three-by-three probe factorial and selects from validation utility only. | **no — paid** |
+| `set_supervision` | Compares paired identity with verified-set supervision on frozen features. | **no — paid** |
 | `constraint_evidence` | Applies enabled exact rules to training metadata and draws a compact validation benchmark. It does not read test rows or call a model. | no |
 | `constraint_state` | Applies the frozen rule contract to all splits and writes the stable constraint vocabulary plus sparse verified/contradicted states. | no |
 | `split_audit` | Searches every cross-split pair for near-duplicate sequences and reports split concentration. Found the current `split_grouped` fails its near-duplicate rule. | no |
@@ -140,23 +142,12 @@ The frozen state contract contains 35 constraints and 684,987 unique plasmid-con
 Only copy class and the 30/37 degree propagation-temperature pair have reviewed contradiction
 rules. Other absent states remain unknown.
 
-**Gate 0 of the `set_valued_compositional_embeddings` study is complete**: the global similarity
-graph, `split_grouped_v2`, and the frozen query benchmark are all built and independently
-validated, including the leak-free split check and the oracle/contradiction-first controls. The
-Gate 0 data-support flag passed for both the validation and test closed evaluations. See the
+The `set_valued_compositional_embeddings` study has completed its feasibility, encoder-selection,
+and set-supervision gates. Gate 2 found a `0.17917` pair-query utility@10 improvement for verified
+sets, with interval `[0.10375, 0.25294]`. See the
 [study README](studies/set_valued_compositional_embeddings/README.md) and
-[experiment log](studies/set_valued_compositional_embeddings/EXPERIMENT_LOG.md) for details.
-The [Gate 0 completion report](studies/set_valued_compositional_embeddings/reports/12_gate0_completion.md)
-records the accepted artifact versions and remaining limitations. The
-[Gate 1 encoder review](studies/set_valued_compositional_embeddings/reports/13_encoder_prior_and_candidates.md)
-and [fixed-representation protocol](studies/set_valued_compositional_embeddings/experiments/E02_fixed_representation_bakeoff.md)
-define the active E02b validation-only comparison. Seven feature products passed independent
-persisted read-back. The first GENERanno run produced only a partial feature object and remains
-rejected; a separate detached retry produced a complete accepted version. The 4-DNA by 3-text by
-3-seed alignment selected TF-IDF/SVD plus Qwen3 at validation `utility@10` `0.153086`, compared
-with `-0.041049` for the Carbon-500M plus BGE incumbent. Pair-conjunction utility remained near
-zero. A prior eligibility audit read the old test artifacts, so a later confirmatory evaluation
-requires a new untouched holdout or a separately frozen test protocol.
+[experiment log](studies/set_valued_compositional_embeddings/EXPERIMENT_LOG.md). The result is
+validation-only; confirmatory evaluation needs a new untouched holdout.
 
 ## Setup
 
