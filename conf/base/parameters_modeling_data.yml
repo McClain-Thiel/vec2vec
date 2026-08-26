@@ -464,5 +464,32 @@ result_reproduction:
       instance_type: g6.4xlarge
       instance_hour_limit: 0.5
       observed_instance_price_usd_per_hour: 1.3232
-    expected_output_hashes: null
-    accepted_run_artifact: null
+    expected_output_hashes:
+      whitening_state_sha256: 03ccc6be5499511dacb5ecbf2fe22c337bdeffb8ecb8b44c5ef9579aa48c2370
+      checkpoints_sha256: 440dc5bda2c32a18564c4b223cd4ce9865f2eb1ae7e880e2fa81fadcfce991a6
+      training_history_sha256: f0daee1c19181f5be60d74f96164767a14c59a1325156d1d4a8d75ad54257f09
+      query_rankings_sha256: c1ecaecc66480fc53b2d4a106170036e42f34f53a526efd29ad553c8451281ca
+      query_metrics_sha256: d7587a1d8a299193e7ee12121cb151eeef7420596348c798f6ebf442c0e55634
+      query_summaries_sha256: e5ccd61116b047bbe8d55afc7e9574b2a0a7d0ec623a5366fd73ca798095b069
+      bootstrap_draws_sha256: a4d596620645259195828f36308e1134953dd70e2b172a1eb173834c88bacfcc
+    accepted_run_artifact:
+      version: 2026-08-26T11.49.24.525Z
+      git_commit: 10485e816b226132e84b272d2a75c3324de14190
+      report_sha256: 182fb0dd75a1bd3159bc24b488e4921ff7dac1c6292352a408c8ff6d2d44082d
+      summary_sha256: 91afb8ba2185a70dbbb609a3030b406d9b2195382f502e5ca19c85b3098a42d4
+      persisted_bytes: 13278
+      wrapper_elapsed_seconds: 202.92087803408504
+      wrapper_cost_usd: 0.07458469605963926
+      combined_cost_including_failed_attempt_usd_approx: 0.14662558494852812
+      comparison:
+        paired_identity_utility_at_10: -0.12250000000000001
+        verified_set_utility_at_10: 0.17416666666666666
+        improvement: 0.2966666666666667
+        bootstrap_95_interval: [0.22498958333333333, 0.3429166666666667]
+        supports_set_supervision: true
+      wandb_run_ids: [8ekn65i7, 5pwsx6rv, h6clzct3, s6cyojzj, i6jwppli, t92ya6us]
+      failed_attempt:
+        unit: vec2vec-e05-unseen-composition-20260826.service
+        elapsed_seconds: 196
+        cost_usd_approx: 0.07204088888888888
+        result: post-training_clean_check_rejected_wandb_cache

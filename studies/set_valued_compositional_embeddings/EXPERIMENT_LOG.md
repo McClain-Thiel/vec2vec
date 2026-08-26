@@ -2539,3 +2539,19 @@ The retry will not change data, queries, objectives, seeds, optimizer, metric, o
 The fix records Git state before W&B starts and ignores the local W&B cache. The retry is capped at
 0.44 hours, leaving the combined service ceiling below the originally authorized 0.5 hours and
 `$0.6616`.
+
+## 2026-08-26 12:52:42 BST — E05 unseen-composition comparison accepted
+
+The unchanged retry at clean commit `10485e8` trained only the 28 atomic queries and evaluated all
+80 held-out conjunctions on the component-disjoint validation gallery. Paired-identity utility@10
+was `-0.12250`; verified-set utility was `0.17417`. The improvement was `0.29667`, with paired
+whole-component interval `[0.22499, 0.34292]`, so the frozen rule passed. No test row was read. All
+six W&B runs completed: `8ekn65i7`, `5pwsx6rv`, `h6clzct3`, `s6cyojzj`, `i6jwppli`, and
+`t92ya6us`.
+
+S3 version `2026-08-26T11.49.24.525Z` passed independent report, summary, input, feature, query
+partition, seed, runtime, Git, tracking, metric, interval, and hash read-back. Report SHA-256 is
+`182fb0dd75a1bd3159bc24b488e4921ff7dac1c6292352a408c8ff6d2d44082d`; summary SHA-256 is
+`91afb8ba2185a70dbbb609a3030b406d9b2195382f502e5ca19c85b3098a42d4`. The accepted wrapper used
+202.92 seconds and `$0.07458`; combined measured cost including the rejected attempt was
+approximately `$0.14663`.

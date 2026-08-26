@@ -25,9 +25,14 @@ E02B_REPORT = (
 GATE2_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e03e04/report.json/2026-08-25T10.52.39.447Z/report.json"
 )
+E05_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e05/composition_report.json/"
+    "2026-08-26T11.49.24.525Z/composition_report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
+    E05_REPORT: "182fb0dd75a1bd3159bc24b488e4921ff7dac1c6292352a408c8ff6d2d44082d",
 }
 
 
@@ -116,7 +121,7 @@ def _composition_rows(report):
     ]
 
 
-def _artifact_rows(e02b, gate2):
+def _artifact_rows(e02b, gate2, e05):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -207,6 +212,15 @@ def _artifact_rows(e02b, gate2):
                 "note": "validation-only; pair queries were present during training",
             },
             {
+                "artifact": "e05_unseen_composition_report",
+                "kind": "report",
+                "status": "accepted",
+                "version": e05["execution"]["report_version"],
+                "sha256": REPORT_HASHES[E05_REPORT],
+                "location": E05_REPORT,
+                "note": "atomic-only training; 80 unseen conjunction queries",
+            },
+            {
                 "artifact": "generanno_partial",
                 "kind": "dna_features",
                 "status": "rejected",
@@ -253,17 +267,20 @@ def _write_or_check(path, content, check):
 def _generate_tables(args, *, check):
     e02b_hash = REPORT_HASHES.get(args.e02b_report)
     gate2_hash = REPORT_HASHES.get(args.gate2_report)
-    if e02b_hash is None or gate2_hash is None:
+    e05_hash = REPORT_HASHES.get(args.e05_report)
+    if e02b_hash is None or gate2_hash is None or e05_hash is None:
         raise ValueError(
             "custom report paths require adding their accepted SHA-256 to REPORT_HASHES"
         )
 
     e02b = _read_report(args.e02b_report, e02b_hash)
     gate2 = _read_report(args.gate2_report, gate2_hash)
+    e05 = _read_report(args.e05_report, e05_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
-        "artifacts.csv": _artifact_rows(e02b, gate2),
+        "composition.csv": _composition_rows(e05),
+        "artifacts.csv": _artifact_rows(e02b, gate2, e05),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -446,7 +463,7 @@ def _run_reproduction(stage, authorization, output_dir):
             catalog.save("e05_composition_summary", summary)
             catalog.save("e05_composition_report", report)
             _write_or_check(
-                output_dir / "composition.csv", _csv_text(summary.to_dict("records")), False
+                output_dir / "composition.csv", _csv_text(_composition_rows(report)), False
             )
             print(
                 json.dumps(
@@ -666,6 +683,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--e02b-report", default=E02B_REPORT)
     parser.add_argument("--gate2-report", default=GATE2_REPORT)
+    parser.add_argument("--e05-report", default=E05_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--reproduce", choices=("alignment", "supervision", "composition"))

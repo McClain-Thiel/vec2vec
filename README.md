@@ -14,10 +14,17 @@ With that encoder pair fixed, verified-set supervision improved pair-query utili
 `[0.10375, 0.25294]`. This is validation evidence, not a confirmatory test. Pair queries were seen
 during training, so it does not establish unseen composition.
 
-The complete retained evidence is three tables:
+E05 withheld every conjunction from training while retaining its 28 constituent atomic queries.
+On 80 unseen conjunctions, verified-set supervision improved utility@10 from `-0.12250` to
+`0.17417`; the difference was `0.29667`, with interval `[0.22499, 0.34292]`. This is validation-set
+evidence for compositional generalization under the frozen linear-probe protocol, not final test
+performance.
+
+The complete retained evidence is four tables:
 
 - [`results/encoders.csv`](results/encoders.csv): all 12 encoder pairs.
 - [`results/supervision.csv`](results/supervision.csv): paired versus set supervision.
+- [`results/composition.csv`](results/composition.csv): atomic-only training and unseen pairs.
 - [`results/artifacts.csv`](results/artifacts.csv): exact versions, hashes, locations, and failures.
 
 Regenerate and verify them from the accepted S3 reports:
