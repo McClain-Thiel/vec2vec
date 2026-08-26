@@ -7,14 +7,12 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from vec2vec.lib.similarity_graph_calibration import (
+from vec2vec.lib.similarity_graph_paf import (
     parse_candidate_paf,
     parse_exact_paf,
-    project_full_run,
-    select_calibration_queries,
 )
 from vec2vec.lib.split_audit import SimilarityRule
-from vec2vec.pipelines.similarity_graph_calibration.nodes import (
+from vec2vec.pipelines.modeling_data.graph_runtime import (
     _check_free_disk,
     _get_ray_descriptors_with_disk_guard,
     _load_shard_checkpoint,
@@ -23,6 +21,7 @@ from vec2vec.pipelines.similarity_graph_calibration.nodes import (
     _shard_checkpoint_identity,
     _split_uncheckpointed_exact_shards,
     _validated_checkpoint_descriptor,
+    _validated_tool_version,
     _write_shard_checkpoint,
 )
 
@@ -40,9 +39,7 @@ def test_target_cache_rebuilds_an_unmanifested_partial_index_atomically(tmp_path
         target.write_bytes(b"complete-index")
         return SimpleNamespace(returncode=0, stderr="")
 
-    monkeypatch.setattr(
-        "vec2vec.pipelines.similarity_graph_calibration.nodes.subprocess.run", build_index
-    )
+    monkeypatch.setattr("vec2vec.pipelines.modeling_data.graph_runtime.subprocess.run", build_index)
     tokens = pd.DataFrame({"token": ["one"], "sequence": ["ACGT"]})
     _, index, manifest = _prepare_target_cache(
         root,
@@ -66,6 +63,16 @@ def test_target_cache_rebuilds_an_unmanifested_partial_index_atomically(tmp_path
     assert len(calls) == 1
 
 
+def test_graph_rejects_a_different_minimap_version(monkeypatch):
+    monkeypatch.setattr(
+        "vec2vec.pipelines.modeling_data.graph_runtime._tool_version",
+        lambda executable: "2.30-r1",
+    )
+
+    with pytest.raises(RuntimeError, match="minimap2 version changed"):
+        _validated_tool_version({"executable": "minimap2", "expected_tool_version": "2.31-r1302"})
+
+
 def test_free_disk_preflight_uses_nearest_existing_directory(tmp_path, monkeypatch):
     observed = []
 
@@ -74,7 +81,7 @@ def test_free_disk_preflight_uses_nearest_existing_directory(tmp_path, monkeypat
         return SimpleNamespace(free=100)
 
     monkeypatch.setattr(
-        "vec2vec.pipelines.similarity_graph_calibration.nodes.shutil.disk_usage", disk_usage
+        "vec2vec.pipelines.modeling_data.graph_runtime.shutil.disk_usage", disk_usage
     )
     _check_free_disk(
         {
@@ -84,46 +91,6 @@ def test_free_disk_preflight_uses_nearest_existing_directory(tmp_path, monkeypat
     )
 
     assert observed == [tmp_path.resolve()]
-
-
-def test_calibration_selection_is_stable_and_has_fixed_counts():
-    retrieval = pd.DataFrame(
-        {
-            "sequence_id": [f"sequence-{index:02d}" for index in range(30)],
-            "length_bp": [1_000 + index * 10 for index in range(30)],
-            "leakage_component": [f"component-{index // 3:02d}" for index in range(30)],
-        }
-    )
-    edges = pd.DataFrame(
-        {
-            "query_sequence_id": ["sequence-00", "sequence-00", "sequence-01", "sequence-02"],
-            "subject_sequence_id": ["sequence-20", "sequence-21", "sequence-22", "sequence-23"],
-        }
-    )
-    config = {
-        "seed": 20260810,
-        "total_queries": 12,
-        "representative_queries": 6,
-        "component_stress_queries": 3,
-        "edge_stress_queries": 3,
-        "length_strata": 3,
-        "per_component_limit": 2,
-        "exact_benchmark_queries": 4,
-    }
-
-    first = select_calibration_queries(retrieval, edges, config)
-    second = select_calibration_queries(
-        retrieval.sample(frac=1, random_state=9),
-        edges.sample(frac=1, random_state=4),
-        config,
-    )
-
-    assert first["sequence_id"].tolist() == second["sequence_id"].tolist()
-    assert len(first) == 12
-    assert first["representative"].sum() == 6
-    assert first["component_stress"].sum() == 3
-    assert first["edge_stress"].sum() == 3
-    assert first["exact_benchmark"].sum() == 4
 
 
 def test_candidate_parser_uses_divergence_only_as_an_approximate_filter(tmp_path: Path):
@@ -193,40 +160,6 @@ def test_exact_parser_keeps_best_alignment_and_applies_fixed_rules(tmp_path: Pat
     assert bool(edges.loc[0, "primary_near_duplicate"])
     assert profile.loc[0, "primary_edges"] == 1
     assert not bool(profile.loc[0, "potentially_saturated"])
-
-
-def test_projection_scales_observed_cost_and_checks_limits():
-    runs = pd.DataFrame(
-        {
-            "mode": ["candidate"],
-            "cap": [100],
-            "query_count": [10],
-            "wall_seconds": [5.0],
-            "cpu_seconds": [36.0],
-            "paf_bytes": [1_000],
-        }
-    )
-    profiles = pd.DataFrame(
-        {
-            "mode": ["candidate"] * 10,
-            "cap": [100] * 10,
-            "potentially_saturated": [False] * 9 + [True],
-        }
-    )
-
-    projection = project_full_run(
-        runs,
-        profiles,
-        population_rows=100,
-        maximum_cpu_hours=1.0,
-        maximum_persisted_bytes=20_000,
-    )["candidate_cap_100"]
-
-    assert projection["projected_population_cpu_hours"] == 0.1
-    assert projection["projected_population_paf_bytes"] == 10_000
-    assert projection["saturated_queries"] == 1
-    assert projection["within_cpu_limit"]
-    assert projection["within_persisted_byte_limit"]
 
 
 def test_shard_checkpoint_round_trip_and_content_validation(tmp_path: Path):
@@ -344,7 +277,7 @@ def test_ray_collection_cancels_unfinished_tasks_below_disk_floor(monkeypatch):
         raise RuntimeError("free disk is below calibration minimum")
 
     monkeypatch.setattr(
-        "vec2vec.pipelines.similarity_graph_calibration.nodes._check_free_disk",
+        "vec2vec.pipelines.modeling_data.graph_runtime._check_free_disk",
         fail_disk_check,
     )
 

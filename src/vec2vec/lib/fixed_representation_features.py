@@ -10,112 +10,10 @@ import numpy as np
 import pandas as pd
 
 from vec2vec.lib import fixed_representation
-from vec2vec.lib.dna_encoder import EncoderRecipe, FrozenDnaEncoder
 from vec2vec.lib.serialization import json_content_sha256
 from vec2vec.lib.similarity_graph import dataframe_content_sha256
 from vec2vec.lib.text import sha256_text
 from vec2vec.lib.text_encoder import FrozenTextEncoder, TextEncoderRecipe
-
-
-def extract_neural_dna_features(
-    pairs: pd.DataFrame,
-    input_manifest: dict[str, Any],
-    invariance_manifest: dict[str, Any],
-    params: dict[str, Any],
-    candidate_id: str,
-    *,
-    deadline_monotonic: float | None = None,
-) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
-    """Encode each unique eligible sequence once with one accepted DNA candidate."""
-    _validate_input_artifact(pairs, input_manifest, params)
-    recipes = dict(params["dna_candidates"])
-    if candidate_id not in recipes:
-        raise ValueError(f"unknown DNA candidate: {candidate_id}")
-    recipe = EncoderRecipe.model_validate(recipes[candidate_id])
-    _validate_invariance_manifest(invariance_manifest, params, candidate_id, recipe)
-    unique = _unique_content(
-        pairs,
-        hash_column="sequence_sha256",
-        value_column="sequence",
-        id_column="sequence_id",
-    )
-    invalid = unique["sequence"].map(lambda value: sorted(set(str(value)).difference("ACGT")))
-    if invalid.map(bool).any():
-        raise ValueError("DNA feature input contains a sequence outside the E02b A/C/G/T rule")
-
-    encoder = FrozenDnaEncoder(
-        recipe,
-        precision=str(params["precision"]),
-        device=str(params["device"]),
-        overlap_fraction=float(params["window_overlap_fraction"]),
-    )
-    rows: list[dict[str, Any]] = []
-    coverage: list[dict[str, Any]] = []
-    started = time.perf_counter()
-    try:
-        _ensure_before_deadline(deadline_monotonic, operation="DNA model loading")
-        encoder.load()
-        _ensure_before_deadline(deadline_monotonic, operation="DNA feature extraction")
-        encoder.reset_peak_device_memory()
-        for row in unique.itertuples(index=False):
-            _ensure_before_deadline(deadline_monotonic, operation=f"DNA feature {row.sequence_id}")
-            result = encoder.encode_sequence(str(row.sequence_id), str(row.sequence))
-            rows.append(
-                {
-                    "candidate_id": candidate_id,
-                    "sequence_sha256": str(row.sequence_sha256),
-                    "representative_sequence_id": str(row.sequence_id),
-                    "length_bp": len(str(row.sequence)),
-                    "embedding_dimension": int(len(result.vector)),
-                    "embedding": result.vector.tolist(),
-                    "embedding_sha256": fixed_representation.embedding_sha256(result.vector),
-                    "elapsed_seconds": float(result.elapsed_seconds),
-                }
-            )
-            coverage.extend(
-                {
-                    **record,
-                    "candidate_id": candidate_id,
-                    "sequence_sha256": str(row.sequence_sha256),
-                    "sequence_length_bp": len(str(row.sequence)),
-                }
-                for record in result.coverage
-            )
-        peak_memory = encoder.peak_device_memory_bytes()
-        maximum_content_bp = encoder.maximum_content_bp
-    finally:
-        encoder.close()
-        del encoder
-        gc.collect()
-    features = pd.DataFrame(rows).sort_values("sequence_sha256", kind="stable", ignore_index=True)
-    coverage_frame = pd.DataFrame(coverage).sort_values(
-        ["sequence_sha256", "window_index"], kind="stable", ignore_index=True
-    )
-    elapsed = time.perf_counter() - started
-    hashes = {
-        "features_sha256": dataframe_content_sha256(
-            features, sort_columns=["candidate_id", "sequence_sha256"]
-        ),
-        "coverage_sha256": dataframe_content_sha256(
-            coverage_frame,
-            sort_columns=["candidate_id", "sequence_sha256", "window_index"],
-        ),
-    }
-    summary = {
-        "feature_kind": "neural_dna",
-        "candidate_id": candidate_id,
-        "candidate": recipe.model_dump(mode="json"),
-        "input_manifest_sha256": json_content_sha256(input_manifest),
-        "accepted_invariance_manifest_sha256": json_content_sha256(invariance_manifest),
-        "unique_sequences": int(len(features)),
-        "source_rows": int(len(pairs)),
-        "maximum_content_bp": int(maximum_content_bp or 0),
-        "elapsed_seconds": elapsed,
-        "base_pairs_per_second": float(unique["sequence"].str.len().sum() / elapsed),
-        "peak_device_memory_bytes": peak_memory,
-        "output_hashes": hashes,
-    }
-    return features, coverage_frame, summary
 
 
 def extract_text_features(
@@ -313,9 +211,6 @@ def _validate_input_artifact(
     accepted = params.get("accepted_input_artifact")
     if not isinstance(accepted, dict):
         raise ValueError("accepted_input_artifact must be frozen before feature extraction")
-    observed_manifest_hash = json_content_sha256(manifest)
-    if observed_manifest_hash != accepted.get("manifest_sha256"):
-        raise ValueError("E02b input manifest hash changed")
     observed_pairs_hash = dataframe_content_sha256(
         pairs, sort_columns=["panel_role", "sequence_id"]
     )
@@ -336,25 +231,6 @@ def _validate_query_artifact(
     expected_hash = manifest.get("output_hashes", {}).get("queries_sha256")
     if observed_hash != expected_hash:
         raise ValueError("E02b query table hash changed before text extraction")
-
-
-def _validate_invariance_manifest(
-    manifest: dict[str, Any],
-    params: dict[str, Any],
-    candidate_id: str,
-    recipe: EncoderRecipe,
-) -> None:
-    accepted = dict(params["accepted_invariance_artifacts"]).get(candidate_id)
-    if not isinstance(accepted, dict):
-        raise ValueError(f"candidate {candidate_id} has no accepted invariance artifact")
-    if json_content_sha256(manifest) != accepted.get("manifest_sha256"):
-        raise ValueError(f"candidate {candidate_id} invariance manifest hash changed")
-    if manifest.get("candidate_id") != candidate_id:
-        raise ValueError("invariance manifest candidate changed")
-    if manifest.get("candidate") != recipe.model_dump(mode="json"):
-        raise ValueError("invariance manifest recipe changed")
-    if manifest.get("decision", {}).get("status") != "passed_invariance_check":
-        raise ValueError("DNA candidate did not pass the frozen invariance gate")
 
 
 def _unique_content(

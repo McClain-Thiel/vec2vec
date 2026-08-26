@@ -1,8 +1,0 @@
-similarity_split:
-  protocol_version: split_grouped_v2_v0.1
-  input_retrieval_version: 2026-08-04T09.02.10.007Z
-  input_graph_artifact_version: null
-  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
-  train_fraction: 0.8
-  val_fraction: 0.1
-  seed: 42

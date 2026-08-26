@@ -9,4 +9,4 @@ lake: s3://plasmidclip/kedro
 
 # Already-generated descriptions, adopted by the `import_descriptions` pipeline
 # so the paid generation step does not have to be repeated.
-published_paired_dataset: hf://datasets/UCL-CSSB/plasmidclip-addgene-158k/data
+published_paired_dataset: hf://datasets/UCL-CSSB/plasmidclip-addgene-158k@c3fd0dc0cff7ddbb347427866506790d17bff0d5/data

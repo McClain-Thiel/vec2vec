@@ -2510,3 +2510,125 @@ difference was `0.17917`, with whole-component interval `[0.10375, 0.25294]`, so
 rule passed. All six W&B runs completed. The accepted clean run used commit `fe6fbaec`, 208.7
 wrapper seconds, and `$0.07672`; total measured cost including a 1.15-second pre-data wrapper
 failure was `$0.07714`. The failed wrapper log remains on `g6-big`.
+
+## 2026-08-26 — E05 unseen-composition comparison preregistered
+
+E05 asks whether the Gate 2 benefit survives when conjunctions are genuinely absent from
+training. Both objectives use the frozen 20,000-row panel, TF-IDF/SVD DNA, Qwen3 text, 28 atomic
+queries, 300 updates, and seeds 13, 42, and 20260818. All 80 evaluation queries are the existing
+`atoms_seen_conjunction_unseen` pairs; every constituent atom is trained, no pair-query vector or
+pair label is trained, and the 10,852-row validation gallery shares zero similarity components
+with training. No test row may be read.
+
+The primary endpoint is pair-query utility@10. Verified-set supervision passes only if its mean
+improvement over paired identity is at least `0.01` and the lower bound of the paired 2,000-draw
+whole-component 95% bootstrap interval is above zero. The user authorized the clean detached run
+on the existing `g6.4xlarge` L4 under reference
+`chat-2026-08-26-e05-unseen-composition`, capped at 0.5 instance-hours and `$0.6616`. W&B group
+`e05-unseen-composition-v0.1` is required; exact outputs and failures go to the E05 S3 report.
+
+## 2026-08-26 12:46:47 BST — E05 first attempt rejected after provenance check
+
+Unit `vec2vec-e05-unseen-composition-20260826.service` ran clean commit `2453827` for 196 seconds
+on the L4, approximately `$0.07204`. All six model fits and W&B uploads completed, but the command
+exited before saving any S3 result because W&B had created expected untracked files and the runner
+incorrectly checked Git cleanliness after training. Runs `dtnlwtsd`, `sibfa8ox`, `suswbgsy`,
+`l8s9belh`, `lqhk2isz`, and `xbxcxrtl` are rejected evidence; no E05 S3 object exists.
+
+The retry will not change data, queries, objectives, seeds, optimizer, metric, or decision rule.
+The fix records Git state before W&B starts and ignores the local W&B cache. The retry is capped at
+0.44 hours, leaving the combined service ceiling below the originally authorized 0.5 hours and
+`$0.6616`.
+
+## 2026-08-26 12:52:42 BST — E05 unseen-composition comparison accepted
+
+The unchanged retry at clean commit `10485e8` trained only the 28 atomic queries and evaluated all
+80 held-out conjunctions on the component-disjoint validation gallery. Paired-identity utility@10
+was `-0.12250`; verified-set utility was `0.17417`. The improvement was `0.29667`, with paired
+whole-component interval `[0.22499, 0.34292]`, so the frozen rule passed. No test row was read. All
+six W&B runs completed: `8ekn65i7`, `5pwsx6rv`, `h6clzct3`, `s6cyojzj`, `i6jwppli`, and
+`t92ya6us`.
+
+S3 version `2026-08-26T11.49.24.525Z` passed independent report, summary, input, feature, query
+partition, seed, runtime, Git, tracking, metric, interval, and hash read-back. Report SHA-256 is
+`182fb0dd75a1bd3159bc24b488e4921ff7dac1c6292352a408c8ff6d2d44082d`; summary SHA-256 is
+`91afb8ba2185a70dbbb609a3030b406d9b2195382f502e5ca19c85b3098a42d4`. The accepted wrapper used
+202.92 seconds and `$0.07458`; combined measured cost including the rejected attempt was
+approximately `$0.14663`.
+
+## 2026-08-26 — E06 population-scale composition protocol frozen; compute pending
+
+E06 asks whether the E05 supervision effect survives replacing the selected 20,000-row training
+panel with all 88,474 uppercase-ACGT training rows. It keeps the 10,852-row component-disjoint
+validation gallery, 28 atomic training queries, 80 unseen pair-conjunction queries, two objectives,
+three seeds, 300 updates, metric, bootstrap, and decision rule unchanged. TF-IDF/SVD is refit on
+the full eligible training population and Qwen3 text features are regenerated for the expanded
+panel. This changes data scale, not the encoder recipes or supervision comparison.
+
+The deterministic pre-outcome panel contains 99,326 rows. Its pairs SHA-256 is
+`90d9157d8695c788ec162a48a6a3cb2f9ae33be725345ff0e955840d0ecb21de`; the exclusion, query, and
+query-state hashes remain `f4b561f3a8173c75b7619d27b222924118afddfb3391f21e20346a48a242bf45`,
+`a440e26a32468a9e613aaa2034b476b453a8bae988c08128df3f14f251c4552c`, and
+`06afff85e1d4b3d96f7c62eeadd3ba50892b26cae558aec64a5bcba41c37ce8b`. No model outcome was read.
+
+The primary endpoint remains validation pair-query macro utility@10. Verified-set supervision
+passes only if its mean improvement over paired identity is at least `0.01` and the lower bound of
+the paired 2,000-draw whole-component 95% bootstrap interval is above zero. The historical test
+split remains contaminated, and S3 has no newer Addgene raw snapshot, so E06 is an exploratory
+scale-robustness result rather than confirmation. The user authorized a clean detached
+`g6.4xlarge` L4 run under reference `chat-2026-08-26-e06-population-scale-auto-under-20`, with a
+combined 0.75 instance-hour / `$0.9924` ceiling at the current `$1.3232` hourly price. Feature
+generation is limited to 0.50 hours and comparison to the remaining 0.25 hours.
+
+## 2026-08-26 14:02 BST — E06 population-scale features accepted after technical retry
+
+The input build completed in 111 seconds at clean commit `7a27b45`, producing version
+`2026-08-26T12.24.14.212Z`. Independent read-back verified 88,474 training rows, 10,852 validation
+rows, 108 queries, the four preregistered table hashes, and input-manifest SHA-256
+`880cea9088d64720032fdd3b6ef70aa8d99e006908168f539fd432924e8c9362`.
+
+The first concurrent TF-IDF and Qwen commands completed their feature calculations but failed
+before returning any Kedro output because detached systemd ran as root and Git rejected the
+Ubuntu-owned worktree during final provenance capture. No E06 feature or feature-manifest object
+was written. The preserved units ran from 12:27:39 to 12:42:10 UTC. The unchanged retry ran both
+units as Ubuntu from 12:43:28; Qwen completed at 12:56:47 and TF-IDF at 12:57:58 UTC.
+
+Version `2026-08-26T12.43.28.764Z` passed independent persisted read-back. It contains 99,188
+unique normalized 512-dimensional TF-IDF/SVD vectors and 99,396 normalized 1,024-dimensional Qwen
+vectors: 99,288 documents plus 108 queries. Every source identity, per-row embedding hash,
+dimension, finite value, normalization, recipe, model revision, input binding, Git state, and table
+hash matched. Freeze these identities:
+
+- DNA features `4376e4e0cec03dcfa6665239436f396818648aab5ef2d7c9bfd518ad537e6fe0`;
+- vocabulary `9b85d6a85329aa19f42b7880aa2e8b2f178e83118c9f702f148a395e7f3bf117`;
+- SVD state `8bc96e926545cfa95283270c0a60e142e44dace20fe0fd399ec432a218e21aee`;
+- Qwen features `9c131e45a457163f141e840056faf383a2ee0a7a84fc9a967e361d41aa5c2fce`;
+- DNA manifest `cca81b327b40b1aede4ae1027d0a75cfdf35bd4f3400861eeb9d4519de47d0e5`;
+- text manifest `2e5567275d2f2c664730438dfa2643a7fb0bec5710785ab3ecba77b98dafa66d`.
+
+Input build, rejected feature attempt, and accepted retry used approximately 0.5144 wall-clock
+instance-hours and `$0.68071`. The comparison is capped at 0.20 hours / `$0.26464`, keeping the
+combined hard ceiling at approximately `$0.94535`, below the original `$0.9924` authorization.
+No model outcome has been read.
+
+## 2026-08-26 14:14 BST — E06 population-scale comparison accepted
+
+The clean detached comparison at commit `962e12e` used all 88,474 eligible training rows, the
+unchanged 10,852-row validation gallery, 28 atomic training queries, and 80 unseen conjunctions.
+Paired-identity utility@10 was `-0.10167`; verified-set utility was `0.17333`. The improvement was
+`0.27500`, with paired whole-component interval `[0.18707, 0.33878]`, so the frozen rule passed.
+No test row was read. Independent W&B read-back found all six runs finished with the frozen E06
+group: `z3iklyeb`, `z12cfncc`, `2nw6hs66`, `mekvk889`, `jip3org4`, and `032oihq4`.
+
+S3 version `2026-08-26T13.06.51.803Z` passed independent report, summary, population, objective,
+seed, tracking, runtime, Git, metric, interval, and hash read-back. Report SHA-256 is
+`800e23597f209197835b9648c4663cc3d35e686d0ac59e04c50bf1838e015230`; summary SHA-256 is
+`135a3b10cbd70fd991331caa430e8fdbe6d2636b23d1fd8e30f9404d1acde764`. The comparison wrapper
+used 426.26 seconds and approximately `$0.15667`. The complete scoped E06 work, including input
+construction, the rejected feature attempt, accepted feature retry, and comparison, used
+approximately `$0.83739`, below the authorized `$0.9924` ceiling.
+
+E05 and E06 agree: verified-set supervision improves retrieval for unseen conjunctions under the
+frozen validation protocol, and the effect is not an artifact of the 20,000-row training sample.
+This remains exploratory because the historical test split is contaminated and no new raw-data
+snapshot exists for a clean confirmatory holdout.

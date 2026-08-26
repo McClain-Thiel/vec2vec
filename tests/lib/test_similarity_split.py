@@ -4,7 +4,6 @@ import pandas as pd
 import pytest
 
 from vec2vec.lib import similarity_graph, similarity_split, split_audit
-from vec2vec.pipelines.similarity_split import nodes as similarity_split_nodes
 
 
 def test_similarity_split_keeps_primary_components_whole_and_is_reproducible():
@@ -105,21 +104,6 @@ def test_similarity_split_audit_rejects_unaccepted_graph_manifest():
             graph_manifest,
             mapping,
             summary,
-        )
-
-
-def test_similarity_split_node_requires_pinned_graph_artifact_before_build():
-    with pytest.raises(ValueError, match="input_graph_artifact_version must be pinned"):
-        similarity_split_nodes.build_similarity_split(
-            pd.DataFrame(),
-            pd.DataFrame(),
-            {
-                "input_graph_artifact_version": None,
-                "train_fraction": 0.8,
-                "val_fraction": 0.1,
-                "seed": 42,
-                "expected_input_population_sha256": "unused",
-            },
         )
 
 

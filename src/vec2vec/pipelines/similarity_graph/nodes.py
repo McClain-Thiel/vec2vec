@@ -16,7 +16,7 @@ from typing import Any
 import pandas as pd
 
 from vec2vec.lib import similarity_graph, split_audit
-from vec2vec.pipelines.similarity_graph_calibration import nodes as calibration_nodes
+from vec2vec.pipelines.modeling_data import graph_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ def run_similarity_graph(
         expected_population_sha256=str(params["expected_input_population_sha256"]),
     )
     search = _validate_search(params["candidate_search"], params["exact_search"])
+    minimap_version = graph_runtime._validated_tool_version(search)
     execution = _validate_execution(params["execution"])
     primary_rule = split_audit.similarity_rule(params["exact_search"]["primary_rule"])
     sensitivity_rule = split_audit.similarity_rule(params["exact_search"]["sensitivity_rule"])
@@ -50,7 +51,7 @@ def run_similarity_graph(
         Path(execution["scratch_root"]) / str(params["expected_input_population_sha256"])
     ).resolve()
     cache_root.mkdir(parents=True, exist_ok=True)
-    _, target_index, cache_manifest = calibration_nodes._prepare_target_cache(
+    _, target_index, cache_manifest = graph_runtime._prepare_target_cache(
         cache_root,
         tokens,
         search,
@@ -70,7 +71,7 @@ def run_similarity_graph(
         for row in tokens.itertuples(index=False)
     }
     token_lengths = {token: int(record["length_bp"]) for token, record in token_records.items()}
-    synthetic = calibration_nodes._run_synthetic_validation(
+    synthetic = graph_runtime._run_synthetic_validation(
         cache_root / "synthetic" / str(params["graph_version"]),
         search=search,
         execution=execution,
@@ -94,13 +95,13 @@ def run_similarity_graph(
     profile_tables: list[pd.DataFrame] = []
     directional_tables: list[pd.DataFrame] = []
     try:
-        all_shards = calibration_nodes._write_query_shards(
+        all_shards = graph_runtime._write_query_shards(
             tokens,
             query_root / "candidate_normal",
             shard_queries=execution["shard_queries"],
             repeat=search["query_repeat"],
         )
-        candidate_normal = calibration_nodes._run_ray_stage(
+        candidate_normal = graph_runtime._run_ray_stage(
             ray,
             all_shards,
             target_index=target_index,
@@ -127,13 +128,13 @@ def run_similarity_graph(
 
         if adaptive_tokens:
             adaptive_frame = tokens.loc[tokens["token"].isin(adaptive_tokens)]
-            adaptive_shards = calibration_nodes._write_query_shards(
+            adaptive_shards = graph_runtime._write_query_shards(
                 adaptive_frame,
                 query_root / "candidate_adaptive",
                 shard_queries=execution["adaptive_shard_queries"],
                 repeat=search["query_repeat"],
             )
-            candidate_adaptive = calibration_nodes._run_ray_stage(
+            candidate_adaptive = graph_runtime._run_ray_stage(
                 ray,
                 adaptive_shards,
                 target_index=target_index,
@@ -164,13 +165,13 @@ def run_similarity_graph(
             _check_limits(started, execution, run_records)
 
         exact_normal_frame = tokens.loc[~tokens["token"].isin(adaptive_tokens)]
-        exact_normal_shards = calibration_nodes._write_query_shards(
+        exact_normal_shards = graph_runtime._write_query_shards(
             exact_normal_frame,
             query_root / "exact_normal",
             shard_queries=execution["shard_queries"],
             repeat=search["query_repeat"],
         )
-        exact_normal = calibration_nodes._run_ray_stage(
+        exact_normal = graph_runtime._run_ray_stage(
             ray,
             exact_normal_shards,
             target_index=target_index,
@@ -196,13 +197,13 @@ def run_similarity_graph(
         high_exact_tokens = adaptive_tokens.union(unexpected_tokens)
         if high_exact_tokens:
             high_exact_frame = tokens.loc[tokens["token"].isin(high_exact_tokens)]
-            high_exact_shards = calibration_nodes._write_query_shards(
+            high_exact_shards = graph_runtime._write_query_shards(
                 high_exact_frame,
                 query_root / "exact_adaptive",
                 shard_queries=execution["adaptive_shard_queries"],
                 repeat=search["query_repeat"],
             )
-            exact_adaptive = calibration_nodes._run_ray_stage(
+            exact_adaptive = graph_runtime._run_ray_stage(
                 ray,
                 high_exact_shards,
                 target_index=target_index,
@@ -301,19 +302,20 @@ def run_similarity_graph(
             sort_columns=["stage", "cap", "shard_id"],
         ),
     }
+    expected_output_hashes = params.get("expected_output_content_hashes")
+    if expected_output_hashes is not None and output_hashes != expected_output_hashes:
+        raise RuntimeError("similarity graph changed from the accepted content hashes")
     observed_cpu_hours = float(runs["cpu_seconds"].sum() / 3600.0)
     observed_paf_bytes = int(runs["paf_bytes"].sum())
     manifest = {
         "graph_version": str(params["graph_version"]),
-        "protocol": (
-            "studies/set_valued_compositional_embeddings/experiments/E00_global_similarity_graph.md"
-        ),
+        "protocol": "modeling_data_v1",
         "input_retrieval_version": str(params["input_retrieval_version"]),
         "calibration_artifact_version": str(params["calibration_artifact_version"]),
         "input_validation": validation,
         "resolved_configuration": params,
         "tools": {
-            "minimap2": calibration_nodes._tool_version(search["executable"]),
+            "minimap2": minimap_version,
             "ray": ray.__version__,
         },
         "runtime": {
@@ -397,6 +399,7 @@ def _collect(
 def _validate_search(candidate: dict[str, Any], exact: dict[str, Any]) -> dict[str, Any]:
     resolved = {
         "executable": str(candidate["executable"]),
+        "expected_tool_version": str(candidate["expected_tool_version"]),
         "preset": str(candidate["preset"]),
         "query_repeat": int(candidate["query_repeat"]),
         "minimum_secondary_score_ratio": float(candidate["minimum_secondary_score_ratio"]),
@@ -473,7 +476,7 @@ def _check_limits(
 ) -> None:
     if time.monotonic() - started > execution["full_run_wall_limit_seconds"]:
         raise RuntimeError("global graph reached its fixed wall-time limit")
-    scratch_root = calibration_nodes._existing_directory(Path(execution["scratch_root"]))
+    scratch_root = graph_runtime._existing_directory(Path(execution["scratch_root"]))
     if shutil.disk_usage(scratch_root).free < execution["minimum_free_disk_bytes"]:
         raise RuntimeError("global graph reached its fixed free-disk floor")
     cpu_hours = sum(float(record["cpu_seconds"]) for record in run_records) / 3600.0

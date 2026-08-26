@@ -97,18 +97,22 @@ def _fixture() -> tuple[
         "decision": {"status": "accepted_strict_similarity_closed_split"},
     }
     state_manifest = {
-        "input_retrieval_version": "retrieval-v1",
         "input_population_sha256": "population-hash",
         "pair_state_conflicts": 0,
+        "output_content_hashes": {
+            "vocabulary_sha256": similarity_graph.dataframe_content_sha256(
+                vocabulary, sort_columns=["constraint_id"]
+            ),
+            "states_sha256": similarity_graph.dataframe_content_sha256(
+                states, sort_columns=["sequence_id", "constraint_id", "state"]
+            ),
+        },
     }
     params = {
         "benchmark_version": "benchmark-v1",
         "canonical_text_revision": "text-v1",
-        "input_retrieval_version": "retrieval-v1",
-        "input_constraint_state_artifact_version": "state-v1",
-        "input_graph_artifact_version": "graph-v1",
-        "input_split_artifact_version": "split-v1",
         "expected_input_population_sha256": "population-hash",
+        "expected_constraint_artifact_hashes": dict(state_manifest["output_content_hashes"]),
         "minimum_atomic_train_verified_rows": 2,
         "minimum_atomic_train_verified_components": 2,
         "minimum_pair_train_verified_rows": 2,
@@ -186,12 +190,21 @@ def test_outputs_are_invariant_to_input_row_order():
     assert first[-1]["decision"] == second[-1]["decision"]
 
 
-def test_rejects_unpinned_inputs_and_crossing_components():
+def test_accepted_pre_consolidation_state_manifest_uses_frozen_table_hashes():
     values = list(_fixture())
-    unpinned = copy.deepcopy(values[-1])
-    unpinned["input_split_artifact_version"] = None
-    values[-1] = unpinned
-    with pytest.raises(ValueError, match="input_split_artifact_version must be pinned"):
+    values[7] = copy.deepcopy(values[7])
+    values[7].pop("output_content_hashes")
+
+    result = query_benchmark.build_query_benchmark(*values)
+
+    assert result[-1]["decision"]["status"] == "accepted_gate0_data"
+
+
+def test_rejects_content_mismatch_and_crossing_components():
+    values = list(_fixture())
+    values[7] = copy.deepcopy(values[7])
+    values[7]["output_content_hashes"]["states_sha256"] = "changed"
+    with pytest.raises(RuntimeError, match="tables differ from their manifest"):
         query_benchmark.build_query_benchmark(*values)
 
     values = list(_fixture())
