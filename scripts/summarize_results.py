@@ -362,12 +362,14 @@ def _run_reproduction(stage, authorization, output_dir):
         config = context.params["result_reproduction"]
         _validate_runtime(config["runtime"])
         catalog = context.catalog
-        inputs = config["inputs"]
-        input_version = str(inputs["e02b_version"])
-        pairs = catalog.load("e02b_pairs", version=input_version)
-        queries = catalog.load("e02b_queries", version=input_version)
-        validation_states = catalog.load("e02b_query_states", version=input_version)
-        input_manifest = catalog.load("e02b_input_manifest", version=input_version)
+        scale = config.get("scale") if stage == "scale" else None
+        inputs = scale["inputs"] if scale else config["inputs"]
+        input_version = str(inputs["panel_version"] if scale else inputs["e02b_version"])
+        input_prefix = "e06" if scale else "e02b"
+        pairs = catalog.load(f"{input_prefix}_pairs", version=input_version)
+        queries = catalog.load(f"{input_prefix}_queries", version=input_version)
+        validation_states = catalog.load(f"{input_prefix}_query_states", version=input_version)
+        input_manifest = catalog.load(f"{input_prefix}_input_manifest", version=input_version)
         deadline = time.monotonic() + authorization["instance_hour_limit"] * 3600.0
 
         if stage == "alignment":
@@ -402,23 +404,27 @@ def _run_reproduction(stage, authorization, output_dir):
             )
             return
 
-        dna_features, dna_manifests = _load_features(
-            catalog, config, kind="dna", candidates=("tfidf_6mer_svd_512",)
-        )
-        text_features, text_manifests = _load_features(
-            catalog, config, kind="text", candidates=("qwen3_embedding_0_6b",)
-        )
+        if scale:
+            dna_features, dna_manifests = _load_scale_features(catalog, scale, kind="dna")
+            text_features, text_manifests = _load_scale_features(catalog, scale, kind="text")
+        else:
+            dna_features, dna_manifests = _load_features(
+                catalog, config, kind="dna", candidates=("tfidf_6mer_svd_512",)
+            )
+            text_features, text_manifests = _load_features(
+                catalog, config, kind="text", candidates=("qwen3_embedding_0_6b",)
+            )
         query_version = str(inputs["query_benchmark_version"])
         all_query_states = catalog.load("e00_query_candidate_state", version=query_version)
         query_manifest = catalog.load("e00_query_benchmark_manifest", version=query_version)
-        section_name = "composition" if stage == "composition" else "supervision"
-        if stage == "composition":
+        section_name = stage if stage in {"composition", "scale"} else "supervision"
+        if stage in {"composition", "scale"}:
             _validate_frozen_authorization(
-                authorization, config["composition"]["compute_authorization"]
+                authorization, config[section_name]["compute_authorization"]
             )
             git_commit, git_dirty = _git_state()
             if git_dirty:
-                raise RuntimeError("E05 must start from a clean Git checkout")
+                raise RuntimeError(f"{stage} must start from a clean Git checkout")
         stage_started = time.perf_counter()
         outputs = set_supervision.run_set_supervision_comparison(
             pairs,
@@ -440,10 +446,13 @@ def _run_reproduction(stage, authorization, output_dir):
         if failed_tracking:
             raise RuntimeError(f"W&B tracking did not complete: {failed_tracking}")
 
-        if stage == "composition":
+        if stage in {"composition", "scale"}:
             summary = pd.DataFrame(_composition_rows(report))
-            summary_version = catalog.get("e05_composition_summary").resolve_save_version()
-            report_version = catalog.get("e05_composition_report").resolve_save_version()
+            result_prefix = "e06" if stage == "scale" else "e05"
+            summary_dataset = f"{result_prefix}_composition_summary"
+            report_dataset = f"{result_prefix}_composition_report"
+            summary_version = catalog.get(summary_dataset).resolve_save_version()
+            report_version = catalog.get(report_dataset).resolve_save_version()
             report["execution"] = {
                 **authorization,
                 "maximum_cost_usd": (
@@ -460,15 +469,16 @@ def _run_reproduction(stage, authorization, output_dir):
                 "summary_version": summary_version,
                 "report_version": report_version,
             }
-            catalog.save("e05_composition_summary", summary)
-            catalog.save("e05_composition_report", report)
-            _write_or_check(
-                output_dir / "composition.csv", _csv_text(_composition_rows(report)), False
-            )
+            catalog.save(summary_dataset, summary)
+            catalog.save(report_dataset, report)
+            if stage == "composition":
+                _write_or_check(
+                    output_dir / "composition.csv", _csv_text(_composition_rows(report)), False
+                )
             print(
                 json.dumps(
                     {
-                        "status": "e05_unseen_composition_complete",
+                        "status": f"{result_prefix}_unseen_composition_complete",
                         "comparison": report["comparison"],
                         "output_hashes": report["output_hashes"],
                         "tracking": report["tracking"],
@@ -524,6 +534,26 @@ def _load_features(catalog, config, *, kind, candidates=None):
     return features, manifests
 
 
+def _load_scale_features(catalog, scale, *, kind):
+    candidate_id = "tfidf_6mer_svd_512" if kind == "dna" else "qwen3_embedding_0_6b"
+    dataset = (
+        "e06_dna_features_tfidf_6mer_svd_512"
+        if kind == "dna"
+        else "e06_text_features_qwen3_embedding_0_6b"
+    )
+    manifest_dataset = (
+        "e06_dna_manifest_tfidf_6mer_svd_512"
+        if kind == "dna"
+        else "e06_text_manifest_qwen3_embedding_0_6b"
+    )
+    accepted = scale["features"][kind]
+    version = str(accepted["version"])
+    return (
+        {candidate_id: catalog.load(dataset, version=version)},
+        {candidate_id: catalog.load(manifest_dataset, version=version)},
+    )
+
+
 def _alignment_params(config):
     section = config["alignment"]
     features = config["features"]
@@ -550,14 +580,23 @@ def _alignment_params(config):
 
 def _supervision_params(config, *, section_name="supervision"):
     section = config[section_name]
-    inputs = config["inputs"]
-    dna = config["features"]["dna"]["tfidf_6mer_svd_512"]
-    text = config["features"]["text"]["qwen3_embedding_0_6b"]
+    is_scale = section_name == "scale"
+    inputs = section["inputs"] if is_scale else config["inputs"]
+    dna = (
+        section["features"]["dna"] if is_scale else config["features"]["dna"]["tfidf_6mer_svd_512"]
+    )
+    text = (
+        section["features"]["text"]
+        if is_scale
+        else config["features"]["text"]["qwen3_embedding_0_6b"]
+    )
     params = {
         "protocol_version": section["protocol_version"],
         "protocol_path": "studies/set_valued_compositional_embeddings/EXPERIMENT_LOG.md",
         "input_versions": {
-            "e02b_inputs": inputs["e02b_version"],
+            "e06_inputs" if is_scale else "e02b_inputs": (
+                inputs["panel_version"] if is_scale else inputs["e02b_version"]
+            ),
             "query_benchmark": inputs["query_benchmark_version"],
             "dna_features": dna["version"],
             "text_features": text["version"],
@@ -580,15 +619,15 @@ def _supervision_params(config, *, section_name="supervision"):
         "probe": section["probe"],
         "tracking": section["tracking"],
     }
-    if section_name == "composition":
+    if section_name in {"composition", "scale"}:
         params.update(
             training_query_kind=section["training_query_kind"],
             evaluation_query_kind=section["evaluation_query_kind"],
             expected_training_queries=section["expected_training_queries"],
             expected_evaluation_queries=section["expected_evaluation_queries"],
             expected_evaluation_controlled_split=section["expected_evaluation_controlled_split"],
-            completion_status="e05_unseen_composition_complete",
-            run_name_prefix="e05",
+            completion_status=f"{section_name}_unseen_composition_complete",
+            run_name_prefix="e06" if is_scale else "e05",
         )
     return params
 
@@ -608,7 +647,7 @@ def _validate_frozen_authorization(observed, expected):
             "observed": observed_limit,
         }
     if differences:
-        raise ValueError(f"compute authorization differs from frozen E05 contract: {differences}")
+        raise ValueError(f"compute authorization differs from frozen contract: {differences}")
 
 
 def _git_state():
@@ -686,7 +725,7 @@ def main():
     parser.add_argument("--e05-report", default=E05_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
-    parser.add_argument("--reproduce", choices=("alignment", "supervision", "composition"))
+    parser.add_argument("--reproduce", choices=("alignment", "supervision", "composition", "scale"))
     parser.add_argument("--approval-reference")
     parser.add_argument("--region")
     parser.add_argument("--instance-type")

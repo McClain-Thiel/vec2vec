@@ -2579,3 +2579,34 @@ scale-robustness result rather than confirmation. The user authorized a clean de
 `g6.4xlarge` L4 run under reference `chat-2026-08-26-e06-population-scale-auto-under-20`, with a
 combined 0.75 instance-hour / `$0.9924` ceiling at the current `$1.3232` hourly price. Feature
 generation is limited to 0.50 hours and comparison to the remaining 0.25 hours.
+
+## 2026-08-26 14:02 BST — E06 population-scale features accepted after technical retry
+
+The input build completed in 111 seconds at clean commit `7a27b45`, producing version
+`2026-08-26T12.24.14.212Z`. Independent read-back verified 88,474 training rows, 10,852 validation
+rows, 108 queries, the four preregistered table hashes, and input-manifest SHA-256
+`880cea9088d64720032fdd3b6ef70aa8d99e006908168f539fd432924e8c9362`.
+
+The first concurrent TF-IDF and Qwen commands completed their feature calculations but failed
+before returning any Kedro output because detached systemd ran as root and Git rejected the
+Ubuntu-owned worktree during final provenance capture. No E06 feature or feature-manifest object
+was written. The preserved units ran from 12:27:39 to 12:42:10 UTC. The unchanged retry ran both
+units as Ubuntu from 12:43:28; Qwen completed at 12:56:47 and TF-IDF at 12:57:58 UTC.
+
+Version `2026-08-26T12.43.28.764Z` passed independent persisted read-back. It contains 99,188
+unique normalized 512-dimensional TF-IDF/SVD vectors and 99,396 normalized 1,024-dimensional Qwen
+vectors: 99,288 documents plus 108 queries. Every source identity, per-row embedding hash,
+dimension, finite value, normalization, recipe, model revision, input binding, Git state, and table
+hash matched. Freeze these identities:
+
+- DNA features `4376e4e0cec03dcfa6665239436f396818648aab5ef2d7c9bfd518ad537e6fe0`;
+- vocabulary `9b85d6a85329aa19f42b7880aa2e8b2f178e83118c9f702f148a395e7f3bf117`;
+- SVD state `8bc96e926545cfa95283270c0a60e142e44dace20fe0fd399ec432a218e21aee`;
+- Qwen features `9c131e45a457163f141e840056faf383a2ee0a7a84fc9a967e361d41aa5c2fce`;
+- DNA manifest `cca81b327b40b1aede4ae1027d0a75cfdf35bd4f3400861eeb9d4519de47d0e5`;
+- text manifest `2e5567275d2f2c664730438dfa2643a7fb0bec5710785ab3ecba77b98dafa66d`.
+
+Input build, rejected feature attempt, and accepted retry used approximately 0.5144 wall-clock
+instance-hours and `$0.68071`. The comparison is capped at 0.20 hours / `$0.26464`, keeping the
+combined hard ceiling at approximately `$0.94535`, below the original `$0.9924` authorization.
+No model outcome has been read.

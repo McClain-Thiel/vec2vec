@@ -307,8 +307,15 @@ e06_modeling_features:
     query_states_sha256: 06afff85e1d4b3d96f7c62eeadd3ba50892b26cae558aec64a5bcba41c37ce8b
   accepted_input_artifact:
     pairs_sha256: 90d9157d8695c788ec162a48a6a3cb2f9ae33be725345ff0e955840d0ecb21de
-  artifact_status: candidate_before_model_outcomes
-  expected_feature_artifact_hashes: {}
+    manifest_sha256: 880cea9088d64720032fdd3b6ef70aa8d99e006908168f539fd432924e8c9362
+  artifact_status: accepted
+  expected_feature_artifact_hashes:
+    tfidf_6mer_svd_512:
+      features_sha256: 4376e4e0cec03dcfa6665239436f396818648aab5ef2d7c9bfd518ad537e6fe0
+      vocabulary_sha256: 9b85d6a85329aa19f42b7880aa2e8b2f178e83118c9f702f148a395e7f3bf117
+      svd_state_sha256: 8bc96e926545cfa95283270c0a60e142e44dace20fe0fd399ec432a218e21aee
+    qwen3_embedding_0_6b:
+      features_sha256: 9c131e45a457163f141e840056faf383a2ee0a7a84fc9a967e361d41aa5c2fce
   device: cuda
   precision: bfloat16
   seed: 20260818
@@ -474,7 +481,7 @@ result_reproduction:
     precision: float32
     primary_k: 10
     minimum_practical_improvement: 0.01
-    probe:
+    probe: &composition_probe
       seeds: [13, 42, 20260818]
       projection_dimension: 512
       whitening_epsilon: 0.000001
@@ -527,3 +534,45 @@ result_reproduction:
         elapsed_seconds: 196
         cost_usd_approx: 0.07204088888888888
         result: post-training_clean_check_rejected_wandb_cache
+  scale:
+    protocol_version: e06-population-scale-v0.1
+    inputs:
+      panel_version: 2026-08-26T12.24.14.212Z
+      query_benchmark_version: 2026-08-17T23.51.35.629Z
+      manifest_sha256: 880cea9088d64720032fdd3b6ef70aa8d99e006908168f539fd432924e8c9362
+      pairs_sha256: 90d9157d8695c788ec162a48a6a3cb2f9ae33be725345ff0e955840d0ecb21de
+      training_query_states_sha256: cd6fc783a497a47f0c90ea3e601c34ecfef1022d814a8dae58e2662450d3afaf
+    features:
+      dna:
+        version: 2026-08-26T12.43.28.764Z
+        manifest_sha256: cca81b327b40b1aede4ae1027d0a75cfdf35bd4f3400861eeb9d4519de47d0e5
+        features_sha256: 4376e4e0cec03dcfa6665239436f396818648aab5ef2d7c9bfd518ad537e6fe0
+      text:
+        version: 2026-08-26T12.43.28.764Z
+        manifest_sha256: 2e5567275d2f2c664730438dfa2643a7fb0bec5710785ab3ecba77b98dafa66d
+        features_sha256: 9c131e45a457163f141e840056faf383a2ee0a7a84fc9a967e361d41aa5c2fce
+    training_rows: 88474
+    training_query_kind: atomic
+    evaluation_query_kind: pair_conjunction
+    expected_training_queries: 28
+    expected_evaluation_queries: 80
+    expected_evaluation_controlled_split: atoms_seen_conjunction_unseen
+    minimum_training_verified_rows: 20
+    objectives: [paired_identity, verified_set]
+    device: cuda
+    precision: float32
+    primary_k: 10
+    minimum_practical_improvement: 0.01
+    probe: *composition_probe
+    tracking:
+      enabled: true
+      project: vec2vec
+      entity: null
+      group: e06-population-scale-v0.1
+      tags: [set-supervision, unseen-composition, population-scale, e06, validation-only]
+    compute_authorization:
+      approval_reference: chat-2026-08-26-e06-population-scale-auto-under-20
+      region: us-east-1
+      instance_type: g6.4xlarge
+      instance_hour_limit: 0.20
+      observed_instance_price_usd_per_hour: 1.3232

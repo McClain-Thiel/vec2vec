@@ -63,6 +63,33 @@ def _config():
             "probe": {"seeds": [13, 42, 20260818]},
             "tracking": {"enabled": True},
         },
+        "scale": {
+            "protocol_version": "scale-v1",
+            "inputs": {
+                "panel_version": "e06-inputs-v1",
+                "query_benchmark_version": "queries-v1",
+                "manifest_sha256": "e06-manifest-hash",
+                "pairs_sha256": "e06-pairs-hash",
+                "training_query_states_sha256": "states-hash",
+            },
+            "features": {
+                "dna": {"version": "e06-dna-v1"},
+                "text": {"version": "e06-text-v1"},
+            },
+            "training_rows": 88,
+            "training_query_kind": "atomic",
+            "evaluation_query_kind": "pair_conjunction",
+            "expected_training_queries": 2,
+            "expected_evaluation_queries": 3,
+            "expected_evaluation_controlled_split": "atoms_seen_conjunction_unseen",
+            "minimum_training_verified_rows": 2,
+            "objectives": ["paired_identity", "verified_set"],
+            "device": "cuda",
+            "primary_k": 10,
+            "minimum_practical_improvement": 0.01,
+            "probe": {"seeds": [13, 42, 20260818]},
+            "tracking": {"enabled": True},
+        },
     }
 
 
@@ -99,6 +126,27 @@ def test_reproduction_parameters_bind_frozen_inputs_and_features() -> None:
     assert composition["training_query_kind"] == "atomic"
     assert composition["evaluation_query_kind"] == "pair_conjunction"
     assert composition["run_name_prefix"] == "e05"
+
+    scale = summarize_results._supervision_params(config, section_name="scale")
+    assert scale["training_rows"] == 88
+    assert scale["accepted_input_artifact"]["pairs_sha256"] == "e06-pairs-hash"
+    assert scale["input_versions"]["e06_inputs"] == "e06-inputs-v1"
+    assert scale["run_name_prefix"] == "e06"
+
+
+def test_scale_feature_loader_uses_e06_datasets() -> None:
+    catalog = RecordingCatalog()
+
+    features, manifests = summarize_results._load_scale_features(
+        catalog, _config()["scale"], kind="text"
+    )
+
+    assert set(features) == {"qwen3_embedding_0_6b"}
+    assert set(manifests) == set(features)
+    assert catalog.loads == [
+        ("e06_text_features_qwen3_embedding_0_6b", "e06-text-v1"),
+        ("e06_text_manifest_qwen3_embedding_0_6b", "e06-text-v1"),
+    ]
 
 
 def test_output_hash_verification_reports_changed_artifact() -> None:
