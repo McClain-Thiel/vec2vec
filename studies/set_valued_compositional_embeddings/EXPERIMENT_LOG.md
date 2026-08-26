@@ -2555,3 +2555,27 @@ partition, seed, runtime, Git, tracking, metric, interval, and hash read-back. R
 `91afb8ba2185a70dbbb609a3030b406d9b2195382f502e5ca19c85b3098a42d4`. The accepted wrapper used
 202.92 seconds and `$0.07458`; combined measured cost including the rejected attempt was
 approximately `$0.14663`.
+
+## 2026-08-26 — E06 population-scale composition protocol frozen; compute pending
+
+E06 asks whether the E05 supervision effect survives replacing the selected 20,000-row training
+panel with all 88,474 uppercase-ACGT training rows. It keeps the 10,852-row component-disjoint
+validation gallery, 28 atomic training queries, 80 unseen pair-conjunction queries, two objectives,
+three seeds, 300 updates, metric, bootstrap, and decision rule unchanged. TF-IDF/SVD is refit on
+the full eligible training population and Qwen3 text features are regenerated for the expanded
+panel. This changes data scale, not the encoder recipes or supervision comparison.
+
+The deterministic pre-outcome panel contains 99,326 rows. Its pairs SHA-256 is
+`90d9157d8695c788ec162a48a6a3cb2f9ae33be725345ff0e955840d0ecb21de`; the exclusion, query, and
+query-state hashes remain `f4b561f3a8173c75b7619d27b222924118afddfb3391f21e20346a48a242bf45`,
+`a440e26a32468a9e613aaa2034b476b453a8bae988c08128df3f14f251c4552c`, and
+`06afff85e1d4b3d96f7c62eeadd3ba50892b26cae558aec64a5bcba41c37ce8b`. No model outcome was read.
+
+The primary endpoint remains validation pair-query macro utility@10. Verified-set supervision
+passes only if its mean improvement over paired identity is at least `0.01` and the lower bound of
+the paired 2,000-draw whole-component 95% bootstrap interval is above zero. The historical test
+split remains contaminated, and S3 has no newer Addgene raw snapshot, so E06 is an exploratory
+scale-robustness result rather than confirmation. The user authorized a clean detached
+`g6.4xlarge` L4 run under reference `chat-2026-08-26-e06-population-scale-auto-under-20`, with a
+combined 0.75 instance-hour / `$0.9924` ceiling at the current `$1.3232` hourly price. Feature
+generation is limited to 0.50 hours and comparison to the remaining 0.25 hours.

@@ -260,7 +260,7 @@ modeling_features:
   device: cuda
   precision: bfloat16
   seed: 20260818
-  text_candidates:
+  text_candidates: &selected_text_candidates
     qwen3_embedding_0_6b:
       model_id: Qwen/Qwen3-Embedding-0.6B
       revision: 97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3
@@ -273,7 +273,7 @@ modeling_features:
       normalize: true
       attention_implementation: sdpa
       batch_size: 32
-  tfidf:
+  tfidf: &selected_tfidf_recipe
     candidate_id: tfidf_6mer_svd_512
     analyzer: char
     ngram_size: 6
@@ -288,6 +288,40 @@ modeling_features:
     seed: 20260818
   # A paid run must inject this complete block after explicit user approval.
   compute_authorization: null
+
+e06_modeling_features:
+  protocol_version: e06-population-scale-v0.1
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  expected_query_artifact_hashes:
+    query_catalog_sha256: 72e2ed5576c10647c17ede29b4c45e6fd9cf7c19c2bb195279e6a329a54a2fd1
+    query_candidate_state_sha256: cd6fc783a497a47f0c90ea3e601c34ecfef1022d814a8dae58e2662450d3afaf
+  eligible_sequence_alphabet: ACGT
+  training_rows: 88474
+  maximum_rows_per_component: 100000
+  selection_salt: e06-population-scale-v0.1:all_eligible_train
+  minimum_verified_rows: 10
+  expected_input_artifact_hashes:
+    pairs_sha256: 90d9157d8695c788ec162a48a6a3cb2f9ae33be725345ff0e955840d0ecb21de
+    exclusions_sha256: f4b561f3a8173c75b7619d27b222924118afddfb3391f21e20346a48a242bf45
+    queries_sha256: a440e26a32468a9e613aaa2034b476b453a8bae988c08128df3f14f251c4552c
+    query_states_sha256: 06afff85e1d4b3d96f7c62eeadd3ba50892b26cae558aec64a5bcba41c37ce8b
+  accepted_input_artifact:
+    pairs_sha256: 90d9157d8695c788ec162a48a6a3cb2f9ae33be725345ff0e955840d0ecb21de
+  artifact_status: candidate_before_model_outcomes
+  expected_feature_artifact_hashes: {}
+  device: cuda
+  precision: bfloat16
+  seed: 20260818
+  text_candidates: *selected_text_candidates
+  tfidf: *selected_tfidf_recipe
+  compute_stage: e06_text_features:qwen3_embedding_0_6b
+  compute_authorization:
+    stage: e06_text_features:qwen3_embedding_0_6b
+    approval_reference: chat-2026-08-26-e06-population-scale-auto-under-20
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 0.30
+    observed_instance_price_usd_per_hour: 1.3232
 
 # Minimal executable contract for recomputing the two accepted result tables from frozen S3
 # feature artifacts. The large feature tables remain data inputs; this block freezes their exact

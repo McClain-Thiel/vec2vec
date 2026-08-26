@@ -164,6 +164,54 @@ def create_pipeline(**kwargs) -> Pipeline:
                 name="extract_selected_text_features",
                 tags=["qwen", "gpu"],
             ),
+            node(
+                nodes.build_model_inputs,
+                inputs=[
+                    "retrieval_dataset@fixed_representation_bakeoff",
+                    "e00_split_grouped_v2",
+                    "e00_split_grouped_v2_manifest",
+                    "e00_query_catalog",
+                    "e00_query_candidate_state",
+                    "e00_query_benchmark_manifest",
+                    "params:e06_modeling_features",
+                ],
+                outputs=[
+                    "e06_pairs",
+                    "e06_exclusions",
+                    "e06_queries",
+                    "e06_query_states",
+                    "e06_input_manifest",
+                ],
+                name="build_population_model_panels",
+                tags=["e06", "e06-inputs"],
+            ),
+            node(
+                nodes.fit_selected_dna_features,
+                inputs=["e06_pairs", "e06_input_manifest", "params:e06_modeling_features"],
+                outputs=[
+                    "e06_dna_features_tfidf_6mer_svd_512",
+                    "e06_tfidf_vocabulary",
+                    "e06_tfidf_svd_state",
+                    "e06_dna_manifest_tfidf_6mer_svd_512",
+                ],
+                name="fit_population_dna_features",
+                tags=["e06", "e06-tfidf"],
+            ),
+            node(
+                nodes.extract_selected_text_features,
+                inputs=[
+                    "e06_pairs",
+                    "e06_queries",
+                    "e06_input_manifest",
+                    "params:e06_modeling_features",
+                ],
+                outputs=[
+                    "e06_text_features_qwen3_embedding_0_6b",
+                    "e06_text_manifest_qwen3_embedding_0_6b",
+                ],
+                name="extract_population_text_features",
+                tags=["e06", "e06-qwen", "gpu"],
+            ),
         ]
     )
     return source_data + selected_data

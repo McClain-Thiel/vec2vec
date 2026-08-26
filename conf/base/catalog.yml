@@ -409,3 +409,68 @@ e05_composition_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e05/composition_report.json
   versioned: true
+
+e06_pairs:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e06/pairs.parquet
+  versioned: true
+
+e06_exclusions:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e06/exclusions.parquet
+  versioned: true
+
+e06_queries:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e06/queries.parquet
+  versioned: true
+
+e06_query_states:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e06/query_states.parquet
+  versioned: true
+
+e06_input_manifest:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e06/input_manifest.json
+  versioned: true
+
+e06_dna_features_tfidf_6mer_svd_512:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/e06/dna_features.parquet
+  versioned: true
+
+e06_dna_manifest_tfidf_6mer_svd_512:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e06/dna_manifest.json
+  versioned: true
+
+e06_tfidf_vocabulary:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e06/tfidf_vocabulary.parquet
+  versioned: true
+
+e06_tfidf_svd_state:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e06/tfidf_svd_state.parquet
+  versioned: true
+
+e06_text_features_qwen3_embedding_0_6b:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/e06/text_features.parquet
+  versioned: true
+
+e06_text_manifest_qwen3_embedding_0_6b:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e06/text_manifest.json
+  versioned: true
+
+e06_composition_summary:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e06/composition_summary.parquet
+  versioned: true
+
+e06_composition_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e06/composition_report.json
+  versioned: true

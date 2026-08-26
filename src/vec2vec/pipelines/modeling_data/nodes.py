@@ -72,10 +72,13 @@ def fit_selected_dna_features(
     features, vocabulary, state, summary = fixed_representation_features.fit_tfidf_dna_features(
         pairs, input_manifest, params
     )
-    expected = params["expected_feature_artifact_hashes"]["tfidf_6mer_svd_512"]
-    if summary["output_hashes"] != expected:
-        raise ValueError("TF-IDF feature artifacts changed from the accepted content hashes")
-    return features, vocabulary, state, _feature_manifest(summary, params, compute=None)
+    accepted = _feature_acceptance_status(summary, params, "tfidf_6mer_svd_512")
+    return (
+        features,
+        vocabulary,
+        state,
+        _feature_manifest(summary, params, compute=None, accepted=accepted),
+    )
 
 
 def extract_selected_text_features(
@@ -85,7 +88,7 @@ def extract_selected_text_features(
     params: dict[str, Any],
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Extract the selected Qwen document and query embeddings."""
-    stage = f"text_features:{QWEN_CANDIDATE}"
+    stage = str(params.get("compute_stage", f"text_features:{QWEN_CANDIDATE}"))
     compute = fixed_representation_bakeoff.validated_compute_authorization(params, stage=stage)
     deadline = time.monotonic() + float(compute["instance_hour_limit"]) * 3600.0
     features, summary = fixed_representation_features.extract_text_features(
@@ -96,10 +99,8 @@ def extract_selected_text_features(
         QWEN_CANDIDATE,
         deadline_monotonic=deadline,
     )
-    expected = params["expected_feature_artifact_hashes"][QWEN_CANDIDATE]
-    if summary["output_hashes"] != expected:
-        raise ValueError("Qwen features changed from the accepted content hash")
-    return features, _feature_manifest(summary, params, compute=compute)
+    accepted = _feature_acceptance_status(summary, params, QWEN_CANDIDATE)
+    return features, _feature_manifest(summary, params, compute=compute, accepted=accepted)
 
 
 def _feature_manifest(
@@ -107,8 +108,9 @@ def _feature_manifest(
     params: dict[str, Any],
     *,
     compute: dict[str, Any] | None,
+    accepted: bool | None = None,
 ) -> dict[str, Any]:
-    return {
+    manifest = {
         "protocol_version": str(params["protocol_version"]),
         "protocol": "modeling_data_v1",
         **summary,
@@ -121,6 +123,22 @@ def _feature_manifest(
         "runtime": _runtime_provenance(),
         "git": _git_provenance(),
     }
+    if accepted is not None:
+        manifest["artifact_status"] = "accepted" if accepted else "candidate_before_model_outcomes"
+    return manifest
+
+
+def _feature_acceptance_status(
+    summary: dict[str, Any], params: dict[str, Any], candidate_id: str
+) -> bool | None:
+    expected = params.get("expected_feature_artifact_hashes", {}).get(candidate_id)
+    if expected is None:
+        if params.get("artifact_status") != "candidate_before_model_outcomes":
+            raise ValueError(f"{candidate_id} has no frozen expected output hashes")
+        return False
+    if summary["output_hashes"] != expected:
+        raise ValueError(f"{candidate_id} feature artifacts changed from accepted hashes")
+    return True if "artifact_status" in params else None
 
 
 def _runtime_provenance() -> dict[str, Any]:
