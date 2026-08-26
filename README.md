@@ -20,11 +20,16 @@ On 80 unseen conjunctions, verified-set supervision improved utility@10 from `-0
 evidence for compositional generalization under the frozen linear-probe protocol, not final test
 performance.
 
+E06 expanded training from 20,000 to all 88,474 eligible rows and refit the selected features.
+Utility@10 improved from `-0.10167` to `0.17333`; the difference was `0.27500`, with interval
+`[0.18707, 0.33878]`. The E05 effect therefore survived the population-scale robustness check.
+The historical test split remains contaminated, so this is still exploratory validation evidence.
+
 The complete retained evidence is four tables:
 
 - [`results/encoders.csv`](results/encoders.csv): all 12 encoder pairs.
 - [`results/supervision.csv`](results/supervision.csv): paired versus set supervision.
-- [`results/composition.csv`](results/composition.csv): atomic-only training and unseen pairs.
+- [`results/composition.csv`](results/composition.csv): E05 and population-scale E06 unseen pairs.
 - [`results/artifacts.csv`](results/artifacts.csv): exact versions, hashes, locations, and failures.
 
 Regenerate and verify them from the accepted S3 reports:
@@ -43,9 +48,9 @@ python scripts/summarize_results.py --reproduce alignment \
   --instance-hour-limit <hours> --observed-instance-price-usd-per-hour <price>
 ```
 
-Use `--reproduce supervision` for the paired-versus-set comparison. Both stages require the exact
-Python 3.11.14 environment and NVIDIA L4 recorded in `result_reproduction`; install it with
-`uv sync --extra modeling`.
+Use `--reproduce supervision`, `composition`, or `scale` for the three supervision comparisons.
+All stages require the exact Python 3.11.14 environment and NVIDIA L4 recorded in
+`result_reproduction`; install it with `uv sync --extra modeling`.
 
 ## Data pipeline
 

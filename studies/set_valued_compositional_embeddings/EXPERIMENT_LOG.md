@@ -2610,3 +2610,25 @@ Input build, rejected feature attempt, and accepted retry used approximately 0.5
 instance-hours and `$0.68071`. The comparison is capped at 0.20 hours / `$0.26464`, keeping the
 combined hard ceiling at approximately `$0.94535`, below the original `$0.9924` authorization.
 No model outcome has been read.
+
+## 2026-08-26 14:14 BST — E06 population-scale comparison accepted
+
+The clean detached comparison at commit `962e12e` used all 88,474 eligible training rows, the
+unchanged 10,852-row validation gallery, 28 atomic training queries, and 80 unseen conjunctions.
+Paired-identity utility@10 was `-0.10167`; verified-set utility was `0.17333`. The improvement was
+`0.27500`, with paired whole-component interval `[0.18707, 0.33878]`, so the frozen rule passed.
+No test row was read. Independent W&B read-back found all six runs finished with the frozen E06
+group: `z3iklyeb`, `z12cfncc`, `2nw6hs66`, `mekvk889`, `jip3org4`, and `032oihq4`.
+
+S3 version `2026-08-26T13.06.51.803Z` passed independent report, summary, population, objective,
+seed, tracking, runtime, Git, metric, interval, and hash read-back. Report SHA-256 is
+`800e23597f209197835b9648c4663cc3d35e686d0ac59e04c50bf1838e015230`; summary SHA-256 is
+`135a3b10cbd70fd991331caa430e8fdbe6d2636b23d1fd8e30f9404d1acde764`. The comparison wrapper
+used 426.26 seconds and approximately `$0.15667`. The complete scoped E06 work, including input
+construction, the rejected feature attempt, accepted feature retry, and comparison, used
+approximately `$0.83739`, below the authorized `$0.9924` ceiling.
+
+E05 and E06 agree: verified-set supervision improves retrieval for unseen conjunctions under the
+frozen validation protocol, and the effect is not an artifact of the 20,000-row training sample.
+This remains exploratory because the historical test split is contaminated and no new raw-data
+snapshot exists for a clean confirmatory holdout.

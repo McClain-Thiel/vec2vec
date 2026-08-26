@@ -149,6 +149,30 @@ def test_scale_feature_loader_uses_e06_datasets() -> None:
     ]
 
 
+def test_composition_rows_add_scale_only_to_compact_table() -> None:
+    report = {
+        "comparison": {
+            "paired_identity": -0.1,
+            "verified_set": 0.2,
+            "verified_set_minus_paired_identity": 0.3,
+            "paired_component_bootstrap_95_interval": [0.1, 0.4],
+            "supports_set_supervision": True,
+        },
+        "population": {"training_rows": 88},
+        "tracking": [
+            {"objective": objective, "url": f"https://example.test/{objective}"}
+            for objective in ("paired_identity", "verified_set")
+        ],
+    }
+
+    persisted_rows = summarize_results._composition_rows(report)
+    table_rows = summarize_results._composition_rows(report, experiment="E06")
+
+    assert "experiment" not in persisted_rows[0]
+    assert table_rows[0]["experiment"] == "E06"
+    assert table_rows[0]["training_rows"] == 88
+
+
 def test_output_hash_verification_reports_changed_artifact() -> None:
     with pytest.raises(ValueError, match="recomputed artifact hashes differ"):
         summarize_results._verify_output_hashes({"metrics": "changed"}, {"metrics": "accepted"})

@@ -29,10 +29,15 @@ E05_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e05/composition_report.json/"
     "2026-08-26T11.49.24.525Z/composition_report.json"
 )
+E06_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e06/composition_report.json/"
+    "2026-08-26T13.06.51.803Z/composition_report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
     E05_REPORT: "182fb0dd75a1bd3159bc24b488e4921ff7dac1c6292352a408c8ff6d2d44082d",
+    E06_REPORT: "800e23597f209197835b9648c4663cc3d35e686d0ac59e04c50bf1838e015230",
 }
 
 
@@ -106,9 +111,10 @@ def _supervision_rows(report):
     ]
 
 
-def _composition_rows(report):
-    return [
-        {
+def _composition_rows(report, *, experiment=None):
+    rows = []
+    for row in _supervision_rows(report):
+        result = {
             "objective": row["objective"],
             "unseen_pair_utility_at_10": row["pair_utility_at_10"],
             "difference_vs_paired": row["difference_vs_paired"],
@@ -117,11 +123,17 @@ def _composition_rows(report):
             "decision": row["decision"],
             "wandb_runs": row["wandb_runs"],
         }
-        for row in _supervision_rows(report)
-    ]
+        if experiment is not None:
+            result = {
+                "experiment": experiment,
+                "training_rows": report["population"]["training_rows"],
+                **result,
+            }
+        rows.append(result)
+    return rows
 
 
-def _artifact_rows(e02b, gate2, e05):
+def _artifact_rows(e02b, gate2, e05, e06):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -221,6 +233,53 @@ def _artifact_rows(e02b, gate2, e05):
                 "note": "atomic-only training; 80 unseen conjunction queries",
             },
             {
+                "artifact": "e06_inputs",
+                "kind": "model_input",
+                "status": "accepted",
+                "version": "2026-08-26T12.24.14.212Z",
+                "sha256": "880cea9088d64720032fdd3b6ef70aa8d99e006908168f539fd432924e8c9362",
+                "location": "s3://plasmidclip/kedro/05_model_input/e06/",
+                "note": "88,474 train; 10,852 validation; no test rows",
+            },
+            {
+                "artifact": "e06_tfidf_6mer_svd_512",
+                "kind": "dna_features",
+                "status": "accepted",
+                "version": "2026-08-26T12.43.28.764Z",
+                "sha256": "4376e4e0cec03dcfa6665239436f396818648aab5ef2d7c9bfd518ad537e6fe0",
+                "location": "s3://plasmidclip/kedro/04_feature/e06/dna_features.parquet",
+                "note": "TF-IDF/SVD refit on the full eligible training population",
+            },
+            {
+                "artifact": "e06_qwen3_embedding_0_6b",
+                "kind": "text_features",
+                "status": "accepted",
+                "version": "2026-08-26T12.43.28.764Z",
+                "sha256": "9c131e45a457163f141e840056faf383a2ee0a7a84fc9a967e361d41aa5c2fce",
+                "location": "s3://plasmidclip/kedro/04_feature/e06/text_features.parquet",
+                "note": "expanded documents plus the unchanged query set",
+            },
+            {
+                "artifact": "e06_population_scale_report",
+                "kind": "report",
+                "status": "accepted",
+                "version": e06["execution"]["report_version"],
+                "sha256": REPORT_HASHES[E06_REPORT],
+                "location": E06_REPORT,
+                "note": "88,474-row atomic-only training; 80 unseen conjunction queries",
+            },
+            {
+                "artifact": "e06_first_feature_attempt",
+                "kind": "run",
+                "status": "failed",
+                "version": "2026-08-26",
+                "sha256": "",
+                "location": "/home/ubuntu/Projects/vec2vec-e06/e06-*-20260826.log",
+                "note": (
+                    "provenance capture rejected root-owned systemd context; no feature artifacts"
+                ),
+            },
+            {
                 "artifact": "generanno_partial",
                 "kind": "dna_features",
                 "status": "rejected",
@@ -268,7 +327,8 @@ def _generate_tables(args, *, check):
     e02b_hash = REPORT_HASHES.get(args.e02b_report)
     gate2_hash = REPORT_HASHES.get(args.gate2_report)
     e05_hash = REPORT_HASHES.get(args.e05_report)
-    if e02b_hash is None or gate2_hash is None or e05_hash is None:
+    e06_hash = REPORT_HASHES.get(args.e06_report)
+    if e02b_hash is None or gate2_hash is None or e05_hash is None or e06_hash is None:
         raise ValueError(
             "custom report paths require adding their accepted SHA-256 to REPORT_HASHES"
         )
@@ -276,11 +336,15 @@ def _generate_tables(args, *, check):
     e02b = _read_report(args.e02b_report, e02b_hash)
     gate2 = _read_report(args.gate2_report, gate2_hash)
     e05 = _read_report(args.e05_report, e05_hash)
+    e06 = _read_report(args.e06_report, e06_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
-        "composition.csv": _composition_rows(e05),
-        "artifacts.csv": _artifact_rows(e02b, gate2, e05),
+        "composition.csv": [
+            *_composition_rows(e05, experiment="E05"),
+            *_composition_rows(e06, experiment="E06"),
+        ],
+        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -447,6 +511,9 @@ def _run_reproduction(stage, authorization, output_dir):
             raise RuntimeError(f"W&B tracking did not complete: {failed_tracking}")
 
         if stage in {"composition", "scale"}:
+            _verify_output_hashes(
+                report["output_hashes"], config[section_name]["expected_output_hashes"]
+            )
             summary = pd.DataFrame(_composition_rows(report))
             result_prefix = "e06" if stage == "scale" else "e05"
             summary_dataset = f"{result_prefix}_composition_summary"
@@ -723,6 +790,7 @@ def main():
     parser.add_argument("--e02b-report", default=E02B_REPORT)
     parser.add_argument("--gate2-report", default=GATE2_REPORT)
     parser.add_argument("--e05-report", default=E05_REPORT)
+    parser.add_argument("--e06-report", default=E06_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--reproduce", choices=("alignment", "supervision", "composition", "scale"))
