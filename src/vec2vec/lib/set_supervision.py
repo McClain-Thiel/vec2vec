@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from typing import Any
 
 import numpy as np
@@ -57,7 +58,12 @@ def run_set_supervision_comparison(
         text_candidate=str(params["accepted_feature_artifacts"]["text"]["candidate_id"]),
         epsilon=float(params["probe"]["whitening_epsilon"]),
     )
-    verified = _training_verified_mask(train, ordered_queries, all_query_states, params)
+    training_queries, evaluation_queries, training_positions, evaluation_positions = (
+        _query_partitions(ordered_queries, params)
+    )
+    training_query_text = query_text[training_positions]
+    evaluation_query_text = query_text[evaluation_positions]
+    verified = _training_verified_mask(train, training_queries, all_query_states, params)
     objectives, seeds, cutoffs = _validate_axes(params, gallery_rows=len(gallery))
 
     checkpoints: list[pd.DataFrame] = []
@@ -75,7 +81,7 @@ def run_set_supervision_comparison(
             try:
                 state, history = alignment_probe.train_controlled_query_probe(
                     train_sequence,
-                    query_text,
+                    training_query_text,
                     verified,
                     objective=objective,
                     seed=seed,
@@ -93,11 +99,11 @@ def run_set_supervision_comparison(
                 raise
             history = history.assign(objective=objective, seed=seed)
             sequence_vectors = alignment_probe.project(gallery_sequence, state["sequence_head"])
-            query_vectors = alignment_probe.project(query_text, state["text_head"])
+            query_vectors = alignment_probe.project(evaluation_query_text, state["text_head"])
             ranking, query_metrics, scores = alignment_probe.query_rankings_and_metrics(
                 query_vectors,
                 sequence_vectors,
-                ordered_queries,
+                evaluation_queries,
                 gallery,
                 validation_states,
                 cutoffs=cutoffs,
@@ -116,7 +122,7 @@ def run_set_supervision_comparison(
             tracking_records.append(tracking)
         bootstrap = alignment_probe.whole_component_bootstrap_draws(
             objective_scores,
-            ordered_queries,
+            evaluation_queries,
             gallery,
             validation_states,
             k=int(params["primary_k"]),
@@ -164,9 +170,10 @@ def run_set_supervision_comparison(
         "population": {
             "training_rows": int(len(train)),
             "gallery_rows": int(len(gallery)),
-            "queries": int(len(ordered_queries)),
-            "atomic_queries": int(ordered_queries["query_kind"].eq("atomic").sum()),
-            "pair_queries": int(ordered_queries["query_kind"].eq("pair_conjunction").sum()),
+            "training_queries": int(len(training_queries)),
+            "evaluation_queries": int(len(evaluation_queries)),
+            "training_query_kinds": sorted(training_queries["query_kind"].unique().tolist()),
+            "evaluation_query_kinds": sorted(evaluation_queries["query_kind"].unique().tolist()),
             "minimum_training_verified_rows": int(verified.sum(axis=1).min()),
             "test_rows_read": False,
         },
@@ -174,7 +181,10 @@ def run_set_supervision_comparison(
         "comparison": _comparison(summary_table, bootstrap_table, params),
         "tracking": tracking_records,
         "output_hashes": output_hashes,
-        "decision": {"status": "gate2_validation_comparison_complete", "validation_only": True},
+        "decision": {
+            "status": str(params.get("completion_status", "validation_comparison_complete")),
+            "validation_only": True,
+        },
     }
     return (
         whitening_state,
@@ -186,6 +196,53 @@ def run_set_supervision_comparison(
         bootstrap_table,
         report,
     )
+
+
+def _query_partitions(
+    queries: pd.DataFrame, params: dict[str, Any]
+) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
+    training_kind = params.get("training_query_kind")
+    evaluation_kind = params.get("evaluation_query_kind")
+    if training_kind is None and evaluation_kind is None:
+        positions = np.arange(len(queries), dtype=np.int64)
+        return queries, queries, positions, positions
+    if (training_kind, evaluation_kind) != ("atomic", "pair_conjunction"):
+        raise ValueError(
+            "unseen-composition partitions must train on atomic and evaluate on pair queries"
+        )
+
+    training_positions = np.flatnonzero(queries["query_kind"].eq(training_kind).to_numpy())
+    evaluation_positions = np.flatnonzero(queries["query_kind"].eq(evaluation_kind).to_numpy())
+    training = queries.iloc[training_positions].reset_index(drop=True)
+    evaluation = queries.iloc[evaluation_positions].reset_index(drop=True)
+    expected_training = int(params["expected_training_queries"])
+    expected_evaluation = int(params["expected_evaluation_queries"])
+    if len(training) != expected_training or len(evaluation) != expected_evaluation:
+        raise ValueError(
+            "unseen-composition query counts changed: "
+            f"expected {expected_training}/{expected_evaluation}, "
+            f"observed {len(training)}/{len(evaluation)}"
+        )
+    if set(training["semantic_query_id"]) & set(evaluation["semantic_query_id"]):
+        raise ValueError("training and evaluation semantic queries overlap")
+    expected_split = str(params["expected_evaluation_controlled_split"])
+    if set(evaluation["controlled_split"].astype(str)) != {expected_split}:
+        raise ValueError("evaluation queries are not the frozen unseen conjunctions")
+
+    atomic_constraints = {
+        str(values[0])
+        for raw in training["constraint_ids_json"]
+        if len(values := json.loads(str(raw))) == 1
+    }
+    pair_constraints = [json.loads(str(raw)) for raw in evaluation["constraint_ids_json"]]
+    if len(atomic_constraints) != len(training):
+        raise ValueError("atomic training queries do not map one-to-one to constraints")
+    if any(
+        len(values) != 2 or not set(map(str, values)) <= atomic_constraints
+        for values in pair_constraints
+    ):
+        raise ValueError("an evaluation conjunction contains an unseen atomic constraint")
+    return training, evaluation, training_positions, evaluation_positions
 
 
 def _prepare_matrices(
@@ -411,16 +468,20 @@ def _start_wandb(
     try:
         import wandb
 
+        run_prefix = str(params.get("run_name_prefix", "gate2"))
         run = wandb.init(
             project=str(tracking["project"]),
             entity=tracking.get("entity"),
-            name=f"gate2-{objective}-seed-{seed}",
+            name=f"{run_prefix}-{objective}-seed-{seed}",
             group=str(tracking["group"]),
             tags=list(tracking["tags"]),
             config={
                 "protocol_version": str(params["protocol_version"]),
                 "objective": objective,
                 "seed": seed,
+                "training_query_kind": params.get("training_query_kind", "all"),
+                "evaluation_query_kind": params.get("evaluation_query_kind", "all"),
+                "precision": str(params.get("precision", "float32")),
                 "probe": dict(params["probe"]),
                 "input_versions": dict(params["input_versions"]),
             },

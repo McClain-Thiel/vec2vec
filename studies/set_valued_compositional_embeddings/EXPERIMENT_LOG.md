@@ -2510,3 +2510,19 @@ difference was `0.17917`, with whole-component interval `[0.10375, 0.25294]`, so
 rule passed. All six W&B runs completed. The accepted clean run used commit `fe6fbaec`, 208.7
 wrapper seconds, and `$0.07672`; total measured cost including a 1.15-second pre-data wrapper
 failure was `$0.07714`. The failed wrapper log remains on `g6-big`.
+
+## 2026-08-26 — E05 unseen-composition comparison preregistered
+
+E05 asks whether the Gate 2 benefit survives when conjunctions are genuinely absent from
+training. Both objectives use the frozen 20,000-row panel, TF-IDF/SVD DNA, Qwen3 text, 28 atomic
+queries, 300 updates, and seeds 13, 42, and 20260818. All 80 evaluation queries are the existing
+`atoms_seen_conjunction_unseen` pairs; every constituent atom is trained, no pair-query vector or
+pair label is trained, and the 10,852-row validation gallery shares zero similarity components
+with training. No test row may be read.
+
+The primary endpoint is pair-query utility@10. Verified-set supervision passes only if its mean
+improvement over paired identity is at least `0.01` and the lower bound of the paired 2,000-draw
+whole-component 95% bootstrap interval is above zero. The user authorized the clean detached run
+on the existing `g6.4xlarge` L4 under reference
+`chat-2026-08-26-e05-unseen-composition`, capped at 0.5 instance-hours and `$0.6616`. W&B group
+`e05-unseen-composition-v0.1` is required; exact outputs and failures go to the E05 S3 report.

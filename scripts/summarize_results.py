@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 import fsspec
+import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -83,8 +84,8 @@ def _supervision_rows(report):
             "objective": "paired_identity",
             "pair_utility_at_10": result["paired_identity"],
             "difference_vs_paired": 0.0,
-            "difference_interval_lower": "",
-            "difference_interval_upper": "",
+            "difference_interval_lower": None,
+            "difference_interval_upper": None,
             "decision": "baseline",
             "wandb_runs": urls["paired_identity"],
         },
@@ -97,6 +98,21 @@ def _supervision_rows(report):
             "decision": "accepted" if result["supports_set_supervision"] else "rejected",
             "wandb_runs": urls["verified_set"],
         },
+    ]
+
+
+def _composition_rows(report):
+    return [
+        {
+            "objective": row["objective"],
+            "unseen_pair_utility_at_10": row["pair_utility_at_10"],
+            "difference_vs_paired": row["difference_vs_paired"],
+            "difference_interval_lower": row["difference_interval_lower"],
+            "difference_interval_upper": row["difference_interval_upper"],
+            "decision": row["decision"],
+            "wandb_runs": row["wandb_runs"],
+        }
+        for row in _supervision_rows(report)
     ]
 
 
@@ -378,7 +394,13 @@ def _run_reproduction(stage, authorization, output_dir):
         query_version = str(inputs["query_benchmark_version"])
         all_query_states = catalog.load("e00_query_candidate_state", version=query_version)
         query_manifest = catalog.load("e00_query_benchmark_manifest", version=query_version)
-        *_, report = set_supervision.run_set_supervision_comparison(
+        section_name = "composition" if stage == "composition" else "supervision"
+        if stage == "composition":
+            _validate_frozen_authorization(
+                authorization, config["composition"]["compute_authorization"]
+            )
+        stage_started = time.perf_counter()
+        outputs = set_supervision.run_set_supervision_comparison(
             pairs,
             queries,
             validation_states,
@@ -389,15 +411,61 @@ def _run_reproduction(stage, authorization, output_dir):
             dna_manifests["tfidf_6mer_svd_512"],
             text_features["qwen3_embedding_0_6b"],
             text_manifests["qwen3_embedding_0_6b"],
-            _supervision_params(config),
+            _supervision_params(config, section_name=section_name),
             deadline_monotonic=deadline,
         )
-        _verify_output_hashes(
-            report["output_hashes"], config["supervision"]["expected_output_hashes"]
-        )
+        *_, report = outputs
+        elapsed = time.perf_counter() - stage_started
         failed_tracking = [row for row in report["tracking"] if row.get("status") != "complete"]
         if failed_tracking:
             raise RuntimeError(f"W&B tracking did not complete: {failed_tracking}")
+
+        if stage == "composition":
+            summary = pd.DataFrame(_composition_rows(report))
+            summary_version = catalog.get("e05_composition_summary").resolve_save_version()
+            report_version = catalog.get("e05_composition_report").resolve_save_version()
+            git_commit, git_dirty = _git_state()
+            if git_dirty:
+                raise RuntimeError("E05 must run from a clean Git checkout")
+            report["execution"] = {
+                **authorization,
+                "maximum_cost_usd": (
+                    authorization["instance_hour_limit"]
+                    * authorization["observed_instance_price_usd_per_hour"]
+                ),
+                "stage_elapsed_seconds": elapsed,
+                "stage_cost_usd": (
+                    elapsed / 3600.0 * authorization["observed_instance_price_usd_per_hour"]
+                ),
+                "git_commit": git_commit,
+                "git_dirty": False,
+                "runtime": config["runtime"],
+                "summary_version": summary_version,
+                "report_version": report_version,
+            }
+            catalog.save("e05_composition_summary", summary)
+            catalog.save("e05_composition_report", report)
+            _write_or_check(
+                output_dir / "composition.csv", _csv_text(summary.to_dict("records")), False
+            )
+            print(
+                json.dumps(
+                    {
+                        "status": "e05_unseen_composition_complete",
+                        "comparison": report["comparison"],
+                        "output_hashes": report["output_hashes"],
+                        "tracking": report["tracking"],
+                        "execution": report["execution"],
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            return
+
+        _verify_output_hashes(
+            report["output_hashes"], config["supervision"]["expected_output_hashes"]
+        )
         _verify_result_table(
             output_dir / "supervision.csv",
             _supervision_rows(report),
@@ -446,6 +514,7 @@ def _alignment_params(config):
         "protocol_version": section["protocol_version"],
         "training_rows": section["training_rows"],
         "device": section["device"],
+        "precision": section.get("precision", "float32"),
         "tfidf": {"candidate_id": "tfidf_6mer_svd_512"},
         "dna_candidates": {
             candidate_id: {}
@@ -462,12 +531,12 @@ def _alignment_params(config):
     }
 
 
-def _supervision_params(config):
-    section = config["supervision"]
+def _supervision_params(config, *, section_name="supervision"):
+    section = config[section_name]
     inputs = config["inputs"]
     dna = config["features"]["dna"]["tfidf_6mer_svd_512"]
     text = config["features"]["text"]["qwen3_embedding_0_6b"]
-    return {
+    params = {
         "protocol_version": section["protocol_version"],
         "protocol_path": "studies/set_valued_compositional_embeddings/EXPERIMENT_LOG.md",
         "input_versions": {
@@ -494,6 +563,45 @@ def _supervision_params(config):
         "probe": section["probe"],
         "tracking": section["tracking"],
     }
+    if section_name == "composition":
+        params.update(
+            training_query_kind=section["training_query_kind"],
+            evaluation_query_kind=section["evaluation_query_kind"],
+            expected_training_queries=section["expected_training_queries"],
+            expected_evaluation_queries=section["expected_evaluation_queries"],
+            expected_evaluation_controlled_split=section["expected_evaluation_controlled_split"],
+            completion_status="e05_unseen_composition_complete",
+            run_name_prefix="e05",
+        )
+    return params
+
+
+def _validate_frozen_authorization(observed, expected):
+    differences = {
+        name: {"expected": expected.get(name), "observed": observed.get(name)}
+        for name in expected
+        if observed.get(name) != expected.get(name)
+    }
+    if differences:
+        raise ValueError(f"compute authorization differs from frozen E05 contract: {differences}")
+
+
+def _git_state():
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return commit, bool(status.strip())
 
 
 def _validate_runtime(expected):
@@ -552,7 +660,7 @@ def main():
     parser.add_argument("--gate2-report", default=GATE2_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
-    parser.add_argument("--reproduce", choices=("alignment", "supervision"))
+    parser.add_argument("--reproduce", choices=("alignment", "supervision", "composition"))
     parser.add_argument("--approval-reference")
     parser.add_argument("--region")
     parser.add_argument("--instance-type")

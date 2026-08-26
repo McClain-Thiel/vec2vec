@@ -47,6 +47,22 @@ def _config():
             "probe": {"seeds": [13, 42, 20260818]},
             "tracking": {"enabled": True},
         },
+        "composition": {
+            "protocol_version": "composition-v1",
+            "training_rows": 20,
+            "training_query_kind": "atomic",
+            "evaluation_query_kind": "pair_conjunction",
+            "expected_training_queries": 2,
+            "expected_evaluation_queries": 3,
+            "expected_evaluation_controlled_split": "atoms_seen_conjunction_unseen",
+            "minimum_training_verified_rows": 2,
+            "objectives": ["paired_identity", "verified_set"],
+            "device": "cuda",
+            "primary_k": 10,
+            "minimum_practical_improvement": 0.01,
+            "probe": {"seeds": [13, 42, 20260818]},
+            "tracking": {"enabled": True},
+        },
     }
 
 
@@ -79,6 +95,11 @@ def test_reproduction_parameters_bind_frozen_inputs_and_features() -> None:
     assert supervision["expected_training_query_states_sha256"] == "states-hash"
     assert supervision["input_versions"]["text_features"] == "qwen-v1"
 
+    composition = summarize_results._supervision_params(config, section_name="composition")
+    assert composition["training_query_kind"] == "atomic"
+    assert composition["evaluation_query_kind"] == "pair_conjunction"
+    assert composition["run_name_prefix"] == "e05"
+
 
 def test_output_hash_verification_reports_changed_artifact() -> None:
     with pytest.raises(ValueError, match="recomputed artifact hashes differ"):
@@ -107,3 +128,19 @@ def test_paid_reproduction_requires_explicit_authorization() -> None:
 
     with pytest.raises(ValueError, match="approval-reference"):
         summarize_results._authorization(arguments)
+
+
+def test_e05_authorization_must_match_frozen_contract() -> None:
+    expected = {
+        "approval_reference": "approval",
+        "region": "us-east-1",
+        "instance_type": "g6.4xlarge",
+        "instance_hour_limit": 0.5,
+        "observed_instance_price_usd_per_hour": 1.3232,
+    }
+
+    summarize_results._validate_frozen_authorization(expected, expected)
+    with pytest.raises(ValueError, match="differs from frozen"):
+        summarize_results._validate_frozen_authorization(
+            {**expected, "instance_hour_limit": 1.0}, expected
+        )

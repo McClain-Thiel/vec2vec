@@ -397,6 +397,7 @@ result_reproduction:
     minimum_training_verified_rows: 20
     objectives: [paired_identity, verified_set]
     device: cuda
+    precision: float32
     primary_k: 10
     minimum_practical_improvement: 0.01
     probe:
@@ -425,3 +426,43 @@ result_reproduction:
       query_metrics_sha256: 88b4df46fa8be43f250d17d939f99a2025016f92b7dfa850fd4ccd234b6a69e3
       query_summaries_sha256: 89cff8b1dab219a3f063f741d18e63fb80cd770436c6b27f168ca1ef83705e89
       bootstrap_draws_sha256: 65e92e69902847c945e73701d64d9a4c7a87e218f57b74f93e10cc6e49f45a4d
+  composition:
+    protocol_version: e05-unseen-composition-v0.1
+    training_rows: 20000
+    training_query_kind: atomic
+    evaluation_query_kind: pair_conjunction
+    expected_training_queries: 28
+    expected_evaluation_queries: 80
+    expected_evaluation_controlled_split: atoms_seen_conjunction_unseen
+    minimum_training_verified_rows: 20
+    objectives: [paired_identity, verified_set]
+    device: cuda
+    precision: float32
+    primary_k: 10
+    minimum_practical_improvement: 0.01
+    probe:
+      seeds: [13, 42, 20260818]
+      projection_dimension: 512
+      whitening_epsilon: 0.000001
+      updates: 300
+      learning_rate: 0.001
+      weight_decay: 0.01
+      initial_temperature: 0.07
+      maximum_logit_scale: 100.0
+      cutoffs: [1, 5, 10, 50]
+      bootstrap_draws: 2000
+      bootstrap_seed: 20260818
+    tracking:
+      enabled: true
+      project: vec2vec
+      entity: null
+      group: e05-unseen-composition-v0.1
+      tags: [set-supervision, unseen-composition, e05, validation-only]
+    compute_authorization:
+      approval_reference: chat-2026-08-26-e05-unseen-composition
+      region: us-east-1
+      instance_type: g6.4xlarge
+      instance_hour_limit: 0.5
+      observed_instance_price_usd_per_hour: 1.3232
+    expected_output_hashes: null
+    accepted_run_artifact: null

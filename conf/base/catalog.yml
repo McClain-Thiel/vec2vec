@@ -399,3 +399,13 @@ e02b_text_manifest_qwen3_embedding_0_6b:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e02b/text_manifest.json
   versioned: true
+
+e05_composition_summary:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e05/composition_summary.parquet
+  versioned: true
+
+e05_composition_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e05/composition_report.json
+  versioned: true
