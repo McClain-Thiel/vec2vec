@@ -47,29 +47,3 @@ audit:
   max_order: 3
   seed: 17
   examples_per_order: 20
-
-# E00 profiles these fields without yet deciding their biological semantics.
-constraint_semantics:
-  fields:
-    - vector_types
-    - bacterial_resistance
-    - insert_species
-    - plasmid_copy
-    - growth_strain
-    - growth_temp
-    - insert_genes
-    - insert_mutations
-    - insert_tags
-    - insert_promoters
-  split_labels: [train, val, test]
-  support:
-    minimum_rows: 10
-    minimum_components: 2
-  plannotate:
-    expected_source: plannotate
-    # The current normalized artifact does not contain these provenance values.
-    # Keep them null so the profile reports the gap instead of inventing values.
-    software_version: null
-    database_version: null
-    circular_setting: null
-    coordinate_convention: source_qstart_qend_preserved_uninterpreted

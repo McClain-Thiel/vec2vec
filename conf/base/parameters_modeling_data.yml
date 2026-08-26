@@ -1,0 +1,427 @@
+# Frozen contracts for the one pipeline that creates the selected model inputs.
+
+constraint_state:
+  state_version: e00-plasmid-constraint-state-v0.1
+  input_retrieval_version: 2026-08-04T09.02.10.007Z
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  expected_state_input_sha256: 65feac686141b7c9a22179324a9c84a87e28e14f2d044aa56f6b92f147c2d376
+  expected_rule_contract_sha256: aab672e2a0d64cd1b6c90daf90c6429367bc3861612781b6de4cfc45f47dbfa2
+  expected_output_content_hashes:
+    vocabulary_sha256: e60a91d7cf2e415db28ebc66caf0c66e20decdb7999ae445c55b22b39e6533f8
+    states_sha256: 571b45e807e21f74699a5400faf7b20678df7d9595de3ef591a981e2a34d3208
+  allowed_splits: [train, val, test]
+  training_split: train
+  conflict_groups:
+    - name: addgene_copy_class_high_vs_low
+      conflict_rule_id: addgene_copy_class_conflict.v0_1
+      facet: addgene_copy_class
+      relation: reported_as
+      rule_id: addgene_copy_class.v0_1
+      values: [high, low]
+    - name: addgene_growth_temperature_30_vs_37
+      conflict_rule_id: addgene_growth_temperature_conflict.v0_1
+      facet: addgene_growth_temperature
+      relation: reported_for_propagation_at
+      rule_id: addgene_growth_temperature.v0_2
+      values: [30_c, 37_c]
+
+constraint_evidence:
+  enabled_sections:
+    copy_class: [included]
+    growth_temperature: [included]
+    bacterial_selection: [included, reviewed_mappings]
+    intended_use: [expression_included, use_included]
+
+constraint_mappings:
+  copy_class:
+    rule_id: addgene_copy_class.v0_1
+    facet: addgene_copy_class
+    relation: reported_as
+    included:
+      High Copy: [high]
+      Low Copy: [low]
+  growth_temperature:
+    rule_id: addgene_growth_temperature.v0_2
+    facet: addgene_growth_temperature
+    relation: reported_for_propagation_at
+    included:
+      "30": [30_c]
+      "37": [37_c]
+  bacterial_selection:
+    rule_id: bacterial_selection_marker.v0_2
+    facet: bacterial_selection_marker
+    relation: reported_selection_includes
+    included:
+      Ampicillin: [ampicillin]
+      Kanamycin: [kanamycin]
+      Spectinomycin: [spectinomycin]
+      Chloramphenicol: [chloramphenicol]
+      Chloramphenicol and Ampicillin: [chloramphenicol, ampicillin]
+      Gentamicin: [gentamicin]
+      Tetracycline: [tetracycline]
+      Ampicillin and Kanamycin: [ampicillin, kanamycin]
+      Bleocin (Zeocin): [bleocin_zeocin]
+      Chloramphenicol and Kanamycin: [chloramphenicol, kanamycin]
+      Apramycin: [apramycin]
+      Streptomycin: [streptomycin]
+      Chloramphenicol and Spectinomycin: [chloramphenicol, spectinomycin]
+      Hygromycin: [hygromycin]
+      Spectinomycin and Streptomycin: [spectinomycin, streptomycin]
+      Ampicillin and Gentamicin: [ampicillin, gentamicin]
+      Nourseothricin (clonNat): [nourseothricin_clonnat]
+      Erythromycin: [erythromycin]
+      Chloramphenicol and Gentamicin: [chloramphenicol, gentamicin]
+      Ampicillin and Tetracycline: [ampicillin, tetracycline]
+      Chloramphenicol and Tetracycline: [chloramphenicol, tetracycline]
+      Ampicillin and Bleocin (Zeocin): [ampicillin, bleocin_zeocin]
+      Ampicillin and Spectinomycin: [ampicillin, spectinomycin]
+      Kanamycin and Gentamicin: [kanamycin, gentamicin]
+      Blasticidin: [blasticidin]
+      Kanamycin and Spectinomycin: [kanamycin, spectinomycin]
+      Chloramphenicol and Bleocin (Zeocin): [chloramphenicol, bleocin_zeocin]
+      Ampicillin and Streptomycin: [ampicillin, streptomycin]
+      Apramycin and Chloramphenicol: [apramycin, chloramphenicol]
+      Chloramphenicol and Hygromycin: [chloramphenicol, hygromycin]
+      Chloramphenicol and Erythromycin: [chloramphenicol, erythromycin]
+      Gentamicin and Spectinomycin: [gentamicin, spectinomycin]
+      Spectinomycin and Tetracycline: [spectinomycin, tetracycline]
+    reviewed_mappings:
+      Trimethoprim:
+        canonical_values: [trimethoprim]
+        interpretation: >-
+          Trimethoprim is written in full and is mapped directly to the trimethoprim
+          antibiotic-selection marker.
+      Kan + DAP:
+        canonical_values: [kanamycin]
+        interpretation: >-
+          Kan means kanamycin. DAP means diaminopimelic acid, which is a growth requirement and is
+          not mapped as an antibiotic-resistance marker.
+      Amp + Kan + Dap:
+        canonical_values: [ampicillin, kanamycin]
+        interpretation: >-
+          Amp means ampicillin and Kan means kanamycin. Dap means diaminopimelic acid, which is a
+          growth requirement and is not mapped as an antibiotic-resistance marker.
+      Amp + Chl + Dap:
+        canonical_values: [ampicillin, chloramphenicol]
+        interpretation: >-
+          Amp means ampicillin and Chl means chloramphenicol. Dap means diaminopimelic acid, which
+          is a growth requirement and is not mapped as an antibiotic-resistance marker.
+      Erythromycin (200 μg/mL), Kanamycin (50 μg/mL):
+        canonical_values: [erythromycin, kanamycin]
+        interpretation: >-
+          The complete source cell names erythromycin at 200 micrograms per millilitre and
+          kanamycin at 50 micrograms per millilitre. Both antibiotic names are mapped. The doses
+          remain in the preserved raw value.
+  intended_use:
+    rule_id: addgene_intended_use.v0_1
+    expression_facet: addgene_expression_context
+    expression_relation: tagged_for_expression_in
+    expression_included:
+      Mammalian Expression: [mammalian]
+      Bacterial Expression: [bacterial]
+      Yeast Expression: [yeast]
+      Worm Expression: [worm]
+      Insect Expression: [insect]
+      Plant Expression: [plant]
+    use_facet: addgene_use_category
+    use_relation: tagged_for
+    use_included:
+      Lentiviral: [lentiviral]
+      Retroviral: [retroviral]
+      AAV: [aav]
+      RNAi: [rnai]
+      Luciferase: [luciferase]
+      Cre/Lox: [cre_lox]
+      Mouse Targeting: [mouse_targeting]
+      CRISPR: [crispr]
+      TALEN: [talen]
+      Synthetic Biology: [synthetic_biology]
+      Affinity Reagent/ Antibody: [affinity_reagent_antibody]
+
+similarity_graph:
+  graph_version: global_similarity_graph_v0.1
+  input_retrieval_version: 2026-08-04T09.02.10.007Z
+  calibration_artifact_version: 2026-08-10T09.34.59.159Z
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  expected_output_content_hashes:
+    edges_sha256: 6d2691a54153150d68100c20fe6cf9a9e5bb7dc8ebd028ef39c96d261253598e
+    nodes_sha256: 00015830acd0ab0eb9b68658fdd4365a68aa11a92dbff9a44c1575ef81fe1d09
+    components_sha256: 034654d382ac8ce228704ff1717191ec0115fea3323aa3e1577b8373377c6f34
+    query_profile_sha256: 193df7eb71f8ce6181ee8114fb5e7b4956f5e9521309658307a105657c65c915
+    runs_sha256: 624a27afa6ee3f491931517d8d57815dbd4ce6676912e7c876fe8926783cdad8
+  candidate_search:
+    executable: minimap2
+    expected_tool_version: 2.31-r1302
+    preset: asm20
+    query_repeat: 2
+    minimum_secondary_score_ratio: 0.5
+    normal_cap: 1000
+    adaptive_cap: 10000
+    minimum_approximate_query_coverage: 0.80
+    minimum_approximate_subject_coverage: 0.80
+    minimum_length_ratio: 0.90
+    maximum_approximate_divergence: 0.10
+  exact_search:
+    normal_cap: 1000
+    adaptive_cap: 10000
+    primary_rule:
+      minimum_identity: 0.99
+      minimum_query_coverage: 0.95
+      minimum_subject_coverage: 0.95
+      minimum_length_ratio: 0.95
+    sensitivity_rule:
+      minimum_identity: 0.95
+      minimum_query_coverage: 0.90
+      minimum_subject_coverage: 0.90
+      minimum_length_ratio: 0.90
+  execution:
+    ray_workers: 8
+    threads_per_worker: 4
+    shard_queries: 128
+    adaptive_shard_queries: 32
+    retry_uncheckpointed_exact_shard_queries: 32
+    retry_uncheckpointed_adaptive_exact_shard_queries: 1
+    task_timeout_seconds: 1800
+    full_run_wall_limit_seconds: 43200
+    maximum_task_output_bytes: 2000000000
+    minimum_free_disk_bytes: 100000000000
+    scratch_root: data/09_scratch/similarity_graph
+    maximum_cpu_hours: 500
+    maximum_persisted_bytes: 250000000000
+
+similarity_split:
+  protocol_version: split_grouped_v2_v0.1
+  input_retrieval_version: 2026-08-04T09.02.10.007Z
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  expected_output_content_hashes:
+    mapping_sha256: 403c5bf6fec3afcc47d71ea302796c737609eefc47b49ea85ebd3c1ffaba5628
+    component_profile_sha256: 661d746f7a84bc4243ced1355787e1bbaacc9901a9e0d7c6464191def4f95985
+    cross_edges_sha256: 7b433cdb328037392ebd22dad9d074064f09ba54f5ea3f76a90597d6ad59d9bb
+  train_fraction: 0.8
+  val_fraction: 0.1
+  seed: 42
+
+query_benchmark:
+  benchmark_version: e00-query-benchmark-v0.1
+  canonical_text_revision: canonical-symbolic-v0.1
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  expected_constraint_artifact_hashes:
+    vocabulary_sha256: e60a91d7cf2e415db28ebc66caf0c66e20decdb7999ae445c55b22b39e6533f8
+    states_sha256: 571b45e807e21f74699a5400faf7b20678df7d9595de3ef591a981e2a34d3208
+  expected_output_content_hashes:
+    query_catalog_sha256: 72e2ed5576c10647c17ede29b4c45e6fd9cf7c19c2bb195279e6a329a54a2fd1
+    candidate_galleries_sha256: d7539fd866943ea1e25adf67d848ab1b7dcb3977963f82591260ed67c8854cde
+    query_candidate_state_sha256: cd6fc783a497a47f0c90ea3e601c34ecfef1022d814a8dae58e2662450d3afaf
+    candidate_base_mass_sha256: 3f8be92fe3c81219cf4d97f6c01cd89516a35dbfb78e270b772c3f2fad38c6cd
+    control_rankings_sha256: 3c14dbfd9b2c79d7fbe197408041b78708386aff504f4b45289470cb4e982c43
+    control_metrics_sha256: 76c19e31aa170d4ca047642145e48d092b8ea10b2801e4bef64c57eabe525575
+  minimum_atomic_train_verified_rows: 20
+  minimum_atomic_train_verified_components: 5
+  minimum_pair_train_verified_rows: 20
+  minimum_pair_train_verified_components: 5
+  minimum_train_contradicted_rows: 20
+  minimum_train_contradicted_components: 5
+  minimum_gallery_verified_rows_for_measurement: 10
+  minimum_gallery_verified_components_for_measurement: 2
+  minimum_gallery_contradicted_rows_for_control: 10
+  minimum_gallery_contradicted_components_for_control: 2
+  minimum_usable_atomic_queries_each_closed_eval: 10
+  minimum_usable_pair_queries_each_closed_eval: 20
+  minimum_usable_pair_contradiction_controls_each_closed_eval: 20
+  evaluation_splits: [val, test]
+  top_k: [1, 5, 10, 50]
+  random_seed: 42
+
+modeling_features:
+  protocol_version: modeling_data_v1
+  expected_input_population_sha256: 7e54ca3f9a3fe9f5e4afbffbdc458437665caf781e729ec33655f96381e446a5
+  expected_query_artifact_hashes:
+    query_catalog_sha256: 72e2ed5576c10647c17ede29b4c45e6fd9cf7c19c2bb195279e6a329a54a2fd1
+    query_candidate_state_sha256: cd6fc783a497a47f0c90ea3e601c34ecfef1022d814a8dae58e2662450d3afaf
+  eligible_sequence_alphabet: ACGT
+  training_rows: 20000
+  maximum_rows_per_component: 100
+  selection_salt: fixed_representation_bakeoff_e02b_v0.1:alignment_train
+  minimum_verified_rows: 10
+  expected_input_artifact_hashes:
+    pairs_sha256: cc7690d9bc979028dd3af0e292b715f6c7c391daac269be0fc5a7b7c17a86aa9
+    exclusions_sha256: f4b561f3a8173c75b7619d27b222924118afddfb3391f21e20346a48a242bf45
+    queries_sha256: a440e26a32468a9e613aaa2034b476b453a8bae988c08128df3f14f251c4552c
+    query_states_sha256: 06afff85e1d4b3d96f7c62eeadd3ba50892b26cae558aec64a5bcba41c37ce8b
+  accepted_input_artifact:
+    pairs_sha256: cc7690d9bc979028dd3af0e292b715f6c7c391daac269be0fc5a7b7c17a86aa9
+  expected_feature_artifact_hashes:
+    tfidf_6mer_svd_512:
+      features_sha256: d783f66cb234bd228d9de304884b23849d75d9b5eef2a7510d61b0cc83486a41
+      vocabulary_sha256: 39b75ff9154f34f2265971d9cb623dcb5215f8d693b3a914607a7bfb531be6e6
+      svd_state_sha256: dcdddf96c4aed4d3706afd19d902e61b885f1b6b6896cbd0b7a7176d5b016b25
+    qwen3_embedding_0_6b:
+      features_sha256: c5cbf04e7d034ea4dbe0ad874adc728e6d8ae8c75ee7cbac278cbb7c44218d8d
+  device: cuda
+  precision: bfloat16
+  seed: 20260818
+  text_candidates:
+    qwen3_embedding_0_6b:
+      model_id: Qwen/Qwen3-Embedding-0.6B
+      revision: 97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3
+      transformers_version: 5.12.1
+      trust_remote_code: false
+      max_tokens: 32768
+      pooling: last_token
+      document_prefix: ""
+      query_prefix: "Instruct: Given a plasmid constraint query, retrieve plasmid descriptions that satisfy the recorded constraint\nQuery:"
+      normalize: true
+      attention_implementation: sdpa
+      batch_size: 32
+  tfidf:
+    candidate_id: tfidf_6mer_svd_512
+    analyzer: char
+    ngram_size: 6
+    lowercase: false
+    norm: l2
+    use_idf: true
+    smooth_idf: true
+    sublinear_tf: false
+    svd_components: 512
+    svd_algorithm: randomized
+    svd_iterations: 7
+    seed: 20260818
+  # A paid run must inject this complete block after explicit user approval.
+  compute_authorization: null
+
+# Minimal executable contract for recomputing the two accepted result tables from frozen S3
+# feature artifacts. The large feature tables remain data inputs; this block freezes their exact
+# identities and the numerical protocols applied to them.
+result_reproduction:
+  runtime:
+    python: 3.11.14
+    machine: x86_64
+    gpu_name: NVIDIA L4
+    packages:
+      accelerate: 1.14.0
+      fsspec: 2026.7.0
+      huggingface-hub: 1.28.0
+      numpy: 2.4.6
+      pandas: 3.0.5
+      pyarrow: 25.0.1
+      s3fs: 2026.7.0
+      scikit-learn: 1.9.0
+      torch: 2.11.0
+      transformers: 5.12.1
+      wandb: 0.28.2
+  inputs:
+    e02b_version: 2026-08-23T14.16.15.778Z
+    query_benchmark_version: 2026-08-17T23.51.35.629Z
+    manifest_sha256: 57911ecee4654f17cc456a537f4295de155a3cf3269a3dfc289c95ee630f4a46
+    pairs_sha256: cc7690d9bc979028dd3af0e292b715f6c7c391daac269be0fc5a7b7c17a86aa9
+    training_query_states_sha256: cd6fc783a497a47f0c90ea3e601c34ecfef1022d814a8dae58e2662450d3afaf
+  features:
+    dna:
+      tfidf_6mer_svd_512:
+        version: 2026-08-23T14.21.58.754Z
+        manifest_sha256: 2c6d5c0023d884951580df7e5202fd356e5c15ca8c298a0628abb4462a219cbb
+        features_sha256: d783f66cb234bd228d9de304884b23849d75d9b5eef2a7510d61b0cc83486a41
+        extraction_gpu_hours: 0.0
+        persisted_bytes: 93002965
+      carbon_500m:
+        version: 2026-08-23T14.54.08.128Z
+        manifest_sha256: 3115b841c90921cca59c330c6956bbe1062b2a7ce4fc975f043174c5638a753c
+        features_sha256: bb86fd296a3ba2ed2fdafcb7e21b89c918a11b2a4c2ec9ba8727af0c0713be9a
+        extraction_gpu_hours: 0.30318436455498965
+        persisted_bytes: 162999200
+      generanno_prokaryote_500m:
+        version: 2026-08-24T11.03.45.874Z
+        manifest_sha256: cdbedeeee110900d602d399968a1be0b0d614f65007dc07d689fa4e492a3d13b
+        features_sha256: 8bd9b216632bbc2d225001ff225910e65a76228f72f8adbcf1d8129bed1d5c37
+        extraction_gpu_hours: 4.931926208106387
+        persisted_bytes: 209933751
+      generator_v2_prokaryote_1_2b:
+        version: 2026-08-23T15.30.18.164Z
+        manifest_sha256: b1d96a4afbcb60f0e970529d1c0d5813c237d3ed7acce5f201336b9f655b1074
+        features_sha256: 72642a470e4f150316170dae620795f7b246b46b6cbcad0b59571930296bf7a1
+        extraction_gpu_hours: 0.7816696715965453
+        persisted_bytes: 313980591
+    text:
+      bge_base_en_v1_5:
+        version: 2026-08-23T15.16.22.538Z
+        manifest_sha256: 9855a2b15e851d77cd9019d9c591bb3c927d009c5642de6f829d2d2052a84741
+        features_sha256: 5a69bb6647ac977778c0a3d6253bbbe94a8b9db2a2790ea3eac6590e6899f14a
+        extraction_gpu_hours: 0.010602783840149642
+        persisted_bytes: 92373563
+      gte_modernbert_base:
+        version: 2026-08-23T15.19.38.226Z
+        manifest_sha256: a94551c87aec31085c97c7fcbf362722b196cc510c3dcd3fef7fb9249ee1edd9
+        features_sha256: 90139f7e41c1cf30b929c7ceebcca3496466a6b21620897734c62826166a7443
+        extraction_gpu_hours: 0.02344021446382006
+        persisted_bytes: 92409461
+      qwen3_embedding_0_6b:
+        version: 2026-08-23T15.23.41.974Z
+        manifest_sha256: 17d2d025a560f34355ca244cfd629178ec0c6c5767159bebf6d44116dcda7235
+        features_sha256: c5cbf04e7d034ea4dbe0ad874adc728e6d8ae8c75ee7cbac278cbb7c44218d8d
+        extraction_gpu_hours: 0.05772405528359943
+        persisted_bytes: 118110567
+  alignment:
+    protocol_version: fixed_representation_bakeoff_e02b_v0.1
+    training_rows: 20000
+    device: cuda
+    probe:
+      seeds: [13, 42, 20260818]
+      projection_dimension: 512
+      whitening_epsilon: 0.000001
+      removed_principal_components: 0
+      bias: false
+      epochs: 60
+      batch_size: 4096
+      learning_rate: 0.001
+      weight_decay: 0.01
+      initial_temperature: 0.07
+      maximum_logit_scale: 100.0
+      cutoffs: [1, 5, 10, 50]
+      bootstrap_draws: 2000
+      bootstrap_seed: 20260818
+      practical_tie_utility: 0.01
+      minimum_incumbent_improvement: 0.01
+      cost_tie_fraction: 0.10
+    expected_output_hashes:
+      whitening_state_sha256: 1415be70f5eb8a4be5ad6c42f62dc53d4ef569c7c4889178cf9ea3556c12d8be
+      probe_checkpoints_sha256: d8c81804272afe3c9af971b90cf39abc81cfc8c9db151c6fa5e9c38bd6e255ea
+      training_history_sha256: fbd52828e593215fdce38b88fc41408b63fccb8a0c756c7a6deba51f7c7f2fa3
+      paired_metrics_sha256: 92cd682a145459d5d35db025770b387fc0c9db976a86b37a9bbf2599d866a427
+      query_rankings_sha256: cd8e488f078d284a792f5d0a05a2fc7b1b47f5cdc3ee5b3cb31ed86deb947dac
+      query_metrics_sha256: c0f0b0346e1585c82bee31018beaa34b43b3f66a506e0810c46118367bb17bc0
+      query_summaries_sha256: b924889bc91205379b8c609f68dbbc07b84d9b240e01feabf1c3bfbcca3f2f69
+      bootstrap_draws_sha256: 0c8f65a9b12c0ad1dc032dc9249b39f7c814fa3c6b051afd595f22b66da2f8a7
+  supervision:
+    protocol_version: e03-e04-set-supervision-v0.1
+    training_rows: 20000
+    minimum_training_verified_rows: 20
+    objectives: [paired_identity, verified_set]
+    device: cuda
+    primary_k: 10
+    minimum_practical_improvement: 0.01
+    probe:
+      seeds: [13, 42, 20260818]
+      projection_dimension: 512
+      whitening_epsilon: 0.000001
+      updates: 300
+      learning_rate: 0.001
+      weight_decay: 0.01
+      initial_temperature: 0.07
+      maximum_logit_scale: 100.0
+      cutoffs: [1, 5, 10, 50]
+      bootstrap_draws: 2000
+      bootstrap_seed: 20260818
+    tracking:
+      enabled: true
+      project: vec2vec
+      entity: null
+      group: gate2-set-supervision-v0.1-reproduction
+      tags: [set-supervision, gate2, reproduction, validation-only]
+    expected_output_hashes:
+      whitening_state_sha256: 03ccc6be5499511dacb5ecbf2fe22c337bdeffb8ecb8b44c5ef9579aa48c2370
+      checkpoints_sha256: 7853607084cebbc333f03dd947252ff26a834425755d007370408a83f28e7f4f
+      training_history_sha256: 83f123f7052e7ba9d3f78522afc8134c48788af6a4fc060b9bd8dc2ee2ba2e92
+      query_rankings_sha256: 0e54336624980019f3643a769580c6acb2e6920d3d994293fd56b5aea360f93c
+      query_metrics_sha256: 88b4df46fa8be43f250d17d939f99a2025016f92b7dfa850fd4ccd234b6a69e3
+      query_summaries_sha256: 89cff8b1dab219a3f063f741d18e63fb80cd770436c6b27f168ca1ef83705e89
+      bootstrap_draws_sha256: 65e92e69902847c945e73701d64d9a4c7a87e218f57b74f93e10cc6e49f45a4d

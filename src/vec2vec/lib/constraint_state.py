@@ -19,7 +19,7 @@ from vec2vec.lib.constraint_rules import (
     build_mapping_contract,
     source_values,
 )
-from vec2vec.lib.serialization import stable_json
+from vec2vec.lib.serialization import dataframe_content_sha256, stable_json
 from vec2vec.lib.text import exact_metadata_key, sha256_text
 
 VERIFIED = "verified"
@@ -404,12 +404,22 @@ def build_constraint_state_tables(
 
     state_counts = states.groupby(["split_grouped", "state"], sort=True).size()
     facet_counts = states.groupby(["facet", "state"], sort=True).size()
+    output_hashes = {
+        "vocabulary_sha256": dataframe_content_sha256(vocabulary, sort_columns=["constraint_id"]),
+        "states_sha256": dataframe_content_sha256(
+            states, sort_columns=["sequence_id", "constraint_id", "state"]
+        ),
+    }
+    expected_output_hashes = state_params.get("expected_output_content_hashes")
+    if expected_output_hashes is not None and output_hashes != expected_output_hashes:
+        raise ValueError("constraint-state tables changed from their accepted content hashes")
     manifest = {
         "state_version": state_version,
         "input_retrieval_version": str(state_params["input_retrieval_version"]),
         "input_population_sha256": population_hash,
         "state_input_sha256": state_input_hash,
         "rule_contract_sha256": contract_hash,
+        "output_content_hashes": output_hashes,
         "input_rows_by_split": {
             str(split): int(count)
             for split, count in retrieval["split_grouped"].value_counts().sort_index().items()

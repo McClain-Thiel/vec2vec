@@ -82,16 +82,6 @@ addgene_annotations:
   <<: *parquet
   filepath: ${globals:lake}/02_intermediate/addgene_annotations.parquet
 
-# Primary annotation view for research measurements. The source column stays in
-# the projection so nodes can verify that the filter did not admit another source.
-addgene_annotations@plannotate:
-  <<: *parquet
-  filepath: ${globals:lake}/02_intermediate/addgene_annotations.parquet
-  load_args:
-    filters:
-      - [source, "==", plannotate]
-    columns: [sequence_id, source, feature, feature_type, start, end, strand, confidence]
-
 addgene_annotation_features:
   <<: *parquet
   filepath: ${globals:lake}/02_intermediate/addgene_annotation_features.parquet
@@ -146,21 +136,6 @@ retrieval_dataset@full:
   filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
   versioned: true
 
-# Full-sequence view for the preregistered E02b reduced-population bake-off.
-retrieval_dataset@fixed_representation_bakeoff:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
-  versioned: true
-  load_args:
-    columns:
-      - sequence_id
-      - sequence
-      - sequence_sha256
-      - description
-      - length_bp
-      - leakage_component
-      - split_grouped
-
 # The audit only reads structured metadata, so it skips the sequence column —
 # by far the widest in the table. Transcoded so Kedro still orders the writer
 # before this reader.
@@ -186,119 +161,6 @@ retrieval_dataset@audit:
       - insert_mutations
       - insert_tags
       - insert_promoters
-
-# E00 profile view: excludes the sequence and description columns, which are not
-# used by the current semantics, split, or annotation-coverage measurements.
-retrieval_dataset@semantics:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
-  versioned: true
-  load_args:
-    columns:
-      - sequence_id
-      - sequence_sha256
-      - family_key
-      - leakage_component
-      - split_grouped
-      - length_bp
-      - vector_types
-      - bacterial_resistance
-      - insert_species
-      - plasmid_copy
-      - growth_strain
-      - growth_temp
-      - insert_genes
-      - insert_mutations
-      - insert_tags
-      - insert_promoters
-
-# Narrow view for the frozen manual audit. It carries the raw metadata and the
-# two descriptions that a reviewer needs, but not the plasmid sequence.
-retrieval_dataset@facet_audit:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
-  versioned: true
-  load_args:
-    columns:
-      - sequence_id
-      - sequence_sha256
-      - addgene_id
-      - url
-      - description
-      - source_description
-      - leakage_component
-      - split_grouped
-      - plasmid_copy
-      - growth_temp
-      - bacterial_resistance
-      - vector_types
-
-# Train and validation metadata for deterministic constraint evidence. The
-# catalog filter prevents this pipeline from loading test metadata.
-retrieval_dataset@constraint_evidence:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
-  versioned: true
-  load_args:
-    filters:
-      - [split_grouped, in, [train, val]]
-    columns:
-      - sequence_id
-      - sequence_sha256
-      - addgene_id
-      - url
-      - source_description
-      - leakage_component
-      - split_grouped
-      - plasmid_copy
-      - growth_temp
-      - bacterial_resistance
-      - vector_types
-
-# Full-population view for applying the already-frozen rule contract. Test
-# metadata can receive a state, but it did not select mappings or conflict rules.
-retrieval_dataset@constraint_state:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
-  versioned: true
-  load_args:
-    columns:
-      - sequence_id
-      - sequence_sha256
-      - leakage_component
-      - split_grouped
-      - plasmid_copy
-      - growth_temp
-      - bacterial_resistance
-      - vector_types
-
-# Population identities for the frozen query benchmark. Constraint states and
-# v2 split membership are loaded from their separately versioned products.
-retrieval_dataset@query_benchmark:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
-  versioned: true
-  load_args:
-    columns:
-      - sequence_id
-      - sequence_sha256
-      - family_key
-
-# Full-sequence view for the explicit, local-compute E00 split audit. This is
-# not part of the default pipeline because the global BLAST search is costly.
-retrieval_dataset@split_audit:
-  <<: *parquet
-  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
-  versioned: true
-  load_args:
-    columns:
-      - sequence_id
-      - sequence
-      - sequence_sha256
-      - family_key
-      - leakage_component
-      - split_grouped
-      - length_bp
 
 # ---------------------------------------------------------- 08_reporting
 
@@ -331,73 +193,73 @@ hard_negative_summary:
   <<: *report
   filepath: ${globals:lake}/08_reporting/hard_negative_summary.json
 
-# E00 benchmark-feasibility profiles. All are versioned because they support
-# scientific decisions and must remain traceable to one input artifact.
-e00_constraint_field_profile:
+# ----------------------------------------------------- selected modeling data
+
+retrieval_dataset@constraint_state:
   <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/constraint_field_profile.parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence_sha256
+      - leakage_component
+      - split_grouped
+      - plasmid_copy
+      - growth_temp
+      - bacterial_resistance
+      - vector_types
+
+retrieval_dataset@split_audit:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence
+      - sequence_sha256
+      - family_key
+      - leakage_component
+      - split_grouped
+      - length_bp
+
+retrieval_dataset@query_benchmark:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns: [sequence_id, sequence_sha256, family_key]
+
+retrieval_dataset@fixed_representation_bakeoff:
+  <<: *parquet
+  filepath: ${globals:lake}/04_feature/retrieval_dataset.parquet
+  versioned: true
+  load_args:
+    columns:
+      - sequence_id
+      - sequence
+      - sequence_sha256
+      - description
+      - length_bp
+      - leakage_component
+      - split_grouped
+
+e00_constraint_vocabulary:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e00/constraint_vocabulary.parquet
   versioned: true
 
-e00_constraint_value_profile:
+e00_plasmid_constraint_state:
   <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/constraint_value_profile.parquet
+  filepath: ${globals:lake}/05_model_input/e00/plasmid_constraint_state.parquet
   versioned: true
 
-e00_split_component_profile:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/split_component_profile.parquet
-  versioned: true
-
-e00_split_profile:
+e00_constraint_state_manifest:
   <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/split_profile.json
+  filepath: ${globals:lake}/08_reporting/e00/constraint_state_manifest.json
   versioned: true
 
-# Global cross-split candidates, concentration, and immutable decision evidence.
-e00_split_audit_edges:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/split_audit_edges.parquet
-  versioned: true
-
-e00_split_audit_component_profile:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/split_audit_component_profile.parquet
-  versioned: true
-
-e00_split_audit_manifest:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/split_audit_manifest.json
-  versioned: true
-
-# Pinned read view and explicit outputs for the local Ray calibration. These
-# datasets are not part of the default pipeline.
-e00_split_audit_edges@calibration:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/split_audit_edges.parquet
-  versioned: true
-
-e00_similarity_calibration_runs:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/similarity_calibration_runs.parquet
-  versioned: true
-
-e00_similarity_calibration_query_profile:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/similarity_calibration_query_profile.parquet
-  versioned: true
-
-e00_similarity_calibration_exact_edges:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/similarity_calibration_exact_edges.parquet
-  versioned: true
-
-e00_similarity_calibration_manifest:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/similarity_calibration_manifest.json
-  versioned: true
-
-# Complete adaptive all-versus-all graph products. The edge table stores only
-# measured qualifying edges, never a materialized transitive closure.
 e00_similarity_graph_edges:
   <<: *parquet
   filepath: ${globals:lake}/08_reporting/e00/similarity_graph_edges.parquet
@@ -428,8 +290,6 @@ e00_similarity_graph_manifest:
   filepath: ${globals:lake}/08_reporting/e00/similarity_graph_manifest.json
   versioned: true
 
-# Separately named strict-similarity grouped split. This mapping does not
-# overwrite the retrieval dataset or its current split columns.
 e00_split_grouped_v2:
   <<: *parquet
   filepath: ${globals:lake}/04_feature/e00/split_grouped_v2.parquet
@@ -450,70 +310,6 @@ e00_split_grouped_v2_manifest:
   filepath: ${globals:lake}/08_reporting/e00/split_grouped_v2_manifest.json
   versioned: true
 
-e00_plannotate_profile:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/plannotate_profile.json
-  versioned: true
-
-# Proposed manual-review inputs. These outputs do not contain accepted labels.
-e00_facet_audit_sample:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/facet_audit_sample.parquet
-  versioned: true
-
-e00_facet_audit_vocabulary:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/facet_audit_vocabulary.parquet
-  versioned: true
-
-e00_facet_audit_manifest:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/facet_audit_manifest.json
-  versioned: true
-
-# Model-free review export. Model conclusions are kept in separate datasets.
-e00_facet_audit_decision_template:
-  type: pandas.CSVDataset
-  filepath: ${globals:lake}/08_reporting/e00/facet_audit_decisions.csv
-  versioned: true
-  save_args:
-    index: false
-
-# Rule-derived training labels and their compact validation benchmark. These
-# outputs contain no model decision and do not use test rows.
-e00_training_constraint_evidence:
-  <<: *parquet
-  filepath: ${globals:lake}/05_model_input/e00/training_constraint_evidence.parquet
-  versioned: true
-
-e00_constraint_benchmark_sample:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_sample.parquet
-  versioned: true
-
-e00_constraint_evidence_manifest:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/constraint_evidence_manifest.json
-  versioned: true
-
-# Stable vocabulary and sparse verified/contradicted states used to construct
-# the frozen query benchmark. Unknown states are represented by absence.
-e00_constraint_vocabulary:
-  <<: *parquet
-  filepath: ${globals:lake}/05_model_input/e00/constraint_vocabulary.parquet
-  versioned: true
-
-e00_plasmid_constraint_state:
-  <<: *parquet
-  filepath: ${globals:lake}/05_model_input/e00/plasmid_constraint_state.parquet
-  versioned: true
-
-e00_constraint_state_manifest:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/constraint_state_manifest.json
-  versioned: true
-
-# Frozen symbolic queries, gallery membership, sparse labels, and base masses.
 e00_query_catalog:
   <<: *parquet
   filepath: ${globals:lake}/05_model_input/e00/query_catalog.parquet
@@ -549,44 +345,6 @@ e00_query_benchmark_manifest:
   filepath: ${globals:lake}/08_reporting/e00/query_benchmark_manifest.json
   versioned: true
 
-e00_constraint_benchmark_packets:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_packets.parquet
-  versioned: true
-
-e00_constraint_benchmark_smoke_packets:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_smoke_packets.parquet
-  versioned: true
-
-e00_constraint_benchmark_smoke_decisions:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_smoke_decisions.parquet
-  versioned: true
-
-e00_constraint_benchmark_smoke_summary:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_smoke_summary.json
-  versioned: true
-
-e00_constraint_benchmark_decisions:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_decisions.parquet
-  versioned: true
-
-# E02b validates these frozen precursor manifests but cannot rerun their superseded pipelines.
-e02_fixed_representation_smoke_manifest:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_smoke_manifest.json
-  versioned: true
-
-e02_fixed_representation_invariance_manifest:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e02/fixed_representation_invariance_manifest.json
-  versioned: true
-
-# E02b uses a reduced A/C/G/T-only population. Keep its input, feature, model,
-# and validation products distinct from the original E02 artifacts.
 e02b_pairs:
   <<: *parquet
   filepath: ${globals:lake}/05_model_input/e02b/pairs.parquet
@@ -612,57 +370,14 @@ e02b_input_manifest:
   filepath: ${globals:lake}/08_reporting/e02b/input_manifest.json
   versioned: true
 
-_e02b_dna_features: &e02b_dna_features
+e02b_dna_features_tfidf_6mer_svd_512:
   <<: *parquet
   filepath: ${globals:lake}/04_feature/e02b/dna_features.parquet
-
-e02b_dna_features:
-  <<: *e02b_dna_features
-  versioned: true
-
-e02b_dna_features_tfidf_6mer_svd_512:
-  <<: *e02b_dna_features
-  versioned: true
-
-e02b_dna_features_carbon_500m:
-  <<: *e02b_dna_features
-  versioned: true
-
-e02b_dna_features_generanno_prokaryote_500m:
-  <<: *e02b_dna_features
-  versioned: true
-
-e02b_dna_features_generator_v2_prokaryote_1_2b:
-  <<: *e02b_dna_features
-  versioned: true
-
-e02b_dna_coverage:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02b/dna_coverage.parquet
-  versioned: true
-
-_e02b_dna_manifest: &e02b_dna_manifest
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e02b/dna_manifest.json
-
-e02b_dna_manifest:
-  <<: *e02b_dna_manifest
   versioned: true
 
 e02b_dna_manifest_tfidf_6mer_svd_512:
-  <<: *e02b_dna_manifest
-  versioned: true
-
-e02b_dna_manifest_carbon_500m:
-  <<: *e02b_dna_manifest
-  versioned: true
-
-e02b_dna_manifest_generanno_prokaryote_500m:
-  <<: *e02b_dna_manifest
-  versioned: true
-
-e02b_dna_manifest_generator_v2_prokaryote_1_2b:
-  <<: *e02b_dna_manifest
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e02b/dna_manifest.json
   versioned: true
 
 e02b_tfidf_vocabulary:
@@ -675,220 +390,12 @@ e02b_tfidf_svd_state:
   filepath: ${globals:lake}/06_models/e02b/tfidf_svd_state.parquet
   versioned: true
 
-_e02b_text_features: &e02b_text_features
+e02b_text_features_qwen3_embedding_0_6b:
   <<: *parquet
   filepath: ${globals:lake}/04_feature/e02b/text_features.parquet
-
-e02b_text_features:
-  <<: *e02b_text_features
-  versioned: true
-
-e02b_text_features_bge_base_en_v1_5:
-  <<: *e02b_text_features
-  versioned: true
-
-e02b_text_features_gte_modernbert_base:
-  <<: *e02b_text_features
-  versioned: true
-
-e02b_text_features_qwen3_embedding_0_6b:
-  <<: *e02b_text_features
-  versioned: true
-
-_e02b_text_manifest: &e02b_text_manifest
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e02b/text_manifest.json
-
-e02b_text_manifest:
-  <<: *e02b_text_manifest
-  versioned: true
-
-e02b_text_manifest_bge_base_en_v1_5:
-  <<: *e02b_text_manifest
-  versioned: true
-
-e02b_text_manifest_gte_modernbert_base:
-  <<: *e02b_text_manifest
   versioned: true
 
 e02b_text_manifest_qwen3_embedding_0_6b:
-  <<: *e02b_text_manifest
-  versioned: true
-
-# Frozen alignment-probe state and validation-only comparison evidence.
-e02b_whitening_state:
-  <<: *parquet
-  filepath: ${globals:lake}/06_models/e02b/whitening_state.parquet
-  versioned: true
-
-e02b_probe_checkpoints:
-  <<: *parquet
-  filepath: ${globals:lake}/06_models/e02b/probe_checkpoints.parquet
-  versioned: true
-
-e02b_training_history:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02b/training_history.parquet
-  versioned: true
-
-e02b_paired_metrics:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02b/paired_metrics.parquet
-  versioned: true
-
-e02b_query_rankings:
-  <<: *parquet
-  filepath: ${globals:lake}/07_model_output/e02b/query_rankings.parquet
-  versioned: true
-
-e02b_query_metrics:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02b/query_metrics.parquet
-  versioned: true
-
-e02b_query_summaries:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02b/query_summaries.parquet
-  versioned: true
-
-e02b_bootstrap_draws:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e02b/bootstrap_draws.parquet
-  versioned: true
-
-e02b_selection_report:
   <<: *report
-  filepath: ${globals:lake}/08_reporting/e02b/selection_report.json
-  versioned: true
-
-# Gate 2 controlled-query objective comparison.
-e03e04_whitening_state:
-  <<: *parquet
-  filepath: ${globals:lake}/06_models/e03e04/whitening_state.parquet
-  versioned: true
-
-e03e04_checkpoints:
-  <<: *parquet
-  filepath: ${globals:lake}/06_models/e03e04/checkpoints.parquet
-  versioned: true
-
-e03e04_training_history:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e03e04/training_history.parquet
-  versioned: true
-
-e03e04_query_rankings:
-  <<: *parquet
-  filepath: ${globals:lake}/07_model_output/e03e04/query_rankings.parquet
-  versioned: true
-
-e03e04_query_metrics:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e03e04/query_metrics.parquet
-  versioned: true
-
-e03e04_query_summaries:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e03e04/query_summaries.parquet
-  versioned: true
-
-e03e04_bootstrap_draws:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e03e04/bootstrap_draws.parquet
-  versioned: true
-
-e03e04_report:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e03e04/report.json
-  versioned: true
-
-e00_constraint_benchmark_summary:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/constraint_benchmark_summary.json
-  versioned: true
-
-# Historical v3 agent-assisted review artifacts. No active pipeline writes these one-axis
-# decisions. They remain catalog-readable with raw failures retained for research provenance.
-e00_agent_judge_pilot_packets:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_pilot_packets.parquet
-  versioned: true
-
-e00_agent_judge_pilot_decisions:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_pilot_decisions.parquet
-  versioned: true
-
-e00_agent_judge_pilot_summary:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_pilot_summary.json
-  versioned: true
-
-# Independent stronger-model validation of the exact pilot packets.
-e00_agent_validator_decisions:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_validator_decisions.parquet
-  versioned: true
-
-e00_agent_validator_summary:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/agent_validator_summary.json
-  versioned: true
-
-# Historical one-axis comparison outputs remain readable for research provenance.
-# No active pipeline writes them because the current judge schema has two decision axes.
-e00_agent_judge_comparison:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_comparison.parquet
-  versioned: true
-
-e00_agent_judge_comparison_summary:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_comparison_summary.json
-  versioned: true
-
-e00_agent_judge_smoke_packets:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_smoke_packets.parquet
-  versioned: true
-
-e00_agent_judge_smoke_decisions:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_smoke_decisions.parquet
-  versioned: true
-
-e00_agent_judge_smoke_summary:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_smoke_summary.json
-  versioned: true
-
-# Two-axis semantic and benchmark-scope check for the revised v0.2 rules.
-e00_agent_judge_targeted_packets:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_packets.parquet
-  versioned: true
-
-e00_agent_judge_targeted_decisions:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_decisions.parquet
-  versioned: true
-
-e00_agent_judge_targeted_summary:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_summary.json
-  versioned: true
-
-e00_agent_judge_targeted_smoke_packets:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_smoke_packets.parquet
-  versioned: true
-
-e00_agent_judge_targeted_smoke_decisions:
-  <<: *parquet
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_smoke_decisions.parquet
-  versioned: true
-
-e00_agent_judge_targeted_smoke_summary:
-  <<: *report
-  filepath: ${globals:lake}/08_reporting/e00/agent_judge_targeted_smoke_summary.json
+  filepath: ${globals:lake}/08_reporting/e02b/text_manifest.json
   versioned: true

@@ -57,7 +57,7 @@ def build_query_benchmark(
     dict[str, Any],
 ]:
     """Build and validate the complete versioned query-benchmark data product."""
-    versions = _validate_inputs(
+    input_content_hashes = _validate_inputs(
         retrieval,
         split_mapping,
         graph_edges,
@@ -124,15 +124,16 @@ def build_query_benchmark(
             metrics, sort_columns=["query_id", "control", "k"]
         ),
     }
+    expected_output_hashes = params.get("expected_output_content_hashes")
+    if expected_output_hashes is not None and output_hashes != expected_output_hashes:
+        raise RuntimeError("query benchmark changed from the accepted content hashes")
     pair_count = sum(definition.query_kind == "pair_conjunction" for definition in definitions)
     support_gate = _gate0_support_summary(query_catalog, params)
     support_passed = bool(support_gate["passed"])
     manifest = {
         "benchmark_version": str(params["benchmark_version"]),
-        "protocol": (
-            "studies/set_valued_compositional_embeddings/experiments/E00_query_benchmark_v0.1.md"
-        ),
-        "input_versions": versions,
+        "protocol": "modeling_data_v1",
+        "input_content_hashes": input_content_hashes,
         "resolved_configuration": params,
         "population_rows": int(len(population)),
         "semantic_queries": int(len(definitions)),
@@ -205,27 +206,11 @@ def _validate_inputs(
     state_manifest: dict[str, Any],
     params: dict[str, Any],
 ) -> dict[str, str]:
-    required_versions = {
-        "retrieval": "input_retrieval_version",
-        "graph": "input_graph_artifact_version",
-        "split": "input_split_artifact_version",
-        "constraint_state": "input_constraint_state_artifact_version",
-    }
-    versions: dict[str, str] = {}
-    for name, key in required_versions.items():
-        value = params.get(key)
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError(f"query_benchmark {key} must be pinned")
-        versions[name] = value
-    if state_manifest.get("input_retrieval_version") != versions["retrieval"]:
-        raise RuntimeError("constraint-state manifest retrieval version differs from the pin")
     expected_population = str(params["expected_input_population_sha256"])
     if state_manifest.get("input_population_sha256") != expected_population:
         raise RuntimeError("constraint-state population hash differs from the benchmark pin")
     if state_manifest.get("pair_state_conflicts") != 0:
         raise RuntimeError("constraint-state manifest reports a pair-state conflict")
-    if split_manifest.get("input_graph_artifact_version") != versions["graph"]:
-        raise RuntimeError("split manifest graph version differs from the benchmark pin")
     split_decision = split_manifest.get("decision", {})
     if split_decision.get("status") != "accepted_strict_similarity_closed_split":
         raise RuntimeError("split manifest is not accepted for benchmark construction")
@@ -292,7 +277,32 @@ def _validate_inputs(
     )
     if graph_manifest.get("output_content_hashes", {}).get("edges_sha256") != edge_hash:
         raise RuntimeError("graph edges differ from their accepted manifest")
-    return versions
+    vocabulary_hash = similarity_graph.dataframe_content_sha256(
+        vocabulary, sort_columns=["constraint_id"]
+    )
+    states_hash = similarity_graph.dataframe_content_sha256(
+        states, sort_columns=["sequence_id", "constraint_id", "state"]
+    )
+    observed_state_hashes = {
+        "vocabulary_sha256": vocabulary_hash,
+        "states_sha256": states_hash,
+    }
+    expected_state_hashes = dict(params["expected_constraint_artifact_hashes"])
+    if observed_state_hashes != expected_state_hashes:
+        raise RuntimeError("constraint tables differ from the accepted content hashes")
+    manifest_state_hashes = state_manifest.get("output_content_hashes")
+    if manifest_state_hashes is not None and manifest_state_hashes != observed_state_hashes:
+        raise RuntimeError("constraint tables differ from their manifest")
+    retrieval_hash = similarity_graph.dataframe_content_sha256(
+        retrieval, sort_columns=["sequence_id"]
+    )
+    return {
+        "retrieval_sha256": retrieval_hash,
+        "graph_edges_sha256": edge_hash,
+        "split_mapping_sha256": mapping_hash,
+        "constraint_vocabulary_sha256": vocabulary_hash,
+        "constraint_states_sha256": states_hash,
+    }
 
 
 def _population(retrieval: pd.DataFrame, mapping: pd.DataFrame) -> pd.DataFrame:

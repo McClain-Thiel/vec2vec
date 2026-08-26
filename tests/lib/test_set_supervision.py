@@ -42,11 +42,3 @@ def test_comparison_requires_practical_and_interval_improvement() -> None:
     assert np.isclose(result["verified_set_minus_paired_identity"], 0.05)
     assert np.allclose(result["paired_component_bootstrap_95_interval"], [0.05, 0.05])
     assert result["supports_set_supervision"] is True
-
-
-def test_pipeline_is_not_in_default_registry() -> None:
-    from vec2vec.pipeline_registry import register_pipelines
-
-    pipelines = register_pipelines()
-    assert "set_supervision" in pipelines
-    assert not set(pipelines["set_supervision"].nodes).intersection(pipelines["__default__"].nodes)

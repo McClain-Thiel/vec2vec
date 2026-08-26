@@ -8,7 +8,6 @@ import pytest
 from vec2vec.lib import split_audit
 from vec2vec.lib.constraint_state import retrieval_population_sha256
 from vec2vec.lib.sequences import sequence_sha256
-from vec2vec.pipelines.split_audit import nodes as split_audit_nodes
 
 
 def _retrieval() -> pd.DataFrame:
@@ -31,14 +30,6 @@ def _rules() -> tuple[split_audit.SimilarityRule, split_audit.SimilarityRule]:
         split_audit.SimilarityRule(0.99, 0.95, 0.95, 0.95),
         split_audit.SimilarityRule(0.95, 0.90, 0.90, 0.90),
     )
-
-
-def test_pipeline_requires_the_frozen_split_labels():
-    with pytest.raises(ValueError, match="split_labels must be exactly"):
-        split_audit_nodes.run_split_audit(
-            pd.DataFrame(),
-            {"split_labels": ["train", "val"]},
-        )
 
 
 def _tokens(

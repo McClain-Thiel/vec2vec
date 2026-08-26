@@ -17,8 +17,7 @@ def build_similarity_split(
     params: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     """Build the deterministic v2 mapping and component profile."""
-    _require_graph_artifact_version(params)
-    return similarity_split.build_similarity_grouped_split(
+    mapping, components, summary = similarity_split.build_similarity_grouped_split(
         retrieval,
         graph_nodes,
         train_fraction=float(params["train_fraction"]),
@@ -26,6 +25,16 @@ def build_similarity_split(
         seed=int(params["seed"]),
         expected_population_sha256=str(params["expected_input_population_sha256"]),
     )
+    expected = params.get("expected_output_content_hashes")
+    if expected is not None and {
+        "mapping_sha256": summary["mapping_sha256"],
+        "component_profile_sha256": summary["component_profile_sha256"],
+    } != {
+        "mapping_sha256": expected["mapping_sha256"],
+        "component_profile_sha256": expected["component_profile_sha256"],
+    }:
+        raise RuntimeError("similarity split changed from the accepted content hashes")
+    return mapping, components, summary
 
 
 def audit_similarity_split(
@@ -46,14 +55,14 @@ def audit_similarity_split(
         mapping,
         build_summary,
     )
-    graph_artifact_version = _require_graph_artifact_version(params)
+    expected = params.get("expected_output_content_hashes")
+    if expected is not None and audit["cross_edges_sha256"] != expected["cross_edges_sha256"]:
+        raise RuntimeError("split audit changed from the accepted cross-edge content hash")
     manifest = {
         "protocol_version": str(params["protocol_version"]),
-        "protocol": (
-            "studies/set_valued_compositional_embeddings/experiments/E00_split_grouped_v2.md"
-        ),
+        "protocol": "modeling_data_v1",
         "input_retrieval_version": str(params["input_retrieval_version"]),
-        "input_graph_artifact_version": graph_artifact_version,
+        "input_graph_content_hashes": dict(graph_manifest["output_content_hashes"]),
         "input_graph_protocol_version": graph_manifest["graph_version"],
         "resolved_configuration": params,
         "build": build_summary,
@@ -74,13 +83,6 @@ def audit_similarity_split(
         ],
     }
     return cross_edges, manifest
-
-
-def _require_graph_artifact_version(params: dict[str, Any]) -> str:
-    graph_artifact_version = params["input_graph_artifact_version"]
-    if not isinstance(graph_artifact_version, str) or not graph_artifact_version.strip():
-        raise ValueError("similarity_split input_graph_artifact_version must be pinned")
-    return graph_artifact_version
 
 
 def _git_provenance() -> dict[str, Any]:
