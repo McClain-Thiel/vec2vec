@@ -2526,3 +2526,16 @@ whole-component 95% bootstrap interval is above zero. The user authorized the cl
 on the existing `g6.4xlarge` L4 under reference
 `chat-2026-08-26-e05-unseen-composition`, capped at 0.5 instance-hours and `$0.6616`. W&B group
 `e05-unseen-composition-v0.1` is required; exact outputs and failures go to the E05 S3 report.
+
+## 2026-08-26 12:46:47 BST — E05 first attempt rejected after provenance check
+
+Unit `vec2vec-e05-unseen-composition-20260826.service` ran clean commit `2453827` for 196 seconds
+on the L4, approximately `$0.07204`. All six model fits and W&B uploads completed, but the command
+exited before saving any S3 result because W&B had created expected untracked files and the runner
+incorrectly checked Git cleanliness after training. Runs `dtnlwtsd`, `sibfa8ox`, `suswbgsy`,
+`l8s9belh`, `lqhk2isz`, and `xbxcxrtl` are rejected evidence; no E05 S3 object exists.
+
+The retry will not change data, queries, objectives, seeds, optimizer, metric, or decision rule.
+The fix records Git state before W&B starts and ignores the local W&B cache. The retry is capped at
+0.44 hours, leaving the combined service ceiling below the originally authorized 0.5 hours and
+`$0.6616`.

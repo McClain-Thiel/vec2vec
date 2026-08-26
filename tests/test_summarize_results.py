@@ -140,6 +140,9 @@ def test_e05_authorization_must_match_frozen_contract() -> None:
     }
 
     summarize_results._validate_frozen_authorization(expected, expected)
+    summarize_results._validate_frozen_authorization(
+        {**expected, "instance_hour_limit": 0.44}, expected
+    )
     with pytest.raises(ValueError, match="differs from frozen"):
         summarize_results._validate_frozen_authorization(
             {**expected, "instance_hour_limit": 1.0}, expected

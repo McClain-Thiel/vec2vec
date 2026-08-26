@@ -399,6 +399,9 @@ def _run_reproduction(stage, authorization, output_dir):
             _validate_frozen_authorization(
                 authorization, config["composition"]["compute_authorization"]
             )
+            git_commit, git_dirty = _git_state()
+            if git_dirty:
+                raise RuntimeError("E05 must start from a clean Git checkout")
         stage_started = time.perf_counter()
         outputs = set_supervision.run_set_supervision_comparison(
             pairs,
@@ -424,9 +427,6 @@ def _run_reproduction(stage, authorization, output_dir):
             summary = pd.DataFrame(_composition_rows(report))
             summary_version = catalog.get("e05_composition_summary").resolve_save_version()
             report_version = catalog.get("e05_composition_report").resolve_save_version()
-            git_commit, git_dirty = _git_state()
-            if git_dirty:
-                raise RuntimeError("E05 must run from a clean Git checkout")
             report["execution"] = {
                 **authorization,
                 "maximum_cost_usd": (
@@ -580,8 +580,16 @@ def _validate_frozen_authorization(observed, expected):
     differences = {
         name: {"expected": expected.get(name), "observed": observed.get(name)}
         for name in expected
+        if name != "instance_hour_limit"
         if observed.get(name) != expected.get(name)
     }
+    observed_limit = float(observed.get("instance_hour_limit", math.nan))
+    expected_limit = float(expected["instance_hour_limit"])
+    if not math.isfinite(observed_limit) or observed_limit > expected_limit:
+        differences["instance_hour_limit"] = {
+            "expected_maximum": expected_limit,
+            "observed": observed_limit,
+        }
     if differences:
         raise ValueError(f"compute authorization differs from frozen E05 contract: {differences}")
 
