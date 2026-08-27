@@ -484,3 +484,23 @@ e07_additive_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e07/additive_report.json
   versioned: true
+
+e08_natural_parameter_checkpoints:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e08/natural_parameter_checkpoints.parquet
+  versioned: true
+
+e08_natural_parameter_history:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e08/natural_parameter_history.parquet
+  versioned: true
+
+e08_natural_parameter_summary:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e08/natural_parameter_summary.parquet
+  versioned: true
+
+e08_natural_parameter_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e08/natural_parameter_report.json
+  versioned: true

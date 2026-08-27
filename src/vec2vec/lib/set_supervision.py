@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from typing import Any
 
 import numpy as np
@@ -15,6 +16,7 @@ from vec2vec.lib.similarity_graph import dataframe_content_sha256
 
 EXPECTED_OBJECTIVES = ("paired_identity", "verified_set")
 EXPECTED_SEEDS = (13, 42, 20260818)
+EXPECTED_BASE_MEASURES = ("uniform_plasmid", "uniform_v2_component")
 
 
 def run_set_supervision_comparison(
@@ -269,6 +271,472 @@ def run_set_supervision_comparison(
     )
 
 
+def run_natural_parameter_comparison(
+    pairs: pd.DataFrame,
+    queries: pd.DataFrame,
+    validation_states: pd.DataFrame,
+    all_query_states: pd.DataFrame,
+    query_manifest: dict[str, Any],
+    input_manifest: dict[str, Any],
+    dna_features: pd.DataFrame,
+    dna_manifest: dict[str, Any],
+    text_features: pd.DataFrame,
+    text_manifest: dict[str, Any],
+    params: dict[str, Any],
+    *,
+    deadline_monotonic: float | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, Any]]:
+    """Compare two base measures for the frozen unnormalized maximum-entropy model."""
+    train, gallery, ordered_queries = fixed_representation_alignment._validate_alignment_inputs(
+        pairs, queries, validation_states, input_manifest, params
+    )
+    _validate_query_states(all_query_states, query_manifest, params)
+    _validate_feature("dna", dna_features, dna_manifest, input_manifest, params)
+    _validate_feature("text", text_features, text_manifest, input_manifest, params)
+    train_sequence, gallery_sequence, query_text, whitening_state = _prepare_matrices(
+        train,
+        gallery,
+        ordered_queries,
+        dna_features,
+        text_features,
+        dna_candidate=str(params["accepted_feature_artifacts"]["dna"]["candidate_id"]),
+        text_candidate=str(params["accepted_feature_artifacts"]["text"]["candidate_id"]),
+        epsilon=float(params["probe"]["whitening_epsilon"]),
+    )
+    training_queries, evaluation_queries, training_positions, evaluation_positions = (
+        _natural_parameter_partitions(ordered_queries, params)
+    )
+    verified, known = _training_state_masks(train, training_queries, all_query_states, params)
+    base_measures = tuple(map(str, params["base_measures"]))
+    seeds = tuple(map(int, params["probe"]["seeds"]))
+    if base_measures != EXPECTED_BASE_MEASURES or seeds != EXPECTED_SEEDS:
+        raise ValueError("E08 base measures or seeds changed from the frozen protocol")
+    cutoffs = tuple(map(int, params["probe"]["cutoffs"]))
+    if not cutoffs or max(cutoffs) > len(gallery) or int(params["primary_k"]) not in cutoffs:
+        raise ValueError("E08 cutoffs do not cover the frozen primary K")
+
+    training_query_text = query_text[training_positions]
+    evaluation_query_text = query_text[evaluation_positions]
+    probe = dict(params["probe"])
+    checkpoints: list[pd.DataFrame] = []
+    histories: list[pd.DataFrame] = []
+    seed_summaries: list[pd.DataFrame] = []
+    bootstraps: list[pd.DataFrame] = []
+    tracking_records: list[dict[str, Any]] = []
+    divergence_rows: list[dict[str, float | int | str]] = []
+    base_mass_hashes: dict[str, dict[str, str]] = {}
+
+    for base_measure in base_measures:
+        train_log_mass = _base_log_mass(train, base_measure)
+        gallery_log_mass = _base_log_mass(gallery, base_measure)
+        base_mass_hashes[base_measure] = {
+            "training": _float64_sha256(train_log_mass),
+            "validation": _float64_sha256(gallery_log_mass),
+        }
+        scores_by_representation: dict[str, list[np.ndarray]] = {
+            "direct_text": [],
+            "atomic_sum": [],
+        }
+        for seed in seeds:
+            wandb_run, tracking = _start_wandb(
+                params, objective=f"maximum_entropy_{base_measure}", seed=seed
+            )
+            tracking["base_measure"] = base_measure
+            try:
+                state, history = alignment_probe.train_maximum_entropy_probe(
+                    train_sequence,
+                    training_query_text,
+                    verified,
+                    known,
+                    train_log_mass,
+                    base_measure=base_measure,
+                    seed=seed,
+                    projection_dimension=int(probe["projection_dimension"]),
+                    updates=int(probe["updates"]),
+                    learning_rate=float(probe["learning_rate"]),
+                    weight_decay=float(probe["weight_decay"]),
+                    temperature=float(probe["temperature"]),
+                    device=str(params["device"]),
+                    deadline_monotonic=deadline_monotonic,
+                )
+            except BaseException:
+                _finish_wandb(wandb_run, tracking, exit_code=1)
+                raise
+            history = history.assign(base_measure=base_measure, seed=seed)
+            histories.append(history)
+            checkpoints.append(_natural_parameter_checkpoint(state, history.iloc[-1]))
+            gallery_vectors = alignment_probe.project_unnormalized(
+                gallery_sequence, state["sequence_head"]
+            )
+            atomic_vectors = alignment_probe.project_unnormalized(
+                training_query_text, state["text_head"]
+            )
+            representations = {
+                "direct_text": alignment_probe.project_unnormalized(
+                    evaluation_query_text, state["text_head"]
+                ),
+                "atomic_sum": _sum_atomic_queries(
+                    training_queries, evaluation_queries, atomic_vectors
+                ),
+            }
+            run_summaries: list[pd.DataFrame] = []
+            seed_scores: dict[str, np.ndarray] = {}
+            for representation, query_vectors in representations.items():
+                scores = alignment_probe.natural_parameter_scores(
+                    query_vectors,
+                    gallery_vectors,
+                    gallery_log_mass,
+                    temperature=float(probe["temperature"]),
+                )
+                _, query_metrics, scores = alignment_probe.query_rankings_and_metrics_from_scores(
+                    scores,
+                    evaluation_queries,
+                    gallery,
+                    validation_states,
+                    cutoffs=cutoffs,
+                )
+                summary = _query_summary(
+                    query_metrics, objective="maximum_entropy", seed=seed
+                ).assign(base_measure=base_measure, query_representation=representation)
+                seed_summaries.append(summary)
+                run_summaries.append(summary)
+                scores_by_representation[representation].append(scores)
+                seed_scores[representation] = scores
+            divergences = _jensen_shannon_rows(
+                seed_scores["direct_text"], seed_scores["atomic_sum"]
+            )
+            divergence_rows.extend(
+                {
+                    "base_measure": base_measure,
+                    "seed": seed,
+                    "query_id": str(query.query_id),
+                    "jensen_shannon_divergence": float(divergence),
+                }
+                for query, divergence in zip(
+                    evaluation_queries.itertuples(index=False), divergences, strict=True
+                )
+            )
+            _log_natural_parameter_wandb(
+                wandb_run, tracking, history, pd.concat(run_summaries, ignore_index=True)
+            )
+            _finish_wandb(wandb_run, tracking, exit_code=0)
+            tracking_records.append(tracking)
+        for representation, score_matrices in scores_by_representation.items():
+            bootstraps.append(
+                alignment_probe.whole_component_bootstrap_draws(
+                    score_matrices,
+                    evaluation_queries,
+                    gallery,
+                    validation_states,
+                    k=int(params["primary_k"]),
+                    draws=int(probe["bootstrap_draws"]),
+                    seed=int(probe["bootstrap_seed"]),
+                    component_column="leakage_component_v2",
+                    deadline_monotonic=deadline_monotonic,
+                ).assign(
+                    base_measure=base_measure,
+                    query_representation=representation,
+                )
+            )
+
+    checkpoint_table = _concat(checkpoints, ["base_measure", "seed"])
+    history_table = _concat(histories, ["base_measure", "seed", "update"])
+    per_seed_table = _concat(
+        seed_summaries,
+        ["base_measure", "query_representation", "seed", "query_kind", "k"],
+    )
+    bootstrap_table = _concat(
+        bootstraps,
+        ["base_measure", "query_representation", "query_kind", "draw"],
+    )
+    divergence_table = pd.DataFrame(divergence_rows).sort_values(
+        ["base_measure", "seed", "query_id"], kind="stable", ignore_index=True
+    )
+    summary_table, comparison = _natural_parameter_summary(
+        per_seed_table, bootstrap_table, divergence_table, params
+    )
+    output_hashes = {
+        "whitening_state_sha256": dataframe_content_sha256(
+            whitening_state, sort_columns=["feature_kind", "candidate_id"]
+        ),
+        "checkpoints_sha256": dataframe_content_sha256(
+            checkpoint_table, sort_columns=["base_measure", "seed"]
+        ),
+        "training_history_sha256": dataframe_content_sha256(
+            history_table, sort_columns=["base_measure", "seed", "update"]
+        ),
+        "summary_sha256": dataframe_content_sha256(
+            summary_table, sort_columns=["base_measure", "query_representation"]
+        ),
+        "bootstrap_draws_sha256": dataframe_content_sha256(
+            bootstrap_table,
+            sort_columns=["base_measure", "query_representation", "query_kind", "draw"],
+        ),
+        "distribution_gaps_sha256": dataframe_content_sha256(
+            divergence_table, sort_columns=["base_measure", "seed", "query_id"]
+        ),
+    }
+    report = {
+        "protocol_version": str(params["protocol_version"]),
+        "protocol": str(params["protocol_path"]),
+        "input_versions": dict(params["input_versions"]),
+        "population": {
+            "training_rows": int(len(train)),
+            "gallery_rows": int(len(gallery)),
+            "training_queries": int(len(training_queries)),
+            "evaluation_queries": int(len(evaluation_queries)),
+            "known_training_pairs": int(known.sum()),
+            "verified_training_pairs": int(verified.sum()),
+            "contradicted_training_pairs": int((known & ~verified).sum()),
+            "test_rows_read": False,
+        },
+        "resolved_configuration": params,
+        "base_mass_hashes": base_mass_hashes,
+        "comparison": comparison,
+        "tracking": tracking_records,
+        "output_hashes": output_hashes,
+        "decision": {
+            "status": "natural_parameter_validation_complete",
+            "validation_only": True,
+            "unknown_candidates_excluded_from_training": True,
+            "hyperparameter_tuning_performed": False,
+        },
+        "known_limitations": [
+            "Only four frozen atomic constraints have explicit contradicted candidates.",
+            "The resulting four-query conjunction evaluation is underpowered.",
+            "The historical test split is contaminated and was not read.",
+            "Canonical symbolic query text does not test paraphrase robustness.",
+        ],
+    }
+    return checkpoint_table, history_table, summary_table, report
+
+
+def _natural_parameter_partitions(
+    queries: pd.DataFrame, params: dict[str, Any]
+) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
+    atomic_ids = tuple(map(str, params["training_semantic_query_ids"]))
+    conjunction_ids = tuple(map(str, params["evaluation_semantic_query_ids"]))
+    if len(atomic_ids) != int(params["expected_training_queries"]) or len(conjunction_ids) != int(
+        params["expected_evaluation_queries"]
+    ):
+        raise ValueError("E08 query identifiers do not match the frozen counts")
+    if len(set(atomic_ids)) != len(atomic_ids) or len(set(conjunction_ids)) != len(conjunction_ids):
+        raise ValueError("E08 query identifiers must be unique")
+    positions = {
+        value: index for index, value in enumerate(queries["semantic_query_id"].astype(str))
+    }
+    missing = set((*atomic_ids, *conjunction_ids)).difference(positions)
+    if missing:
+        raise ValueError(f"E08 frozen queries are missing: {sorted(missing)}")
+    training_positions = np.asarray([positions[value] for value in atomic_ids], dtype=np.int64)
+    evaluation_positions = np.asarray(
+        [positions[value] for value in conjunction_ids], dtype=np.int64
+    )
+    training = queries.iloc[training_positions].reset_index(drop=True)
+    evaluation = queries.iloc[evaluation_positions].reset_index(drop=True)
+    if set(training["query_kind"].astype(str)) != {"atomic"}:
+        raise ValueError("E08 training queries must all be atomic")
+    if set(evaluation["query_kind"].astype(str)) != {"pair_conjunction"}:
+        raise ValueError("E08 evaluation queries must all be pair conjunctions")
+    if set(evaluation["controlled_split"].astype(str)) != {"atoms_seen_conjunction_unseen"}:
+        raise ValueError("E08 evaluation queries changed controlled split")
+    atomic_constraints = {
+        str(values[0])
+        for raw in training["constraint_ids_json"]
+        if len(values := json.loads(str(raw))) == 1
+    }
+    pair_constraints = [json.loads(str(raw)) for raw in evaluation["constraint_ids_json"]]
+    if len(atomic_constraints) != len(training) or any(
+        len(values) != 2 or not set(map(str, values)) <= atomic_constraints
+        for values in pair_constraints
+    ):
+        raise ValueError("E08 conjunctions must contain exactly two frozen training atoms")
+    return training, evaluation, training_positions, evaluation_positions
+
+
+def _training_state_masks(
+    train: pd.DataFrame,
+    queries: pd.DataFrame,
+    states: pd.DataFrame,
+    params: dict[str, Any],
+) -> tuple[np.ndarray, np.ndarray]:
+    query_index = {
+        value: index for index, value in enumerate(queries["semantic_query_id"].astype(str))
+    }
+    sequence_index = {value: index for index, value in enumerate(train["sequence_id"].astype(str))}
+    selected = states.loc[
+        states["semantic_query_id"].astype(str).isin(query_index)
+        & states["sequence_id"].astype(str).isin(sequence_index)
+    ]
+    verified = np.zeros((len(queries), len(train)), dtype=bool)
+    known = np.zeros_like(verified)
+    for row in selected.itertuples(index=False):
+        query_position = query_index[str(row.semantic_query_id)]
+        sequence_position = sequence_index[str(row.sequence_id)]
+        known[query_position, sequence_position] = True
+        verified[query_position, sequence_position] = str(row.state) == "verified"
+    minimum = int(params["minimum_training_state_rows"])
+    if np.any(verified.sum(axis=1) < minimum) or np.any((known & ~verified).sum(axis=1) < minimum):
+        raise ValueError(
+            "every E08 atom must have the frozen minimum verified and contradicted support"
+        )
+    return verified, known
+
+
+def _base_log_mass(population: pd.DataFrame, base_measure: str) -> np.ndarray:
+    if population.empty:
+        raise ValueError("base measure needs a non-empty population")
+    if base_measure == "uniform_plasmid":
+        result = np.full(len(population), -math.log(len(population)), dtype=np.float64)
+    elif base_measure == "uniform_v2_component":
+        if (
+            "leakage_component_v2" not in population
+            or population["leakage_component_v2"].isna().any()
+        ):
+            raise ValueError("uniform component mass needs complete v2 leakage components")
+        components = population["leakage_component_v2"].astype(str)
+        sizes = components.value_counts()
+        result = -math.log(len(sizes)) - np.log(components.map(sizes).to_numpy(dtype=np.float64))
+    else:
+        raise ValueError(f"unsupported E08 base measure: {base_measure}")
+    if not np.isclose(np.exp(result).sum(), 1.0, rtol=1e-10, atol=1e-10):
+        raise RuntimeError(f"E08 base measure does not normalize: {base_measure}")
+    return result
+
+
+def _natural_parameter_checkpoint(state: dict[str, Any], final_history: pd.Series) -> pd.DataFrame:
+    sequence_head = np.asarray(state["sequence_head"], dtype=np.float32)
+    text_head = np.asarray(state["text_head"], dtype=np.float32)
+    return pd.DataFrame(
+        [
+            {
+                "objective": "maximum_entropy",
+                "base_measure": str(state["base_measure"]),
+                "seed": int(state["seed"]),
+                "sequence_head": sequence_head.reshape(-1).tolist(),
+                "sequence_head_rows": int(sequence_head.shape[0]),
+                "sequence_head_columns": int(sequence_head.shape[1]),
+                "sequence_head_sha256": _array_sha256(sequence_head),
+                "text_head": text_head.reshape(-1).tolist(),
+                "text_head_rows": int(text_head.shape[0]),
+                "text_head_columns": int(text_head.shape[1]),
+                "text_head_sha256": _array_sha256(text_head),
+                "temperature": float(state["temperature"]),
+                "updates": int(state["updates"]),
+                "known_pairs": int(state["known_pairs"]),
+                "verified_pairs": int(state["verified_pairs"]),
+                "contradicted_pairs": int(state["contradicted_pairs"]),
+                "initial_sequence_head_sha256": str(state["initial_sequence_head_sha256"]),
+                "initial_text_head_sha256": str(state["initial_text_head_sha256"]),
+                "final_loss": float(final_history["loss"]),
+                "final_query_norm_mean": float(final_history["query_norm_mean"]),
+                "final_query_norm_max": float(final_history["query_norm_max"]),
+                "final_sequence_norm_sample_mean": float(
+                    final_history["sequence_norm_sample_mean"]
+                ),
+                "final_sequence_norm_sample_max": float(final_history["sequence_norm_sample_max"]),
+            }
+        ]
+    )
+
+
+def _natural_parameter_summary(
+    per_seed: pd.DataFrame,
+    bootstrap: pd.DataFrame,
+    divergences: pd.DataFrame,
+    params: dict[str, Any],
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    primary_k = int(params["primary_k"])
+    selected = per_seed.loc[
+        per_seed["query_kind"].eq("pair_conjunction") & per_seed["k"].eq(primary_k)
+    ]
+    values = ["verified_fraction", "contradicted_fraction", "unknown_fraction", "utility"]
+    point = (
+        selected.groupby(["base_measure", "query_representation"], sort=True)[values]
+        .mean()
+        .reset_index()
+    )
+    primary_draws = bootstrap.loc[bootstrap["query_kind"].eq("pair_conjunction")]
+    intervals = (
+        primary_draws.groupby(["base_measure", "query_representation"], sort=True)["utility"]
+        .quantile([0.025, 0.975])
+        .unstack()
+        .rename(columns={0.025: "interval_lower", 0.975: "interval_upper"})
+        .reset_index()
+    )
+    summary = point.merge(
+        intervals, on=["base_measure", "query_representation"], validate="one_to_one"
+    )
+    summary.insert(2, "query_count", int(params["expected_evaluation_queries"]))
+    expected_rows = {
+        (measure, representation)
+        for measure in EXPECTED_BASE_MEASURES
+        for representation in ("direct_text", "atomic_sum")
+    }
+    observed_rows = set(zip(summary["base_measure"], summary["query_representation"], strict=True))
+    if observed_rows != expected_rows:
+        raise ValueError("E08 summary lacks a base-measure or query-representation result")
+
+    draws = primary_draws.pivot(
+        index="draw", columns=["base_measure", "query_representation"], values="utility"
+    )
+    component_difference = (
+        draws[("uniform_v2_component", "atomic_sum")] - draws[("uniform_plasmid", "atomic_sum")]
+    )
+    component_lower, component_upper = component_difference.quantile([0.025, 0.975])
+    atomic_points = summary.loc[summary["query_representation"].eq("atomic_sum")].set_index(
+        "base_measure"
+    )["utility"]
+    observed = float(atomic_points["uniform_v2_component"] - atomic_points["uniform_plasmid"])
+    threshold = float(params["minimum_practical_improvement"])
+    if observed >= threshold and component_lower > 0.0:
+        selection = "uniform_v2_component"
+    elif observed <= -threshold and component_upper < 0.0:
+        selection = "uniform_plasmid"
+    else:
+        selection = "indistinguishable"
+    direct_vs_sum = {}
+    for base_measure in EXPECTED_BASE_MEASURES:
+        difference = draws[(base_measure, "atomic_sum")] - draws[(base_measure, "direct_text")]
+        lower, upper = difference.quantile([0.025, 0.975])
+        base_points = summary.loc[summary["base_measure"].eq(base_measure)].set_index(
+            "query_representation"
+        )["utility"]
+        direct_vs_sum[base_measure] = {
+            "atomic_sum_minus_direct_text": float(
+                base_points["atomic_sum"] - base_points["direct_text"]
+            ),
+            "paired_component_bootstrap_95_interval": [float(lower), float(upper)],
+            "mean_jensen_shannon_divergence": float(
+                divergences.loc[
+                    divergences["base_measure"].eq(base_measure),
+                    "jensen_shannon_divergence",
+                ].mean()
+            ),
+        }
+    comparison = {
+        "primary_metric": f"validation_pair_query_macro_utility_at_{primary_k}",
+        "primary_query_representation": "atomic_sum",
+        "uniform_plasmid": float(atomic_points["uniform_plasmid"]),
+        "uniform_v2_component": float(atomic_points["uniform_v2_component"]),
+        "uniform_v2_component_minus_uniform_plasmid": observed,
+        "paired_component_bootstrap_95_interval": [
+            float(component_lower),
+            float(component_upper),
+        ],
+        "minimum_practical_improvement": threshold,
+        "selection": selection,
+        "direct_vs_atomic_sum": direct_vs_sum,
+    }
+    return summary.sort_values(
+        ["base_measure", "query_representation"], kind="stable", ignore_index=True
+    ), comparison
+
+
+def _float64_sha256(values: np.ndarray) -> str:
+    return hashlib.sha256(np.ascontiguousarray(values, dtype=np.float64).tobytes()).hexdigest()
+
+
 def _sum_atomic_queries(
     atomic_queries: pd.DataFrame,
     conjunction_queries: pd.DataFrame,
@@ -312,17 +780,18 @@ def _jensen_shannon_rows(left_scores: np.ndarray, right_scores: np.ndarray) -> n
     if not np.isfinite(right).all():
         raise ValueError("distribution score matrices must be finite and have equal shapes")
 
-    def probabilities(values: np.ndarray) -> np.ndarray:
+    def log_probabilities(values: np.ndarray) -> np.ndarray:
         shifted = values - values.max(axis=1, keepdims=True)
-        mass = np.exp(shifted)
-        return mass / mass.sum(axis=1, keepdims=True)
+        return shifted - np.log(np.exp(shifted).sum(axis=1, keepdims=True))
 
-    left_probability = probabilities(left)
-    right_probability = probabilities(right)
-    midpoint = 0.5 * (left_probability + right_probability)
+    left_log_probability = log_probabilities(left)
+    right_log_probability = log_probabilities(right)
+    midpoint_log_probability = np.logaddexp(left_log_probability, right_log_probability) - math.log(
+        2.0
+    )
     return 0.5 * np.sum(
-        left_probability * np.log(left_probability / midpoint)
-        + right_probability * np.log(right_probability / midpoint),
+        np.exp(left_log_probability) * (left_log_probability - midpoint_log_probability)
+        + np.exp(right_log_probability) * (right_log_probability - midpoint_log_probability),
         axis=1,
     )
 
@@ -694,6 +1163,41 @@ def _log_wandb(
             )
         for row in summary.itertuples(index=False):
             prefix = f"validation/{row.query_kind}/k{row.k}"
+            run.summary[f"{prefix}/verified_fraction"] = float(row.verified_fraction)
+            run.summary[f"{prefix}/contradicted_fraction"] = float(row.contradicted_fraction)
+            run.summary[f"{prefix}/unknown_fraction"] = float(row.unknown_fraction)
+            run.summary[f"{prefix}/utility"] = float(row.utility)
+        record["status"] = "logged"
+    except Exception as error:
+        record.update(
+            status="logging_failed",
+            failure_type=type(error).__name__,
+            failure_message=str(error),
+        )
+
+
+def _log_natural_parameter_wandb(
+    run: Any | None,
+    record: dict[str, Any],
+    history: pd.DataFrame,
+    summary: pd.DataFrame,
+) -> None:
+    if run is None:
+        return
+    try:
+        for row in history.itertuples(index=False):
+            run.log(
+                {
+                    "train/loss": float(row.loss),
+                    "train/query_norm_mean": float(row.query_norm_mean),
+                    "train/query_norm_max": float(row.query_norm_max),
+                    "train/sequence_norm_sample_mean": float(row.sequence_norm_sample_mean),
+                    "train/sequence_norm_sample_max": float(row.sequence_norm_sample_max),
+                },
+                step=int(row.update),
+            )
+        for row in summary.itertuples(index=False):
+            prefix = f"validation/{row.query_representation}/{row.query_kind}/k{row.k}"
             run.summary[f"{prefix}/verified_fraction"] = float(row.verified_fraction)
             run.summary[f"{prefix}/contradicted_fraction"] = float(row.contradicted_fraction)
             run.summary[f"{prefix}/unknown_fraction"] = float(row.unknown_fraction)

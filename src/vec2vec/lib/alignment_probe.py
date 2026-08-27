@@ -264,6 +264,130 @@ def train_controlled_query_probe(
     return state, pd.DataFrame(history)
 
 
+def train_maximum_entropy_probe(
+    sequence_train: np.ndarray,
+    query_train: np.ndarray,
+    verified_mask: np.ndarray,
+    known_mask: np.ndarray,
+    log_base_mass: np.ndarray,
+    *,
+    base_measure: str,
+    seed: int,
+    projection_dimension: int,
+    updates: int,
+    learning_rate: float,
+    weight_decay: float,
+    temperature: float,
+    device: str,
+    deadline_monotonic: float | None = None,
+) -> tuple[dict[str, Any], pd.DataFrame]:
+    """Fit unnormalized projections against the exact known candidate universe."""
+    import torch
+
+    sequence = _finite_matrix(sequence_train, name="maximum-entropy sequence features")
+    queries = _finite_matrix(query_train, name="maximum-entropy query features")
+    verified = np.asarray(verified_mask)
+    known = np.asarray(known_mask)
+    if verified.dtype != np.bool_ or known.dtype != np.bool_:
+        raise ValueError("maximum-entropy state masks must be boolean")
+    if verified.shape != (len(queries), len(sequence)) or known.shape != verified.shape:
+        raise ValueError("maximum-entropy state masks must align with queries and sequences")
+    if np.any(verified & ~known):
+        raise ValueError("verified candidates must be included in the known universe")
+    contradicted = known & ~verified
+    if not verified.any(axis=1).all() or not contradicted.any(axis=1).all():
+        raise ValueError("every maximum-entropy query needs verified and contradicted candidates")
+    log_mass = np.asarray(log_base_mass, dtype=np.float64)
+    if log_mass.shape != (len(sequence),) or not np.isfinite(log_mass).all():
+        raise ValueError("log base mass must be one finite value per training sequence")
+    if not np.isclose(np.exp(log_mass).sum(), 1.0, rtol=1e-10, atol=1e-10):
+        raise ValueError("base measure must normalize over the active training population")
+    if projection_dimension < 1 or updates < 1 or temperature <= 0.0:
+        raise ValueError("projection dimension, updates, and temperature must be positive")
+
+    _ensure_before_deadline(deadline_monotonic, operation="maximum-entropy probe setup")
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    target = torch.device(device)
+    sequence_tensor = torch.as_tensor(sequence, device=target)
+    query_tensor = torch.as_tensor(queries, device=target)
+    verified_tensor = torch.as_tensor(verified, device=target)
+    known_tensor = torch.as_tensor(known, device=target)
+    log_mass_tensor = torch.as_tensor(log_mass, dtype=torch.float32, device=target)
+    sequence_head = torch.nn.Linear(sequence.shape[1], projection_dimension, bias=False).to(target)
+    text_head = torch.nn.Linear(queries.shape[1], projection_dimension, bias=False).to(target)
+    torch.nn.init.normal_(
+        sequence_head.weight,
+        std=1.0 / np.sqrt(sequence.shape[1] * projection_dimension),
+    )
+    torch.nn.init.normal_(
+        text_head.weight,
+        std=1.0 / np.sqrt(queries.shape[1] * projection_dimension),
+    )
+    initial_sequence_head_sha256 = _tensor_sha256(sequence_head.weight)
+    initial_text_head_sha256 = _tensor_sha256(text_head.weight)
+    optimizer = torch.optim.AdamW(
+        [*sequence_head.parameters(), *text_head.parameters()],
+        lr=learning_rate,
+        weight_decay=weight_decay,
+    )
+    negative_infinity = torch.finfo(log_mass_tensor.dtype).min
+    target_logits = log_mass_tensor.unsqueeze(0).expand_as(verified_tensor)
+    target_probability = torch.softmax(
+        target_logits.masked_fill(~verified_tensor, negative_infinity), dim=1
+    )
+    history: list[dict[str, float | int]] = []
+    norm_sample = sequence_tensor[: min(len(sequence_tensor), 2048)]
+    for update in range(1, updates + 1):
+        _ensure_before_deadline(deadline_monotonic, operation=f"maximum-entropy update {update}")
+        projected_query = text_head(query_tensor)
+        query_in_sequence_space = projected_query @ sequence_head.weight
+        scores = query_in_sequence_space @ sequence_tensor.T / temperature
+        logits = scores + log_mass_tensor
+        known_logits = logits.masked_fill(~known_tensor, negative_infinity)
+        loss = (
+            torch.logsumexp(known_logits, dim=1) - (target_probability * logits).sum(dim=1)
+        ).mean()
+        if not bool(torch.isfinite(loss)):
+            raise FloatingPointError(f"maximum-entropy loss became non-finite at update {update}")
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        with torch.no_grad():
+            query_norms = torch.linalg.vector_norm(text_head(query_tensor), dim=1)
+            sequence_norms = torch.linalg.vector_norm(sequence_head(norm_sample), dim=1)
+        history.append(
+            {
+                "update": update,
+                "loss": float(loss.detach().cpu()),
+                "query_norm_mean": float(query_norms.mean().cpu()),
+                "query_norm_max": float(query_norms.max().cpu()),
+                "sequence_norm_sample_mean": float(sequence_norms.mean().cpu()),
+                "sequence_norm_sample_max": float(sequence_norms.max().cpu()),
+            }
+        )
+
+    state = {
+        "objective": "maximum_entropy",
+        "base_measure": base_measure,
+        "seed": seed,
+        "sequence_head": sequence_head.weight.detach().cpu().numpy().astype(np.float32),
+        "text_head": text_head.weight.detach().cpu().numpy().astype(np.float32),
+        "temperature": temperature,
+        "updates": updates,
+        "known_pairs": int(known.sum()),
+        "verified_pairs": int(verified.sum()),
+        "contradicted_pairs": int(contradicted.sum()),
+        "initial_sequence_head_sha256": initial_sequence_head_sha256,
+        "initial_text_head_sha256": initial_text_head_sha256,
+    }
+    return state, pd.DataFrame(history)
+
+
 def symmetric_many_positive_loss(logits: Any, positive_mask: Any) -> Any:
     """Return symmetric log-sum-exp contrastive loss for explicit positive sets."""
     import torch
@@ -294,6 +418,42 @@ def project(values: np.ndarray, head: np.ndarray) -> np.ndarray:
     if np.any(~np.isfinite(norms)) or np.any(norms == 0.0):
         raise ValueError("projection produced a zero or non-finite vector")
     return (result / norms[:, None]).astype(np.float32)
+
+
+def project_unnormalized(values: np.ndarray, head: np.ndarray) -> np.ndarray:
+    """Apply a learned head while preserving natural-parameter vector norms."""
+    matrix = _finite_matrix(values, name="unnormalized projection inputs")
+    weights = _finite_matrix(head, name="unnormalized projection head")
+    if matrix.shape[1] != weights.shape[1]:
+        raise ValueError("unnormalized projection input and head dimensions differ")
+    result = matrix @ weights.T
+    if not np.isfinite(result).all():
+        raise ValueError("unnormalized projection produced a non-finite vector")
+    return result.astype(np.float32)
+
+
+def natural_parameter_scores(
+    query_vectors: np.ndarray,
+    gallery_vectors: np.ndarray,
+    log_base_mass: np.ndarray,
+    *,
+    temperature: float,
+) -> np.ndarray:
+    """Score an exponential tilt of a normalized gallery base measure."""
+    queries = _finite_matrix(query_vectors, name="natural-parameter query vectors")
+    gallery = _finite_matrix(gallery_vectors, name="natural-parameter gallery vectors")
+    log_mass = np.asarray(log_base_mass, dtype=np.float64)
+    if queries.shape[1] != gallery.shape[1]:
+        raise ValueError("natural-parameter query and gallery dimensions differ")
+    if log_mass.shape != (len(gallery),) or not np.isfinite(log_mass).all():
+        raise ValueError("gallery log base mass must be finite and aligned")
+    if not np.isclose(np.exp(log_mass).sum(), 1.0, rtol=1e-10, atol=1e-10):
+        raise ValueError("gallery base measure must normalize to one")
+    if temperature <= 0.0:
+        raise ValueError("natural-parameter temperature must be positive")
+    return (
+        queries.astype(np.float64) @ gallery.astype(np.float64).T / temperature + log_mass[None, :]
+    )
 
 
 def paired_retrieval_metrics(
@@ -340,10 +500,29 @@ def query_rankings_and_metrics(
     if not cutoffs or min(cutoffs) < 1 or max(cutoffs) > len(gallery):
         raise ValueError("retrieval cutoffs must fit the validation gallery")
     scores = query_matrix @ gallery_matrix.T
+    return query_rankings_and_metrics_from_scores(
+        scores, queries, gallery, query_states, cutoffs=cutoffs
+    )
+
+
+def query_rankings_and_metrics_from_scores(
+    scores: np.ndarray,
+    queries: pd.DataFrame,
+    gallery: pd.DataFrame,
+    query_states: pd.DataFrame,
+    *,
+    cutoffs: tuple[int, ...],
+) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
+    """Rank a validated query-by-gallery score matrix and report state fractions."""
+    score_matrix = _finite_matrix(scores, name="query scores")
+    if score_matrix.shape != (len(queries), len(gallery)):
+        raise ValueError("query scores must align with query and gallery metadata")
+    if not cutoffs or min(cutoffs) < 1 or max(cutoffs) > len(gallery):
+        raise ValueError("retrieval cutoffs must fit the validation gallery")
     top_count = max(cutoffs)
-    order = np.argsort(-scores, axis=1, kind="stable")[:, :top_count]
+    order = np.argsort(-score_matrix, axis=1, kind="stable")[:, :top_count]
     top_indices = order
-    top_scores = np.take_along_axis(scores, order, axis=1)
+    top_scores = np.take_along_axis(score_matrix, order, axis=1)
     state_lookup = {
         (str(row.semantic_query_id), str(row.sequence_id)): str(row.state)
         for row in query_states.itertuples(index=False)
@@ -393,7 +572,7 @@ def query_rankings_and_metrics(
                     "utility": verified - contradicted,
                 }
             )
-    return pd.DataFrame(ranking_rows), pd.DataFrame(metric_rows), scores
+    return pd.DataFrame(ranking_rows), pd.DataFrame(metric_rows), score_matrix
 
 
 def whole_component_bootstrap_draws(
@@ -405,6 +584,7 @@ def whole_component_bootstrap_draws(
     k: int,
     draws: int,
     seed: int,
+    component_column: str = "similarity_component_primary",
     deadline_monotonic: float | None = None,
 ) -> pd.DataFrame:
     """Persistable utility draws from complete-component gallery resampling.
@@ -421,8 +601,10 @@ def whole_component_bootstrap_draws(
         raise ValueError("component bootstrap queries must be non-empty and unique")
     if gallery.empty or gallery["sequence_id"].duplicated().any():
         raise ValueError("component bootstrap gallery must be non-empty and unique")
+    if component_column not in gallery:
+        raise ValueError(f"bootstrap component column is missing: {component_column}")
     components, component_codes = np.unique(
-        gallery["similarity_component_primary"].astype(str), return_inverse=True
+        gallery[component_column].astype(str), return_inverse=True
     )
     generator = np.random.default_rng(seed)
     multiplicities = generator.multinomial(

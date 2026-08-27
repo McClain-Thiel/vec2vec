@@ -645,3 +645,81 @@ result_reproduction:
       atomic_sum_interval: [0.11290624999999996, 0.21876041666666665]
       mean_jensen_shannon_divergence: 0.14577793365451722
       wandb_run_ids: [tgvbjubz, 2ujk3rnd, 687abv4z, j9vyfig4, 5ldg9uf9, dogbw039]
+  natural_parameters:
+    protocol_version: e08-natural-parameters-v0.1
+    training_rows: 88474
+    training_semantic_query_ids:
+      - e5b82f29200a9749acc1052de4c62d611428f0e25971bea434b82bf0304d5a56
+      - b86ee8fa7b6cc17608d076767baadb9287a7efbc462c8f5f363af1e9cc2d235c
+      - 3e522dc772c374061431661b29af157badcf09e540ec6c6bdbae2b135ca3465b
+      - c88f1ebeb3de694ccbcf549a3d2405294b6a1ea4c34c621c95f2804a8191201e
+    evaluation_semantic_query_ids:
+      - 59c4a2518ff621394f06f3bf602ab194921a37531d8eaa6278c2bb5522cc35a7
+      - b3bb71bdbc7be0e6dac9cb98c2f04d19c81702fe03a4564aef965078aab68554
+      - c930d62b7034b35cd2ea2eaa373f7faa0c8a4a0a960f829e732a7eea0bdfba91
+      - 382b21eb19e1c33c4766915e9ac4c71f4b95b5d80058c2edcc0a547c508e89d3
+    expected_training_queries: 4
+    expected_evaluation_queries: 4
+    minimum_training_state_rows: 20
+    base_measures: [uniform_plasmid, uniform_v2_component]
+    device: cuda
+    precision: float32
+    primary_k: 10
+    minimum_practical_improvement: 0.01
+    probe:
+      seeds: [13, 42, 20260818]
+      projection_dimension: 512
+      whitening_epsilon: 0.000001
+      updates: 300
+      learning_rate: 0.001
+      weight_decay: 0.01
+      temperature: 0.07
+      cutoffs: [1, 5, 10, 50]
+      bootstrap_draws: 2000
+      bootstrap_seed: 20260818
+    tracking:
+      enabled: true
+      project: vec2vec
+      entity: null
+      group: e08-natural-parameters-v0.1
+      tags: [maximum-entropy, natural-parameters, base-measure, e08, validation-only]
+    compute_authorization:
+      approval_reference: chat-2026-08-27-e08-natural-parameters-auto-under-20
+      region: us-east-1
+      instance_type: g6.4xlarge
+      instance_hour_limit: 1.0
+      observed_instance_price_usd_per_hour: 1.3232
+    technical_retry:
+      rejected_version: 2026-08-27T16.08.12.789Z
+      reason: nonfinite_secondary_jensen_shannon_diagnostic
+      required_unchanged_output_hashes:
+        whitening_state_sha256: 2a6701d7c6de5b062491c9c58c573894e8d73af16fa020a49d8a66edc59d7433
+        checkpoints_sha256: 7866cd4b40ce720b32d2f1283de83071925121b8998b36dfcf9e7d0da0cafeca
+        training_history_sha256: 0234d9972f371c9c7122cd778e760c2fba9120f2bdff51b485239819bd5e678f
+        summary_sha256: ae3a8e006768f71e7ab9a6950e1976c3d55d3851b355c80b17521420a2888627
+        bootstrap_draws_sha256: a8f5d897caf8bca668d2e4197cef9bf47f9b0a987189126db4b4dac92734588e
+    expected_output_hashes:
+      whitening_state_sha256: 2a6701d7c6de5b062491c9c58c573894e8d73af16fa020a49d8a66edc59d7433
+      checkpoints_sha256: 7866cd4b40ce720b32d2f1283de83071925121b8998b36dfcf9e7d0da0cafeca
+      training_history_sha256: 0234d9972f371c9c7122cd778e760c2fba9120f2bdff51b485239819bd5e678f
+      summary_sha256: ae3a8e006768f71e7ab9a6950e1976c3d55d3851b355c80b17521420a2888627
+      bootstrap_draws_sha256: a8f5d897caf8bca668d2e4197cef9bf47f9b0a987189126db4b4dac92734588e
+      distribution_gaps_sha256: 18955cf3cf4e425c56b4d77ec1541ddaebada8d08202554bbd933b3f78572b13
+    accepted_run_artifact:
+      version: 2026-08-27T16.17.31.598Z
+      git_commit: c6a1b45f5d5746c56048b7127378ce90cf5832b1
+      report_sha256: 178eb98d922296c89839c536f84773453c60fa0768eb1205d53815a0736da4c7
+      summary_sha256: ae3a8e006768f71e7ab9a6950e1976c3d55d3851b355c80b17521420a2888627
+      persisted_bytes: 25549858
+      stage_elapsed_seconds: 403.43214451521635
+      stage_cost_usd: 0.14828372600625953
+      wrapper_elapsed_seconds: 428.57021145895123
+      wrapper_cost_usd: 0.15752336216735674
+      combined_cost_including_rejected_attempt_usd: 0.31477204083418514
+      comparison:
+        uniform_plasmid_atomic_sum_utility_at_10: -0.43333333333333335
+        uniform_v2_component_atomic_sum_utility_at_10: -0.5083333333333333
+        component_minus_plasmid: -0.07499999999999996
+        component_minus_plasmid_interval: [-0.24187500000000006, 0.07499999999999996]
+        selection: indistinguishable
+      wandb_run_ids: [866oov1f, 2qk1ijlr, pqpjwx6m, rjorpwx6, 9vrlpouh, 1c2vt9co]

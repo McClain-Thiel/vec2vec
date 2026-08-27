@@ -185,3 +185,76 @@ def test_controlled_query_probe_rejects_query_without_verified_sequence() -> Non
             maximum_logit_scale=100.0,
             device="cpu",
         )
+
+
+def test_maximum_entropy_probe_uses_only_known_states_and_preserves_norms() -> None:
+    sequence = np.asarray([[1.0, 0.0], [0.8, 0.2], [0.0, 1.0], [0.2, 0.8]], dtype=np.float32)
+    queries = np.eye(2, dtype=np.float32)
+    verified = np.asarray([[True, True, False, False], [False, False, True, True]])
+    known = np.asarray([[True, True, True, False], [True, False, True, True]])
+    log_mass = np.full(4, -np.log(4.0))
+
+    state, history = alignment_probe.train_maximum_entropy_probe(
+        sequence,
+        queries,
+        verified,
+        known,
+        log_mass,
+        base_measure="uniform_plasmid",
+        seed=42,
+        projection_dimension=2,
+        updates=20,
+        learning_rate=0.03,
+        weight_decay=0.01,
+        temperature=0.1,
+        device="cpu",
+    )
+
+    assert history.iloc[-1]["loss"] < history.iloc[0]["loss"]
+    projected = alignment_probe.project_unnormalized(sequence, state["sequence_head"])
+    assert not np.allclose(np.linalg.norm(projected, axis=1), 1.0)
+    assert state["known_pairs"] == 6
+    assert state["verified_pairs"] == 4
+
+
+def test_natural_parameter_scores_include_base_measure() -> None:
+    queries = np.asarray([[1.0, 0.0]], dtype=np.float32)
+    gallery = np.asarray([[1.0, 0.0], [1.0, 0.0]], dtype=np.float32)
+    log_mass = np.log(np.asarray([0.25, 0.75]))
+
+    scores = alignment_probe.natural_parameter_scores(queries, gallery, log_mass, temperature=1.0)
+
+    assert scores[0, 1] > scores[0, 0]
+    assert np.isclose(scores[0, 1] - scores[0, 0], np.log(3.0))
+
+
+def test_component_bootstrap_can_use_v2_leakage_components() -> None:
+    queries = pd.DataFrame([{"query_id": "q1", "semantic_query_id": "s1", "query_kind": "atomic"}])
+    gallery = pd.DataFrame(
+        {
+            "sequence_id": ["p0", "p1", "p2", "p3"],
+            "similarity_component_primary": ["one", "two", "three", "four"],
+            "leakage_component_v2": ["a", "a", "b", "b"],
+        }
+    )
+    states = pd.DataFrame(
+        [
+            {"semantic_query_id": "s1", "sequence_id": "p0", "state": "verified"},
+            {"semantic_query_id": "s1", "sequence_id": "p1", "state": "verified"},
+            {"semantic_query_id": "s1", "sequence_id": "p2", "state": "contradicted"},
+            {"semantic_query_id": "s1", "sequence_id": "p3", "state": "contradicted"},
+        ]
+    )
+
+    draws = alignment_probe.whole_component_bootstrap_draws(
+        [np.asarray([[4.0, 3.0, 2.0, 1.0]], dtype=np.float32)],
+        queries,
+        gallery,
+        states,
+        k=2,
+        draws=10,
+        seed=42,
+        component_column="leakage_component_v2",
+    )
+
+    assert len(draws) == 20

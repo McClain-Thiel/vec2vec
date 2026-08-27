@@ -95,6 +95,21 @@ def _config():
             "query_representations": ["direct_text", "atomic_sum"],
             "tracking": {"enabled": True},
         },
+        "natural_parameters": {
+            "protocol_version": "natural-v1",
+            "training_semantic_query_ids": ["a", "b"],
+            "evaluation_semantic_query_ids": ["ab"],
+            "expected_training_queries": 2,
+            "expected_evaluation_queries": 1,
+            "minimum_training_state_rows": 2,
+            "base_measures": ["uniform_plasmid", "uniform_v2_component"],
+            "device": "cuda",
+            "precision": "float32",
+            "primary_k": 10,
+            "minimum_practical_improvement": 0.01,
+            "probe": {"seeds": [13, 42, 20260818], "temperature": 0.07},
+            "tracking": {"enabled": True},
+        },
     }
 
 
@@ -144,6 +159,14 @@ def test_reproduction_parameters_bind_frozen_inputs_and_features() -> None:
     assert additive["query_representations"] == ["direct_text", "atomic_sum"]
     assert additive["audit_atomic_sum"] is True
     assert additive["run_name_prefix"] == "e07-additive"
+
+    natural = summarize_results._natural_parameter_params(config)
+    assert natural["protocol_version"] == "natural-v1"
+    assert natural["training_rows"] == 88
+    assert natural["training_semantic_query_ids"] == ["a", "b"]
+    assert natural["base_measures"] == ["uniform_plasmid", "uniform_v2_component"]
+    assert natural["probe"]["temperature"] == 0.07
+    assert natural["run_name_prefix"] == "e08"
 
 
 def test_scale_feature_loader_uses_e06_datasets() -> None:

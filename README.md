@@ -28,16 +28,22 @@ The historical test split remains contaminated, so this is still exploratory val
 E07 tested the original vector-addition readout. Summing the two projected atomic queries gave
 utility@10 `0.19333`, versus `0.17333` for encoding the conjunction directly. The difference was
 `0.02000`, with interval `[-0.01792, 0.06043]`: addition works, but is not clearly better than the
-direct-text baseline. The next model is the unnormalized maximum-entropy formulation.
+direct-text baseline.
+
+E08 implemented the unnormalized maximum-entropy formulation on the four atomic constraints with
+valid negative evidence. Optimization diverged: loss increased from about `12` to `317–1,134`, and
+atomic-sum utility@10 was negative for both uniform-plasmid (`-0.43333`) and uniform-component
+(`-0.50833`) base measures. This is an optimization failure, not a test of the underlying algebra.
 
 The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
 bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
 
-The complete retained evidence is four tables:
+The complete retained evidence is five tables:
 
 - [`results/encoders.csv`](results/encoders.csv): all 12 encoder pairs.
 - [`results/supervision.csv`](results/supervision.csv): paired versus set supervision.
 - [`results/composition.csv`](results/composition.csv): E05 and population-scale E06 unseen pairs.
+- [`results/natural_parameters.csv`](results/natural_parameters.csv): E08 base-measure comparison.
 - [`results/artifacts.csv`](results/artifacts.csv): exact versions, hashes, locations, and failures.
 
 Regenerate and verify them from the accepted S3 reports:
@@ -56,9 +62,9 @@ python scripts/summarize_results.py --reproduce alignment \
   --instance-hour-limit <hours> --observed-instance-price-usd-per-hour <price>
 ```
 
-Use `--reproduce supervision`, `composition`, or `scale` for the three supervision comparisons.
-All stages require the exact Python 3.11.14 environment and NVIDIA L4 recorded in
-`result_reproduction`; install it with `uv sync --extra modeling`.
+Use `--reproduce supervision`, `composition`, `scale`, `additive`, or `natural-parameters` for the
+other comparisons. All stages require the exact Python 3.11.14 environment and NVIDIA L4 recorded
+in `result_reproduction`; install it with `uv sync --extra modeling`.
 
 ## Data pipeline
 
