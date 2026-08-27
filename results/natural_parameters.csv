@@ -1,5 +1,9 @@
-base_measure,query_count,decision,query_representation,utility_at_10,atomic_sum_minus_direct_text,difference_interval_lower,difference_interval_upper
-uniform_plasmid,4,optimization_failed,direct_text,-0.3833333333333333,0.0,,
-uniform_plasmid,4,optimization_failed,atomic_sum,-0.43333333333333335,-0.050000000000000044,-0.13333333333333336,0.11666666666666664
-uniform_v2_component,4,optimization_failed,direct_text,-0.5416666666666666,0.0,,
-uniform_v2_component,4,optimization_failed,atomic_sum,-0.5083333333333333,0.033333333333333326,-0.10833333333333328,0.12499999999999994
+experiment,learning_rate,base_measure,query_count,decision,query_representation,utility_at_10,atomic_sum_minus_direct_text,difference_interval_lower,difference_interval_upper
+E08,0.001,uniform_plasmid,4,optimization_failed,direct_text,-0.3833333333333333,0.0,,
+E08,0.001,uniform_plasmid,4,optimization_failed,atomic_sum,-0.43333333333333335,-0.050000000000000044,-0.13333333333333336,0.11666666666666664
+E08,0.001,uniform_v2_component,4,optimization_failed,direct_text,-0.5416666666666666,0.0,,
+E08,0.001,uniform_v2_component,4,optimization_failed,atomic_sum,-0.5083333333333333,0.033333333333333326,-0.10833333333333328,0.12499999999999994
+E09,3e-05,uniform_plasmid,4,stable_selected,direct_text,-0.23333333333333334,0.0,,
+E09,3e-05,uniform_plasmid,4,stable_selected,atomic_sum,0.37500000000000006,0.6083333333333334,0.10833333333333336,0.8249999999999998
+E09,3e-05,uniform_v2_component,4,stable_selected,direct_text,0.10000000000000002,0.0,,
+E09,3e-05,uniform_v2_component,4,stable_selected,atomic_sum,0.22499999999999998,0.12499999999999996,-0.08333333333333334,0.4083333333333333

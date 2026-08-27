@@ -35,6 +35,12 @@ valid negative evidence. Optimization diverged: loss increased from about `12` t
 atomic-sum utility@10 was negative for both uniform-plasmid (`-0.43333`) and uniform-component
 (`-0.50833`) base measures. This is an optimization failure, not a test of the underlying algebra.
 
+E09 selected learning rate `3e-5` from training stability alone. Loss decreased for every selected
+fit and norms stayed bounded. Atomic-sum utility@10 was `0.37500` for uniform plasmid and `0.22500`
+for uniform component, but both intervals include zero and the experiment has only four
+conjunctions. E08's negative result was an optimization artifact; broader algebra claims need more
+explicit negative supervision.
+
 The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
 bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
 
@@ -43,7 +49,7 @@ The complete retained evidence is five tables:
 - [`results/encoders.csv`](results/encoders.csv): all 12 encoder pairs.
 - [`results/supervision.csv`](results/supervision.csv): paired versus set supervision.
 - [`results/composition.csv`](results/composition.csv): E05 and population-scale E06 unseen pairs.
-- [`results/natural_parameters.csv`](results/natural_parameters.csv): E08 base-measure comparison.
+- [`results/natural_parameters.csv`](results/natural_parameters.csv): E08 failure and stable E09.
 - [`results/artifacts.csv`](results/artifacts.csv): exact versions, hashes, locations, and failures.
 
 Regenerate and verify them from the accepted S3 reports:
