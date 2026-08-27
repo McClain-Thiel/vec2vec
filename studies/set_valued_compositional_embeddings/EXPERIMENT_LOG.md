@@ -2682,3 +2682,20 @@ are `a9a1ca17eab82fca3c4774326013034552dbf34583239fddcb19c5017515e275` and
 `54fa9a4e1ace084ac3ae69068a5f4234ec77e80f072a5d37edd0646ca0ddabdb`. All six W&B runs finished.
 The measured stage used 414.99 seconds and `$0.15253`; the wrapper used 436.65 seconds and
 `$0.16049`.
+
+## 2026-08-27 — E08 natural-parameter model preregistered
+
+E08 implements the original maximum-entropy formulation: unnormalized 512-dimensional linear
+projections, fixed temperature `0.07`, exact normalization over every known training candidate,
+unknown candidates excluded, and scores `log μ(x) + q·z/τ`. It compares uniform-plasmid and
+uniform-v2-component base measures over three frozen seeds, with 300 updates and no tuning. The
+primary endpoint is atomic-sum utility@10 on the component-disjoint validation gallery; the paired
+2,000-draw v2-component bootstrap compares the two base measures. Direct conjunction text and
+direct-versus-sum distribution divergence are secondary. No historical test row may be read.
+
+Only four of the 28 frozen atoms have both verified and contradicted training candidates: low/high
+copy class and 30/37 °C growth temperature. Treating the other 24 atoms' unknown candidates as
+negative would violate the study contract, so E08 freezes these four atoms and their four unseen
+cross-facet conjunctions. This is an honest but underpowered controlled test, not a general
+retrieval claim. The run is capped at one `g6.4xlarge` hour and `$1.3232` under standing approval
+reference `chat-2026-08-27-e08-natural-parameters-auto-under-20`.

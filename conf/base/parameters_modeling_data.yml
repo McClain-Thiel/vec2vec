@@ -645,3 +645,47 @@ result_reproduction:
       atomic_sum_interval: [0.11290624999999996, 0.21876041666666665]
       mean_jensen_shannon_divergence: 0.14577793365451722
       wandb_run_ids: [tgvbjubz, 2ujk3rnd, 687abv4z, j9vyfig4, 5ldg9uf9, dogbw039]
+  natural_parameters:
+    protocol_version: e08-natural-parameters-v0.1
+    training_rows: 88474
+    training_semantic_query_ids:
+      - e5b82f29200a9749acc1052de4c62d611428f0e25971bea434b82bf0304d5a56
+      - b86ee8fa7b6cc17608d076767baadb9287a7efbc462c8f5f363af1e9cc2d235c
+      - 3e522dc772c374061431661b29af157badcf09e540ec6c6bdbae2b135ca3465b
+      - c88f1ebeb3de694ccbcf549a3d2405294b6a1ea4c34c621c95f2804a8191201e
+    evaluation_semantic_query_ids:
+      - 59c4a2518ff621394f06f3bf602ab194921a37531d8eaa6278c2bb5522cc35a7
+      - b3bb71bdbc7be0e6dac9cb98c2f04d19c81702fe03a4564aef965078aab68554
+      - c930d62b7034b35cd2ea2eaa373f7faa0c8a4a0a960f829e732a7eea0bdfba91
+      - 382b21eb19e1c33c4766915e9ac4c71f4b95b5d80058c2edcc0a547c508e89d3
+    expected_training_queries: 4
+    expected_evaluation_queries: 4
+    minimum_training_state_rows: 20
+    base_measures: [uniform_plasmid, uniform_v2_component]
+    device: cuda
+    precision: float32
+    primary_k: 10
+    minimum_practical_improvement: 0.01
+    probe:
+      seeds: [13, 42, 20260818]
+      projection_dimension: 512
+      whitening_epsilon: 0.000001
+      updates: 300
+      learning_rate: 0.001
+      weight_decay: 0.01
+      temperature: 0.07
+      cutoffs: [1, 5, 10, 50]
+      bootstrap_draws: 2000
+      bootstrap_seed: 20260818
+    tracking:
+      enabled: true
+      project: vec2vec
+      entity: null
+      group: e08-natural-parameters-v0.1
+      tags: [maximum-entropy, natural-parameters, base-measure, e08, validation-only]
+    compute_authorization:
+      approval_reference: chat-2026-08-27-e08-natural-parameters-auto-under-20
+      region: us-east-1
+      instance_type: g6.4xlarge
+      instance_hour_limit: 1.0
+      observed_instance_price_usd_per_hour: 1.3232

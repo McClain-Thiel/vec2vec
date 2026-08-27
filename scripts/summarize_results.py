@@ -508,7 +508,9 @@ def _run_reproduction(stage, authorization, output_dir):
         config = context.params["result_reproduction"]
         _validate_runtime(config["runtime"])
         catalog = context.catalog
-        scale = config.get("scale") if stage in {"scale", "additive"} else None
+        scale = (
+            config.get("scale") if stage in {"scale", "additive", "natural-parameters"} else None
+        )
         inputs = scale["inputs"] if scale else config["inputs"]
         input_version = str(inputs["panel_version"] if scale else inputs["e02b_version"])
         input_prefix = "e06" if scale else "e02b"
@@ -563,8 +565,14 @@ def _run_reproduction(stage, authorization, output_dir):
         query_version = str(inputs["query_benchmark_version"])
         all_query_states = catalog.load("e00_query_candidate_state", version=query_version)
         query_manifest = catalog.load("e00_query_benchmark_manifest", version=query_version)
-        section_name = stage if stage in {"composition", "scale", "additive"} else "supervision"
-        if stage in {"composition", "scale", "additive"}:
+        section_name = (
+            "natural_parameters"
+            if stage == "natural-parameters"
+            else stage
+            if stage in {"composition", "scale", "additive"}
+            else "supervision"
+        )
+        if stage in {"composition", "scale", "additive", "natural-parameters"}:
             _validate_frozen_authorization(
                 authorization, config[section_name]["compute_authorization"]
             )
@@ -572,6 +580,72 @@ def _run_reproduction(stage, authorization, output_dir):
             if git_dirty:
                 raise RuntimeError(f"{stage} must start from a clean Git checkout")
         stage_started = time.perf_counter()
+        if stage == "natural-parameters":
+            checkpoints, history, summary, report = (
+                set_supervision.run_natural_parameter_comparison(
+                    pairs,
+                    queries,
+                    validation_states,
+                    all_query_states,
+                    query_manifest,
+                    input_manifest,
+                    dna_features["tfidf_6mer_svd_512"],
+                    dna_manifests["tfidf_6mer_svd_512"],
+                    text_features["qwen3_embedding_0_6b"],
+                    text_manifests["qwen3_embedding_0_6b"],
+                    _natural_parameter_params(config),
+                    deadline_monotonic=deadline,
+                )
+            )
+            elapsed = time.perf_counter() - stage_started
+            failed_tracking = [row for row in report["tracking"] if row.get("status") != "complete"]
+            if failed_tracking:
+                raise RuntimeError(f"W&B tracking did not complete: {failed_tracking}")
+            expected_hashes = config["natural_parameters"].get("expected_output_hashes")
+            if expected_hashes is not None:
+                _verify_output_hashes(report["output_hashes"], expected_hashes)
+            versions = {
+                name: catalog.get(name).resolve_save_version()
+                for name in (
+                    "e08_natural_parameter_checkpoints",
+                    "e08_natural_parameter_history",
+                    "e08_natural_parameter_summary",
+                    "e08_natural_parameter_report",
+                )
+            }
+            report["execution"] = {
+                **authorization,
+                "maximum_cost_usd": (
+                    authorization["instance_hour_limit"]
+                    * authorization["observed_instance_price_usd_per_hour"]
+                ),
+                "stage_elapsed_seconds": elapsed,
+                "stage_cost_usd": (
+                    elapsed / 3600.0 * authorization["observed_instance_price_usd_per_hour"]
+                ),
+                "git_commit": git_commit,
+                "git_dirty": False,
+                "runtime": config["runtime"],
+                "artifact_versions": versions,
+            }
+            catalog.save("e08_natural_parameter_checkpoints", checkpoints)
+            catalog.save("e08_natural_parameter_history", history)
+            catalog.save("e08_natural_parameter_summary", summary)
+            catalog.save("e08_natural_parameter_report", report)
+            print(
+                json.dumps(
+                    {
+                        "status": "e08_natural_parameter_validation_complete",
+                        "comparison": report["comparison"],
+                        "output_hashes": report["output_hashes"],
+                        "tracking": report["tracking"],
+                        "execution": report["execution"],
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            return
         supervision_params = (
             _additive_params(config)
             if stage == "additive"
@@ -821,6 +895,29 @@ def _additive_params(config):
     return params
 
 
+def _natural_parameter_params(config):
+    params = _supervision_params(config, section_name="scale")
+    section = config["natural_parameters"]
+    params.update(
+        protocol_version=section["protocol_version"],
+        training_semantic_query_ids=section["training_semantic_query_ids"],
+        evaluation_semantic_query_ids=section["evaluation_semantic_query_ids"],
+        expected_training_queries=section["expected_training_queries"],
+        expected_evaluation_queries=section["expected_evaluation_queries"],
+        minimum_training_state_rows=section["minimum_training_state_rows"],
+        base_measures=section["base_measures"],
+        device=section["device"],
+        precision=section["precision"],
+        primary_k=section["primary_k"],
+        minimum_practical_improvement=section["minimum_practical_improvement"],
+        probe=section["probe"],
+        tracking=section["tracking"],
+        query_representations=["direct_text", "atomic_sum"],
+        run_name_prefix="e08",
+    )
+    return params
+
+
 def _validate_frozen_authorization(observed, expected):
     differences = {
         name: {"expected": expected.get(name), "observed": observed.get(name)}
@@ -917,7 +1014,15 @@ def main():
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument(
-        "--reproduce", choices=("alignment", "supervision", "composition", "scale", "additive")
+        "--reproduce",
+        choices=(
+            "alignment",
+            "supervision",
+            "composition",
+            "scale",
+            "additive",
+            "natural-parameters",
+        ),
     )
     parser.add_argument("--approval-reference")
     parser.add_argument("--region")

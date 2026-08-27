@@ -163,3 +163,97 @@ def test_jensen_shannon_rows_is_zero_only_for_equal_distributions() -> None:
 
     assert np.isclose(result[0], 0.0)
     assert result[1] > 0.0
+
+
+def test_natural_parameter_partition_is_frozen_by_semantic_id() -> None:
+    queries = _partition_queries()
+    params = {
+        "training_semantic_query_ids": ["atomic-b", "atomic-a"],
+        "evaluation_semantic_query_ids": ["pair-ab"],
+        "expected_training_queries": 2,
+        "expected_evaluation_queries": 1,
+    }
+
+    training, evaluation, training_positions, evaluation_positions = (
+        set_supervision._natural_parameter_partitions(queries, params)
+    )
+
+    assert training["semantic_query_id"].tolist() == ["atomic-b", "atomic-a"]
+    assert evaluation["semantic_query_id"].tolist() == ["pair-ab"]
+    assert training_positions.tolist() == [2, 0]
+    assert evaluation_positions.tolist() == [1]
+
+
+def test_uniform_component_base_measure_gives_each_component_equal_mass() -> None:
+    population = pd.DataFrame({"leakage_component_v2": ["large", "large", "large", "small"]})
+
+    log_mass = set_supervision._base_log_mass(population, "uniform_v2_component")
+    mass = np.exp(log_mass)
+
+    assert np.isclose(mass[:3].sum(), 0.5)
+    assert np.isclose(mass[3], 0.5)
+    assert np.isclose(mass.sum(), 1.0)
+
+
+def test_natural_parameter_summary_uses_paired_base_measure_draws() -> None:
+    per_seed = pd.DataFrame(
+        [
+            {
+                "base_measure": measure,
+                "query_representation": representation,
+                "seed": seed,
+                "query_kind": "pair_conjunction",
+                "k": 10,
+                "verified_fraction": utility,
+                "contradicted_fraction": 0.0,
+                "unknown_fraction": 1.0 - utility,
+                "utility": utility,
+            }
+            for measure, base in (("uniform_plasmid", 0.1), ("uniform_v2_component", 0.2))
+            for representation, utility in (
+                ("direct_text", base - 0.02),
+                ("atomic_sum", base),
+            )
+            for seed in (13, 42, 20260818)
+        ]
+    )
+    bootstrap = pd.DataFrame(
+        [
+            {
+                "base_measure": measure,
+                "query_representation": representation,
+                "query_kind": "pair_conjunction",
+                "draw": draw,
+                "utility": base + (0.02 if representation == "atomic_sum" else 0.0),
+            }
+            for draw, offset in enumerate((0.0, 0.01, -0.01, 0.02) * 25)
+            for measure, measure_gain in (
+                ("uniform_plasmid", 0.0),
+                ("uniform_v2_component", 0.1),
+            )
+            for representation in ("direct_text", "atomic_sum")
+            for base in [offset + measure_gain]
+        ]
+    )
+    divergences = pd.DataFrame(
+        [
+            {"base_measure": measure, "jensen_shannon_divergence": 0.03}
+            for measure in set_supervision.EXPECTED_BASE_MEASURES
+        ]
+    )
+
+    summary, comparison = set_supervision._natural_parameter_summary(
+        per_seed,
+        bootstrap,
+        divergences,
+        {
+            "primary_k": 10,
+            "expected_evaluation_queries": 4,
+            "minimum_practical_improvement": 0.01,
+        },
+    )
+
+    assert len(summary) == 4
+    assert np.isclose(comparison["uniform_v2_component_minus_uniform_plasmid"], 0.1)
+    assert np.allclose(comparison["paired_component_bootstrap_95_interval"], [0.1, 0.1])
+    assert comparison["selection"] == "uniform_v2_component"
