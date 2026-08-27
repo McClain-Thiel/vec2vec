@@ -604,6 +604,18 @@ def _run_reproduction(stage, authorization, output_dir):
             expected_hashes = config["natural_parameters"].get("expected_output_hashes")
             if expected_hashes is not None:
                 _verify_output_hashes(report["output_hashes"], expected_hashes)
+            required_unchanged = (
+                config["natural_parameters"]
+                .get("technical_retry", {})
+                .get("required_unchanged_output_hashes", {})
+            )
+            changed = {
+                name: {"expected": expected, "observed": report["output_hashes"].get(name)}
+                for name, expected in required_unchanged.items()
+                if report["output_hashes"].get(name) != expected
+            }
+            if changed:
+                raise ValueError(f"E08 technical retry changed model outputs: {changed}")
             versions = {
                 name: catalog.get(name).resolve_save_version()
                 for name in (

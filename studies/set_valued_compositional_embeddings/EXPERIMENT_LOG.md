@@ -2699,3 +2699,11 @@ negative would violate the study contract, so E08 freezes these four atoms and t
 cross-facet conjunctions. This is an honest but underpowered controlled test, not a general
 retrieval claim. The run is capped at one `g6.4xlarge` hour and `$1.3232` under standing approval
 reference `chat-2026-08-27-e08-natural-parameters-auto-under-20`.
+
+## 2026-08-27 — E08 first execution rejected for nonfinite secondary diagnostic
+
+The clean run at commit `0dbdf93` completed all six frozen fits and W&B runs, but the probability-
+space Jensen–Shannon calculation underflowed for extreme logits and persisted `NaN`. S3 version
+`2026-08-27T16.08.12.789Z` is rejected and retained. The wrapper used 427.82 seconds and `$0.15725`.
+The technical retry may change only the log-space JSD calculation; it must reproduce the first
+run's checkpoint, history, summary, bootstrap, and whitening hashes exactly.

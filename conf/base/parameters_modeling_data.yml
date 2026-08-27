@@ -689,3 +689,12 @@ result_reproduction:
       instance_type: g6.4xlarge
       instance_hour_limit: 1.0
       observed_instance_price_usd_per_hour: 1.3232
+    technical_retry:
+      rejected_version: 2026-08-27T16.08.12.789Z
+      reason: nonfinite_secondary_jensen_shannon_diagnostic
+      required_unchanged_output_hashes:
+        whitening_state_sha256: 2a6701d7c6de5b062491c9c58c573894e8d73af16fa020a49d8a66edc59d7433
+        checkpoints_sha256: 7866cd4b40ce720b32d2f1283de83071925121b8998b36dfcf9e7d0da0cafeca
+        training_history_sha256: 0234d9972f371c9c7122cd778e760c2fba9120f2bdff51b485239819bd5e678f
+        summary_sha256: ae3a8e006768f71e7ab9a6950e1976c3d55d3851b355c80b17521420a2888627
+        bootstrap_draws_sha256: a8f5d897caf8bca668d2e4197cef9bf47f9b0a987189126db4b4dac92734588e

@@ -156,13 +156,13 @@ def test_additive_comparison_uses_paired_component_draws() -> None:
 
 
 def test_jensen_shannon_rows_is_zero_only_for_equal_distributions() -> None:
-    left = np.asarray([[1.0, 0.0], [1.0, 0.0]])
-    right = np.asarray([[1.0, 0.0], [0.0, 1.0]])
+    left = np.asarray([[1.0, 0.0], [1000.0, -1000.0]])
+    right = np.asarray([[1.0, 0.0], [-1000.0, 1000.0]])
 
     result = set_supervision._jensen_shannon_rows(left, right)
 
     assert np.isclose(result[0], 0.0)
-    assert result[1] > 0.0
+    assert np.isclose(result[1], np.log(2.0))
 
 
 def test_natural_parameter_partition_is_frozen_by_semantic_id() -> None:

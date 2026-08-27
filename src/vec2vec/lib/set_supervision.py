@@ -780,17 +780,18 @@ def _jensen_shannon_rows(left_scores: np.ndarray, right_scores: np.ndarray) -> n
     if not np.isfinite(right).all():
         raise ValueError("distribution score matrices must be finite and have equal shapes")
 
-    def probabilities(values: np.ndarray) -> np.ndarray:
+    def log_probabilities(values: np.ndarray) -> np.ndarray:
         shifted = values - values.max(axis=1, keepdims=True)
-        mass = np.exp(shifted)
-        return mass / mass.sum(axis=1, keepdims=True)
+        return shifted - np.log(np.exp(shifted).sum(axis=1, keepdims=True))
 
-    left_probability = probabilities(left)
-    right_probability = probabilities(right)
-    midpoint = 0.5 * (left_probability + right_probability)
+    left_log_probability = log_probabilities(left)
+    right_log_probability = log_probabilities(right)
+    midpoint_log_probability = np.logaddexp(left_log_probability, right_log_probability) - math.log(
+        2.0
+    )
     return 0.5 * np.sum(
-        left_probability * np.log(left_probability / midpoint)
-        + right_probability * np.log(right_probability / midpoint),
+        np.exp(left_log_probability) * (left_log_probability - midpoint_log_probability)
+        + np.exp(right_log_probability) * (right_log_probability - midpoint_log_probability),
         axis=1,
     )
 
