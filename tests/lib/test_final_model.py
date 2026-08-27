@@ -135,6 +135,9 @@ def test_bundle_round_trip_and_inference(tmp_path, monkeypatch):
     retrieved = final_model.retrieve(output, index[[0]], top_k=2)
     assert retrieved.loc[0, "index_row"] == 0
     assert retrieved["rank"].tolist() == [1, 2]
+    multiple = final_model.retrieve(output, index[[0, 1]], top_k=2)
+    assert multiple["query_index"].tolist() == [0, 0, 1, 1]
+    assert multiple.groupby("query_index")["index_row"].first().tolist() == [0, 1]
     with pytest.raises(ValueError, match="at least 6 bp"):
         final_model.project_sequences(output / "model.npz", ["ACGT"])
     with pytest.raises(ValueError, match="3 columns"):
@@ -168,6 +171,12 @@ def test_bundle_round_trip_and_inference(tmp_path, monkeypatch):
     encoded_vectors, token_counts = final_model.encode_queries(output, ["query"], device="cpu")
     assert encoded_vectors.shape == (1, 512)
     assert token_counts == [7]
+
+    changed_manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    changed_manifest["recipe"]["text"]["model_id"] = "untrusted/model"
+    (output / "manifest.json").write_text(json.dumps(changed_manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="does not match the accepted final recipe"):
+        final_model.encode_queries(output, ["query"], device="cpu")
 
 
 def _source_row(sequence_id, sequence, split):

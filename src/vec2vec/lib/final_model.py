@@ -422,7 +422,9 @@ def encode_queries(
     manifest = validate_bundle(bundle_dir)
     if manifest.get("protocol_version") != FINAL_RECIPE["protocol_version"]:
         raise ValueError("bundle is not an accepted final-model-v1 artifact")
-    text_recipe = TextEncoderRecipe.model_validate(manifest["recipe"]["text"])
+    if manifest.get("recipe") != FINAL_RECIPE:
+        raise ValueError("bundle recipe does not match the accepted final recipe")
+    text_recipe = TextEncoderRecipe.model_validate(FINAL_RECIPE["text"])
     precision = "bfloat16" if str(device).startswith("cuda") else "float32"
     encoder = FrozenTextEncoder(text_recipe, precision=precision, device=device)
     try:
@@ -452,13 +454,13 @@ def retrieve(bundle_dir: Path, query_vectors: np.ndarray, *, top_k: int) -> pd.D
     ):
         raise ValueError("sequence identities do not match index rows")
 
-    scores = np.asarray(index @ vectors.T, dtype=np.float32)
     rows = []
     index_rows = np.arange(len(index))
-    for query_index in range(len(vectors)):
-        order = np.lexsort((index_rows, -scores[:, query_index]))[:top_k]
+    for query_index, vector in enumerate(vectors):
+        scores = np.asarray(index @ vector, dtype=np.float32)
+        order = np.lexsort((index_rows, -scores))[:top_k]
         selected = identities.iloc[order].copy()
-        selected.insert(0, "score", scores[order, query_index])
+        selected.insert(0, "score", scores[order])
         selected.insert(0, "rank", np.arange(1, top_k + 1))
         selected.insert(0, "query_index", query_index)
         rows.append(selected)
