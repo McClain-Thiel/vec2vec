@@ -25,6 +25,9 @@ Utility@10 improved from `-0.10167` to `0.17333`; the difference was `0.27500`, 
 `[0.18707, 0.33878]`. The E05 effect therefore survived the population-scale robustness check.
 The historical test split remains contaminated, so this is still exploratory validation evidence.
 
+The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
+bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
+
 The complete retained evidence is four tables:
 
 - [`results/encoders.csv`](results/encoders.csv): all 12 encoder pairs.
