@@ -3,6 +3,7 @@ import json
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from vec2vec.lib import final_model
 from vec2vec.lib.sequences import sequence_sha256
@@ -124,6 +125,8 @@ def test_bundle_round_trip_and_inference(tmp_path, monkeypatch):
     assert query_vectors.shape == (1, 512)
     assert np.allclose(np.linalg.norm(sequence_vectors, axis=1), 1.0)
     assert np.allclose(np.linalg.norm(query_vectors, axis=1), 1.0)
+    with pytest.raises(ValueError, match="at least 6 bp"):
+        final_model.project_sequences(output / "model.npz", ["ACGT"])
 
 
 def _source_row(sequence_id, sequence, split):

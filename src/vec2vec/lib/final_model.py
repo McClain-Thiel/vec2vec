@@ -369,8 +369,10 @@ def project_sequences(bundle_path: Path, sequences: list[str]) -> np.ndarray:
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.preprocessing import normalize
 
-    if not sequences or any(not sequence or set(sequence) - set("ACGT") for sequence in sequences):
-        raise ValueError("final model accepts non-empty uppercase A/C/G/T sequences")
+    if not sequences or any(
+        len(sequence) < 6 or set(sequence) - set("ACGT") for sequence in sequences
+    ):
+        raise ValueError("final model accepts uppercase A/C/G/T sequences at least 6 bp long")
     with np.load(bundle_path, allow_pickle=False) as model:
         terms = model["terms"].astype(str).tolist()
         vectorizer = TfidfVectorizer(

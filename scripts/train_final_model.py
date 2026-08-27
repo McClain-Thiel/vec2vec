@@ -126,16 +126,6 @@ def main():
             device=args.device,
             deadline_monotonic=deadline,
         )
-        for row in history.itertuples(index=False):
-            run.log(
-                {
-                    "train/loss": float(row.loss),
-                    "train/logit_scale": float(row.logit_scale),
-                    "train/true_positive_pairs": int(row.true_positive_pairs),
-                    "train/unique_candidate_rows": int(row.unique_candidate_rows),
-                },
-                step=int(row.update),
-            )
         elapsed = time.perf_counter() - started
         observed_cost = elapsed / 3600.0 * authorization["observed_instance_price_usd_per_hour"]
         manifest = final_model.save_bundle(
@@ -176,6 +166,16 @@ def main():
                 "wandb": {"run_id": run.id, "url": run.url},
             },
         )
+        for row in history.itertuples(index=False):
+            run.log(
+                {
+                    "train/loss": float(row.loss),
+                    "train/logit_scale": float(row.logit_scale),
+                    "train/true_positive_pairs": int(row.true_positive_pairs),
+                    "train/unique_candidate_rows": int(row.unique_candidate_rows),
+                },
+                step=int(row.update),
+            )
         run.summary.update(
             {
                 "final/training_rows": audit["eligible_rows"],
