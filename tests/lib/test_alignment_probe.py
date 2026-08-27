@@ -217,6 +217,33 @@ def test_maximum_entropy_probe_uses_only_known_states_and_preserves_norms() -> N
     assert state["verified_pairs"] == 4
 
 
+def test_maximum_entropy_probe_can_record_pre_update_baseline() -> None:
+    sequence = np.asarray([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32)
+    queries = np.asarray([[1.0, 1.0]], dtype=np.float32)
+    verified = np.asarray([[True, False]])
+    known = np.asarray([[True, True]])
+
+    _, history = alignment_probe.train_maximum_entropy_probe(
+        sequence,
+        queries,
+        verified,
+        known,
+        np.full(2, -np.log(2.0)),
+        base_measure="uniform_plasmid",
+        seed=42,
+        projection_dimension=2,
+        updates=2,
+        learning_rate=0.001,
+        weight_decay=0.01,
+        temperature=0.1,
+        device="cpu",
+        record_initial=True,
+    )
+
+    assert history["update"].tolist() == [0, 1, 2]
+    assert np.isfinite(history.to_numpy(dtype=np.float64)).all()
+
+
 def test_natural_parameter_scores_include_base_measure() -> None:
     queries = np.asarray([[1.0, 0.0]], dtype=np.float32)
     gallery = np.asarray([[1.0, 0.0], [1.0, 0.0]], dtype=np.float32)

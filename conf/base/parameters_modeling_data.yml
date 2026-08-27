@@ -723,3 +723,77 @@ result_reproduction:
         component_minus_plasmid_interval: [-0.24187500000000006, 0.07499999999999996]
         selection: indistinguishable
       wandb_run_ids: [866oov1f, 2qk1ijlr, pqpjwx6m, rjorpwx6, 9vrlpouh, 1c2vt9co]
+
+  natural_parameter_calibration:
+    protocol_version: e09-natural-parameter-stability-v0.1
+    training_rows: 88474
+    training_semantic_query_ids:
+      - e5b82f29200a9749acc1052de4c62d611428f0e25971bea434b82bf0304d5a56
+      - b86ee8fa7b6cc17608d076767baadb9287a7efbc462c8f5f363af1e9cc2d235c
+      - 3e522dc772c374061431661b29af157badcf09e540ec6c6bdbae2b135ca3465b
+      - c88f1ebeb3de694ccbcf549a3d2405294b6a1ea4c34c621c95f2804a8191201e
+    evaluation_semantic_query_ids:
+      - 59c4a2518ff621394f06f3bf602ab194921a37531d8eaa6278c2bb5522cc35a7
+      - b3bb71bdbc7be0e6dac9cb98c2f04d19c81702fe03a4564aef965078aab68554
+      - c930d62b7034b35cd2ea2eaa373f7faa0c8a4a0a960f829e732a7eea0bdfba91
+      - 382b21eb19e1c33c4766915e9ac4c71f4b95b5d80058c2edcc0a547c508e89d3
+    expected_training_queries: 4
+    expected_evaluation_queries: 4
+    minimum_training_state_rows: 20
+    base_measures: [uniform_plasmid, uniform_v2_component]
+    device: cuda
+    precision: float32
+    primary_k: 10
+    minimum_practical_improvement: 0.01
+    probe:
+      seeds: [13, 42, 20260818]
+      projection_dimension: 512
+      whitening_epsilon: 0.000001
+      updates: 300
+      learning_rates: [0.000001, 0.000003, 0.00001, 0.00003, 0.0001]
+      weight_decay: 0.01
+      temperature: 0.07
+      cutoffs: [1, 5, 10, 50]
+      bootstrap_draws: 2000
+      bootstrap_seed: 20260818
+    stability:
+      maximum_final_loss_ratio: 0.99
+      maximum_loss_ratio: 1.10
+      maximum_query_norm: 5.0
+      maximum_sequence_norm: 5.0
+    tracking:
+      enabled: true
+      project: vec2vec
+      entity: null
+      group: e09-natural-parameter-stability-v0.1
+      tags: [maximum-entropy, optimization, calibration, e09, validation-only]
+    compute_authorization:
+      approval_reference: chat-2026-08-27-e09-natural-parameter-stability-auto-under-20
+      region: us-east-1
+      instance_type: g6.4xlarge
+      instance_hour_limit: 1.25
+      observed_instance_price_usd_per_hour: 1.3232
+    expected_output_hashes:
+      whitening_state_sha256: 2a6701d7c6de5b062491c9c58c573894e8d73af16fa020a49d8a66edc59d7433
+      calibration_history_sha256: 626b560da3b7174e09df6802f946c247c3633964e41b8b5beeddef52dd471839
+      selected_checkpoints_sha256: 590c9eb3c7e766974bdb45558a82481d242516f60146c38832f748ff9f8fccf6
+      selected_summary_sha256: e5dddb43b9d0c7312241b35800d694611a097b0ab97d7f31b4400231c098f1c8
+      bootstrap_draws_sha256: ac37f9997192d99818b3be74e83fdbef87011782c518c2b5eb107ce1405d75e1
+      distribution_gaps_sha256: 68c83da7b25a063b1370f17d0721c36034535fa33a6ca31f92f055209a92d122
+    accepted_run_artifact:
+      version: 2026-08-27T17.30.52.908Z
+      git_commit: d437bd5e27c5f749e38f799c3aa12b1682324052
+      report_sha256: f1e844788ed5bc6b8f063e991cee2f50094f0c5c9bb0bef8680e60952ea86bab
+      selected_learning_rate: 0.00003
+      persisted_bytes: 25731217
+      stage_elapsed_seconds: 496.1110771559179
+      stage_cost_usd: 0.18234838258130848
+      wrapper_elapsed_seconds: 522.1620109081268
+      wrapper_cost_usd: 0.1919235480093426
+      comparison:
+        uniform_plasmid_atomic_sum_utility_at_10: 0.37500000000000006
+        uniform_v2_component_atomic_sum_utility_at_10: 0.22499999999999998
+        component_minus_plasmid: -0.15000000000000008
+        component_minus_plasmid_interval: [-0.525, 0.375]
+        selection: indistinguishable
+      evaluation_wandb_run_ids: [ijgux8vj, 7k9n8t80, oup4om3u, h2vgf6kz, r6ancqw7, 7enalm87]

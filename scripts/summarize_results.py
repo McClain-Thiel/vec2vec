@@ -41,6 +41,10 @@ E08_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e08/natural_parameter_report.json/"
     "2026-08-27T16.17.31.598Z/natural_parameter_report.json"
 )
+E09_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e09/natural_parameter_report.json/"
+    "2026-08-27T17.30.52.908Z/natural_parameter_report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
@@ -48,6 +52,7 @@ REPORT_HASHES = {
     E06_REPORT: "800e23597f209197835b9648c4663cc3d35e686d0ac59e04c50bf1838e015230",
     E07_REPORT: "a9a1ca17eab82fca3c4774326013034552dbf34583239fddcb19c5017515e275",
     E08_REPORT: "178eb98d922296c89839c536f84773453c60fa0768eb1205d53815a0736da4c7",
+    E09_REPORT: "f1e844788ed5bc6b8f063e991cee2f50094f0c5c9bb0bef8680e60952ea86bab",
 }
 
 
@@ -196,16 +201,18 @@ def _additive_composition_rows(report):
     ]
 
 
-def _natural_parameter_rows(report):
+def _natural_parameter_rows(report, *, experiment, decision, learning_rate):
     comparison = report["comparison"]
     rows = []
     for base_measure in ("uniform_plasmid", "uniform_v2_component"):
         atomic_sum = comparison[base_measure]
         additive = comparison["direct_vs_atomic_sum"][base_measure]
         common = {
+            "experiment": experiment,
+            "learning_rate": learning_rate,
             "base_measure": base_measure,
             "query_count": report["population"]["evaluation_queries"],
-            "decision": "optimization_failed",
+            "decision": decision,
         }
         rows.extend(
             [
@@ -234,7 +241,7 @@ def _natural_parameter_rows(report):
     return rows
 
 
-def _artifact_rows(e02b, gate2, e05, e06, e07, e08):
+def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -388,6 +395,15 @@ def _artifact_rows(e02b, gate2, e05, e06, e07, e08):
                 "note": "exact max-entropy fit diverged; four closed-world conjunctions",
             },
             {
+                "artifact": "e09_natural_parameter_report",
+                "kind": "report",
+                "status": "accepted",
+                "version": e09["execution"]["artifact_versions"]["e09_natural_parameter_report"],
+                "sha256": REPORT_HASHES[E09_REPORT],
+                "location": E09_REPORT,
+                "note": "training-only stability selection; four closed-world conjunctions",
+            },
+            {
                 "artifact": "final_model_v1",
                 "kind": "model",
                 "status": "accepted",
@@ -461,8 +477,10 @@ def _generate_tables(args, *, check):
     e06_hash = REPORT_HASHES.get(args.e06_report)
     e07_hash = REPORT_HASHES.get(args.e07_report)
     e08_hash = REPORT_HASHES.get(args.e08_report)
+    e09_hash = REPORT_HASHES.get(args.e09_report)
     if any(
-        value is None for value in (e02b_hash, gate2_hash, e05_hash, e06_hash, e07_hash, e08_hash)
+        value is None
+        for value in (e02b_hash, gate2_hash, e05_hash, e06_hash, e07_hash, e08_hash, e09_hash)
     ):
         raise ValueError(
             "custom report paths require adding their accepted SHA-256 to REPORT_HASHES"
@@ -474,6 +492,7 @@ def _generate_tables(args, *, check):
     e06 = _read_report(args.e06_report, e06_hash)
     e07 = _read_report(args.e07_report, e07_hash)
     e08 = _read_report(args.e08_report, e08_hash)
+    e09 = _read_report(args.e09_report, e09_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
@@ -482,8 +501,21 @@ def _generate_tables(args, *, check):
             *_composition_rows(e06, experiment="E06"),
             *_additive_composition_rows(e07),
         ],
-        "natural_parameters.csv": _natural_parameter_rows(e08),
-        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07, e08),
+        "natural_parameters.csv": [
+            *_natural_parameter_rows(
+                e08,
+                experiment="E08",
+                decision="optimization_failed",
+                learning_rate=0.001,
+            ),
+            *_natural_parameter_rows(
+                e09,
+                experiment="E09",
+                decision="stable_selected",
+                learning_rate=e09["calibration"]["selected_learning_rate"],
+            ),
+        ],
+        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -566,7 +598,9 @@ def _run_reproduction(stage, authorization, output_dir):
         _validate_runtime(config["runtime"])
         catalog = context.catalog
         scale = (
-            config.get("scale") if stage in {"scale", "additive", "natural-parameters"} else None
+            config.get("scale")
+            if stage in {"scale", "additive", "natural-parameters", "natural-parameter-calibration"}
+            else None
         )
         inputs = scale["inputs"] if scale else config["inputs"]
         input_version = str(inputs["panel_version"] if scale else inputs["e02b_version"])
@@ -625,11 +659,19 @@ def _run_reproduction(stage, authorization, output_dir):
         section_name = (
             "natural_parameters"
             if stage == "natural-parameters"
+            else "natural_parameter_calibration"
+            if stage == "natural-parameter-calibration"
             else stage
             if stage in {"composition", "scale", "additive"}
             else "supervision"
         )
-        if stage in {"composition", "scale", "additive", "natural-parameters"}:
+        if stage in {
+            "composition",
+            "scale",
+            "additive",
+            "natural-parameters",
+            "natural-parameter-calibration",
+        }:
             _validate_frozen_authorization(
                 authorization, config[section_name]["compute_authorization"]
             )
@@ -637,6 +679,77 @@ def _run_reproduction(stage, authorization, output_dir):
             if git_dirty:
                 raise RuntimeError(f"{stage} must start from a clean Git checkout")
         stage_started = time.perf_counter()
+        if stage == "natural-parameter-calibration":
+            checkpoints, history, summary, report = (
+                set_supervision.run_natural_parameter_calibration(
+                    pairs,
+                    queries,
+                    validation_states,
+                    all_query_states,
+                    query_manifest,
+                    input_manifest,
+                    dna_features["tfidf_6mer_svd_512"],
+                    dna_manifests["tfidf_6mer_svd_512"],
+                    text_features["qwen3_embedding_0_6b"],
+                    text_manifests["qwen3_embedding_0_6b"],
+                    _natural_parameter_params(
+                        config,
+                        section_name="natural_parameter_calibration",
+                        run_name_prefix="e09",
+                    ),
+                    deadline_monotonic=deadline,
+                )
+            )
+            elapsed = time.perf_counter() - stage_started
+            failed_tracking = [row for row in report["tracking"] if row.get("status") != "complete"]
+            if failed_tracking:
+                raise RuntimeError(f"W&B tracking did not complete: {failed_tracking}")
+            expected_hashes = config["natural_parameter_calibration"].get("expected_output_hashes")
+            if expected_hashes is not None:
+                _verify_output_hashes(report["output_hashes"], expected_hashes)
+            versions = {
+                name: catalog.get(name).resolve_save_version()
+                for name in (
+                    "e09_natural_parameter_checkpoints",
+                    "e09_natural_parameter_history",
+                    "e09_natural_parameter_summary",
+                    "e09_natural_parameter_report",
+                )
+            }
+            report["execution"] = {
+                **authorization,
+                "maximum_cost_usd": (
+                    authorization["instance_hour_limit"]
+                    * authorization["observed_instance_price_usd_per_hour"]
+                ),
+                "stage_elapsed_seconds": elapsed,
+                "stage_cost_usd": (
+                    elapsed / 3600.0 * authorization["observed_instance_price_usd_per_hour"]
+                ),
+                "git_commit": git_commit,
+                "git_dirty": False,
+                "runtime": config["runtime"],
+                "artifact_versions": versions,
+            }
+            catalog.save("e09_natural_parameter_checkpoints", checkpoints)
+            catalog.save("e09_natural_parameter_history", history)
+            catalog.save("e09_natural_parameter_summary", summary)
+            catalog.save("e09_natural_parameter_report", report)
+            print(
+                json.dumps(
+                    {
+                        "status": "e09_natural_parameter_calibration_complete",
+                        "calibration": report["calibration"],
+                        "comparison": report["comparison"],
+                        "output_hashes": report["output_hashes"],
+                        "tracking": report["tracking"],
+                        "execution": report["execution"],
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            return
         if stage == "natural-parameters":
             checkpoints, history, summary, report = (
                 set_supervision.run_natural_parameter_comparison(
@@ -964,9 +1077,9 @@ def _additive_params(config):
     return params
 
 
-def _natural_parameter_params(config):
+def _natural_parameter_params(config, *, section_name="natural_parameters", run_name_prefix="e08"):
     params = _supervision_params(config, section_name="scale")
-    section = config["natural_parameters"]
+    section = config[section_name]
     params.update(
         protocol_version=section["protocol_version"],
         training_semantic_query_ids=section["training_semantic_query_ids"],
@@ -982,8 +1095,10 @@ def _natural_parameter_params(config):
         probe=section["probe"],
         tracking=section["tracking"],
         query_representations=["direct_text", "atomic_sum"],
-        run_name_prefix="e08",
+        run_name_prefix=run_name_prefix,
     )
+    if "stability" in section:
+        params["stability"] = section["stability"]
     return params
 
 
@@ -1081,6 +1196,7 @@ def main():
     parser.add_argument("--e06-report", default=E06_REPORT)
     parser.add_argument("--e07-report", default=E07_REPORT)
     parser.add_argument("--e08-report", default=E08_REPORT)
+    parser.add_argument("--e09-report", default=E09_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument(
@@ -1092,6 +1208,7 @@ def main():
             "scale",
             "additive",
             "natural-parameters",
+            "natural-parameter-calibration",
         ),
     )
     parser.add_argument("--approval-reference")

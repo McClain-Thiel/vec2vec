@@ -279,6 +279,7 @@ def train_maximum_entropy_probe(
     weight_decay: float,
     temperature: float,
     device: str,
+    record_initial: bool = False,
     deadline_monotonic: float | None = None,
 ) -> tuple[dict[str, Any], pd.DataFrame]:
     """Fit unnormalized projections against the exact known candidate universe."""
@@ -342,6 +343,34 @@ def train_maximum_entropy_probe(
     )
     history: list[dict[str, float | int]] = []
     norm_sample = sequence_tensor[: min(len(sequence_tensor), 2048)]
+
+    def measurements(update: int, loss: Any) -> dict[str, float | int]:
+        with torch.no_grad():
+            query_norms = torch.linalg.vector_norm(text_head(query_tensor), dim=1)
+            sequence_norms = torch.linalg.vector_norm(sequence_head(norm_sample), dim=1)
+        return {
+            "update": update,
+            "loss": float(loss.detach().cpu()),
+            "query_norm_mean": float(query_norms.mean().cpu()),
+            "query_norm_max": float(query_norms.max().cpu()),
+            "sequence_norm_sample_mean": float(sequence_norms.mean().cpu()),
+            "sequence_norm_sample_max": float(sequence_norms.max().cpu()),
+        }
+
+    if record_initial:
+        with torch.no_grad():
+            projected_query = text_head(query_tensor)
+            query_in_sequence_space = projected_query @ sequence_head.weight
+            initial_logits = (
+                query_in_sequence_space @ sequence_tensor.T / temperature + log_mass_tensor
+            )
+            initial_known_logits = initial_logits.masked_fill(~known_tensor, negative_infinity)
+            initial_loss = (
+                torch.logsumexp(initial_known_logits, dim=1)
+                - (target_probability * initial_logits).sum(dim=1)
+            ).mean()
+        history.append(measurements(0, initial_loss))
+
     for update in range(1, updates + 1):
         _ensure_before_deadline(deadline_monotonic, operation=f"maximum-entropy update {update}")
         projected_query = text_head(query_tensor)
@@ -357,19 +386,7 @@ def train_maximum_entropy_probe(
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
-        with torch.no_grad():
-            query_norms = torch.linalg.vector_norm(text_head(query_tensor), dim=1)
-            sequence_norms = torch.linalg.vector_norm(sequence_head(norm_sample), dim=1)
-        history.append(
-            {
-                "update": update,
-                "loss": float(loss.detach().cpu()),
-                "query_norm_mean": float(query_norms.mean().cpu()),
-                "query_norm_max": float(query_norms.max().cpu()),
-                "sequence_norm_sample_mean": float(sequence_norms.mean().cpu()),
-                "sequence_norm_sample_max": float(sequence_norms.max().cpu()),
-            }
-        )
+        history.append(measurements(update, loss))
 
     state = {
         "objective": "maximum_entropy",

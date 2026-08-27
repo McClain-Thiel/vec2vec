@@ -2724,3 +2724,37 @@ another algebra comparison. Accepted evidence version `2026-08-27T16.17.31.598Z`
 SHA-256 `178eb98d922296c89839c536f84773453c60fa0768eb1205d53815a0736da4c7`; all six W&B runs
 finished. The accepted wrapper used 428.57 seconds and `$0.15752`; including the rejected
 diagnostic attempt, E08 used `$0.31477`.
+
+## 2026-08-27 — HF annotation audit and E09 stability calibration preregistered
+
+The private HF table `full158k-structured-v1/full158k_structured.parquet` contains the same
+115,120 plasmids used by this project. Every row has positive feature calls (median 37; 248,432
+distinct strings), but the table has no feature-caller version, coverage record, or explicit
+absence evidence. It therefore does not justify turning an uncalled feature into a negative. E09
+keeps the four E08 atoms with reviewed closed-world contradictions and excludes unknowns.
+
+E09 varies only the learning rate over `[1e-6, 3e-6, 1e-5, 3e-5, 1e-4]`, holding the E08 model,
+two base measures, three seeds, 300 updates, temperature, weight decay, features, and data fixed. A
+rate is eligible only if all six fits finish with final loss at most 99% of initial loss, no loss
+above 110% of initial loss, and query/sequence norms no larger than 5. The eligible rate with the
+lowest mean final training loss is selected; validation retrieval is not consulted during
+selection and is evaluated once afterward. The `g6.4xlarge` ceiling is 1.25 hours / `$1.654` under
+reference `chat-2026-08-27-e09-natural-parameter-stability-auto-under-20`.
+
+## 2026-08-27 — E09 natural-parameter optimization stabilized
+
+All six fits were stable at `1e-6`, `3e-6`, `1e-5`, and `3e-5`; all six `1e-4` fits failed the
+frozen stability rule (worst loss `31.99`, query norm `10.47`, sequence norm `6.75`). Training-only
+selection chose `3e-5`, whose mean final loss was `9.95743` versus mean initial loss `12.40728`.
+The six selected fits were then evaluated once on validation. All 36 W&B runs finished under group
+`e09-natural-parameter-stability-v0.1`.
+
+Uniform-plasmid atomic-sum utility@10 was `0.37500` (interval `[-0.10000, 0.72500]`) versus direct
+text `-0.23333`; their paired difference was `0.60833`, interval `[0.10833, 0.82500]`.
+Uniform-component atomic sum was `0.22500` (interval `[-0.02500, 0.55000]`) versus direct text
+`0.10000`; difference `0.12500`, interval `[-0.08333, 0.40833]`. The component-minus-plasmid
+atomic-sum difference was `-0.15000`, interval `[-0.52500, 0.37500]`, so no base measure was
+selected. This establishes that E08's failure was optimization-induced, but four conjunctions are
+too few for a general algebra claim. Accepted S3 version `2026-08-27T17.30.52.908Z` has report
+SHA-256 `f1e844788ed5bc6b8f063e991cee2f50094f0c5c9bb0bef8680e60952ea86bab`; wrapper time was
+522.16 seconds and cost `$0.19192`.
