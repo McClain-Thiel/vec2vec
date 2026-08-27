@@ -511,6 +511,408 @@ def run_natural_parameter_comparison(
     return checkpoint_table, history_table, summary_table, report
 
 
+def run_natural_parameter_calibration(
+    pairs: pd.DataFrame,
+    queries: pd.DataFrame,
+    validation_states: pd.DataFrame,
+    all_query_states: pd.DataFrame,
+    query_manifest: dict[str, Any],
+    input_manifest: dict[str, Any],
+    dna_features: pd.DataFrame,
+    dna_manifest: dict[str, Any],
+    text_features: pd.DataFrame,
+    text_manifest: dict[str, Any],
+    params: dict[str, Any],
+    *,
+    deadline_monotonic: float | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, Any]]:
+    """Select a stable learning rate without consulting validation retrieval."""
+    train, gallery, ordered_queries = fixed_representation_alignment._validate_alignment_inputs(
+        pairs, queries, validation_states, input_manifest, params
+    )
+    _validate_query_states(all_query_states, query_manifest, params)
+    _validate_feature("dna", dna_features, dna_manifest, input_manifest, params)
+    _validate_feature("text", text_features, text_manifest, input_manifest, params)
+    train_sequence, gallery_sequence, query_text, whitening_state = _prepare_matrices(
+        train,
+        gallery,
+        ordered_queries,
+        dna_features,
+        text_features,
+        dna_candidate=str(params["accepted_feature_artifacts"]["dna"]["candidate_id"]),
+        text_candidate=str(params["accepted_feature_artifacts"]["text"]["candidate_id"]),
+        epsilon=float(params["probe"]["whitening_epsilon"]),
+    )
+    training_queries, evaluation_queries, training_positions, evaluation_positions = (
+        _natural_parameter_partitions(ordered_queries, params)
+    )
+    verified, known = _training_state_masks(train, training_queries, all_query_states, params)
+    base_measures = tuple(map(str, params["base_measures"]))
+    seeds = tuple(map(int, params["probe"]["seeds"]))
+    learning_rates = tuple(map(float, params["probe"]["learning_rates"]))
+    if base_measures != EXPECTED_BASE_MEASURES or seeds != EXPECTED_SEEDS:
+        raise ValueError("E09 base measures or seeds changed from the frozen protocol")
+    if not learning_rates or tuple(sorted(set(learning_rates))) != learning_rates:
+        raise ValueError("E09 learning rates must be positive, unique, and increasing")
+    if learning_rates[0] <= 0.0:
+        raise ValueError("E09 learning rates must be positive")
+    cutoffs = tuple(map(int, params["probe"]["cutoffs"]))
+    if not cutoffs or max(cutoffs) > len(gallery) or int(params["primary_k"]) not in cutoffs:
+        raise ValueError("E09 cutoffs do not cover the frozen primary K")
+
+    training_query_text = query_text[training_positions]
+    evaluation_query_text = query_text[evaluation_positions]
+    probe = dict(params["probe"])
+    stability = dict(params["stability"])
+    maximum_loss_ratio = float(stability["maximum_loss_ratio"])
+    maximum_final_loss_ratio = float(stability["maximum_final_loss_ratio"])
+    maximum_query_norm = float(stability["maximum_query_norm"])
+    maximum_sequence_norm = float(stability["maximum_sequence_norm"])
+    if (
+        min(
+            maximum_loss_ratio,
+            maximum_final_loss_ratio,
+            maximum_query_norm,
+            maximum_sequence_norm,
+        )
+        <= 0.0
+    ):
+        raise ValueError("E09 stability thresholds must be positive")
+
+    histories: list[pd.DataFrame] = []
+    calibration_rows: list[dict[str, Any]] = []
+    stable_states: dict[float, dict[tuple[str, int], dict[str, Any]]] = {}
+    tracking_records: list[dict[str, Any]] = []
+    base_mass_hashes: dict[str, dict[str, str]] = {}
+    train_masses = {}
+    gallery_masses = {}
+    for base_measure in base_measures:
+        train_masses[base_measure] = _base_log_mass(train, base_measure)
+        gallery_masses[base_measure] = _base_log_mass(gallery, base_measure)
+        base_mass_hashes[base_measure] = {
+            "training": _float64_sha256(train_masses[base_measure]),
+            "validation": _float64_sha256(gallery_masses[base_measure]),
+        }
+
+    for learning_rate in learning_rates:
+        candidate_states: dict[tuple[str, int], dict[str, Any]] = {}
+        candidate_stable = True
+        candidate_params = {
+            **params,
+            "probe": {**probe, "learning_rate": learning_rate},
+        }
+        for base_measure in base_measures:
+            for seed in seeds:
+                objective = f"calibration_{base_measure}_lr_{learning_rate:g}"
+                wandb_run, tracking = _start_wandb(candidate_params, objective=objective, seed=seed)
+                tracking.update(
+                    phase="calibration",
+                    base_measure=base_measure,
+                    learning_rate=learning_rate,
+                )
+                try:
+                    state, history = alignment_probe.train_maximum_entropy_probe(
+                        train_sequence,
+                        training_query_text,
+                        verified,
+                        known,
+                        train_masses[base_measure],
+                        base_measure=base_measure,
+                        seed=seed,
+                        projection_dimension=int(probe["projection_dimension"]),
+                        updates=int(probe["updates"]),
+                        learning_rate=learning_rate,
+                        weight_decay=float(probe["weight_decay"]),
+                        temperature=float(probe["temperature"]),
+                        device=str(params["device"]),
+                        record_initial=True,
+                        deadline_monotonic=deadline_monotonic,
+                    )
+                except BaseException:
+                    _finish_wandb(wandb_run, tracking, exit_code=1)
+                    raise
+                initial = history.iloc[0]
+                final = history.iloc[-1]
+                run_stable = bool(
+                    final["loss"] <= initial["loss"] * maximum_final_loss_ratio
+                    and history["loss"].max() <= initial["loss"] * maximum_loss_ratio
+                    and history["query_norm_max"].max() <= maximum_query_norm
+                    and history["sequence_norm_sample_max"].max() <= maximum_sequence_norm
+                )
+                candidate_stable = candidate_stable and run_stable
+                candidate_states[(base_measure, seed)] = state
+                calibration_rows.append(
+                    {
+                        "learning_rate": learning_rate,
+                        "base_measure": base_measure,
+                        "seed": seed,
+                        "initial_loss": float(initial["loss"]),
+                        "final_loss": float(final["loss"]),
+                        "minimum_loss": float(history["loss"].min()),
+                        "maximum_loss": float(history["loss"].max()),
+                        "maximum_query_norm": float(history["query_norm_max"].max()),
+                        "maximum_sequence_norm": float(history["sequence_norm_sample_max"].max()),
+                        "stable": run_stable,
+                    }
+                )
+                history = history.assign(
+                    learning_rate=learning_rate,
+                    base_measure=base_measure,
+                    seed=seed,
+                )
+                histories.append(history)
+                _log_natural_parameter_wandb(
+                    wandb_run,
+                    tracking,
+                    history,
+                    pd.DataFrame(),
+                )
+                _finish_wandb(wandb_run, tracking, exit_code=0)
+                tracking_records.append(tracking)
+        if candidate_stable:
+            stable_states[learning_rate] = candidate_states
+
+    calibration_table = pd.DataFrame(calibration_rows).sort_values(
+        ["learning_rate", "base_measure", "seed"], kind="stable", ignore_index=True
+    )
+    history_table = _concat(histories, ["learning_rate", "base_measure", "seed", "update"])
+    candidate_summary = (
+        calibration_table.groupby("learning_rate", sort=True)
+        .agg(
+            stable_runs=("stable", "sum"),
+            total_runs=("stable", "size"),
+            mean_initial_loss=("initial_loss", "mean"),
+            mean_final_loss=("final_loss", "mean"),
+            worst_loss=("maximum_loss", "max"),
+            worst_query_norm=("maximum_query_norm", "max"),
+            worst_sequence_norm=("maximum_sequence_norm", "max"),
+        )
+        .reset_index()
+    )
+    eligible = candidate_summary.loc[
+        candidate_summary["stable_runs"].eq(candidate_summary["total_runs"])
+    ]
+    selected_learning_rate = (
+        None
+        if eligible.empty
+        else float(
+            eligible.sort_values(["mean_final_loss", "learning_rate"], kind="stable").iloc[0][
+                "learning_rate"
+            ]
+        )
+    )
+    candidate_summary["selected"] = candidate_summary["learning_rate"].eq(selected_learning_rate)
+
+    checkpoints: list[pd.DataFrame] = []
+    seed_summaries: list[pd.DataFrame] = []
+    bootstraps: list[pd.DataFrame] = []
+    divergence_rows: list[dict[str, float | int | str]] = []
+    if selected_learning_rate is not None:
+        selected_states = stable_states[selected_learning_rate]
+        selected_params = {
+            **params,
+            "probe": {**probe, "learning_rate": selected_learning_rate},
+        }
+        for base_measure in base_measures:
+            scores_by_representation: dict[str, list[np.ndarray]] = {
+                "direct_text": [],
+                "atomic_sum": [],
+            }
+            for seed in seeds:
+                state = selected_states[(base_measure, seed)]
+                selected_history = history_table.loc[
+                    history_table["learning_rate"].eq(selected_learning_rate)
+                    & history_table["base_measure"].eq(base_measure)
+                    & history_table["seed"].eq(seed)
+                ]
+                checkpoint = _natural_parameter_checkpoint(state, selected_history.iloc[-1])
+                checkpoints.append(checkpoint.assign(learning_rate=selected_learning_rate))
+                gallery_vectors = alignment_probe.project_unnormalized(
+                    gallery_sequence, state["sequence_head"]
+                )
+                atomic_vectors = alignment_probe.project_unnormalized(
+                    training_query_text, state["text_head"]
+                )
+                representations = {
+                    "direct_text": alignment_probe.project_unnormalized(
+                        evaluation_query_text, state["text_head"]
+                    ),
+                    "atomic_sum": _sum_atomic_queries(
+                        training_queries, evaluation_queries, atomic_vectors
+                    ),
+                }
+                run_summaries: list[pd.DataFrame] = []
+                seed_scores = {}
+                for representation, query_vectors in representations.items():
+                    scores = alignment_probe.natural_parameter_scores(
+                        query_vectors,
+                        gallery_vectors,
+                        gallery_masses[base_measure],
+                        temperature=float(probe["temperature"]),
+                    )
+                    _, query_metrics, scores = (
+                        alignment_probe.query_rankings_and_metrics_from_scores(
+                            scores,
+                            evaluation_queries,
+                            gallery,
+                            validation_states,
+                            cutoffs=cutoffs,
+                        )
+                    )
+                    summary = _query_summary(
+                        query_metrics, objective="maximum_entropy", seed=seed
+                    ).assign(
+                        base_measure=base_measure,
+                        query_representation=representation,
+                    )
+                    seed_summaries.append(summary)
+                    run_summaries.append(summary)
+                    scores_by_representation[representation].append(scores)
+                    seed_scores[representation] = scores
+                divergences = _jensen_shannon_rows(
+                    seed_scores["direct_text"], seed_scores["atomic_sum"]
+                )
+                divergence_rows.extend(
+                    {
+                        "base_measure": base_measure,
+                        "seed": seed,
+                        "query_id": str(query.query_id),
+                        "jensen_shannon_divergence": float(divergence),
+                    }
+                    for query, divergence in zip(
+                        evaluation_queries.itertuples(index=False), divergences, strict=True
+                    )
+                )
+                wandb_run, tracking = _start_wandb(
+                    selected_params, objective=f"evaluation_{base_measure}", seed=seed
+                )
+                tracking.update(
+                    phase="selected_validation_evaluation",
+                    base_measure=base_measure,
+                    learning_rate=selected_learning_rate,
+                )
+                _log_natural_parameter_wandb(
+                    wandb_run,
+                    tracking,
+                    pd.DataFrame(),
+                    pd.concat(run_summaries, ignore_index=True),
+                )
+                _finish_wandb(wandb_run, tracking, exit_code=0)
+                tracking_records.append(tracking)
+            for representation, score_matrices in scores_by_representation.items():
+                bootstraps.append(
+                    alignment_probe.whole_component_bootstrap_draws(
+                        score_matrices,
+                        evaluation_queries,
+                        gallery,
+                        validation_states,
+                        k=int(params["primary_k"]),
+                        draws=int(probe["bootstrap_draws"]),
+                        seed=int(probe["bootstrap_seed"]),
+                        component_column="leakage_component_v2",
+                        deadline_monotonic=deadline_monotonic,
+                    ).assign(
+                        base_measure=base_measure,
+                        query_representation=representation,
+                    )
+                )
+
+        checkpoint_table = _concat(checkpoints, ["base_measure", "seed"])
+        per_seed_table = _concat(
+            seed_summaries,
+            ["base_measure", "query_representation", "seed", "query_kind", "k"],
+        )
+        bootstrap_table = _concat(
+            bootstraps,
+            ["base_measure", "query_representation", "query_kind", "draw"],
+        )
+        divergence_table = pd.DataFrame(divergence_rows).sort_values(
+            ["base_measure", "seed", "query_id"], kind="stable", ignore_index=True
+        )
+        summary_table, comparison = _natural_parameter_summary(
+            per_seed_table, bootstrap_table, divergence_table, params
+        )
+    else:
+        checkpoint_table = pd.DataFrame()
+        summary_table = pd.DataFrame()
+        bootstrap_table = pd.DataFrame()
+        divergence_table = pd.DataFrame()
+        comparison = None
+
+    output_hashes = {
+        "whitening_state_sha256": dataframe_content_sha256(
+            whitening_state, sort_columns=["feature_kind", "candidate_id"]
+        ),
+        "calibration_history_sha256": dataframe_content_sha256(
+            history_table,
+            sort_columns=["learning_rate", "base_measure", "seed", "update"],
+        ),
+    }
+    if selected_learning_rate is not None:
+        output_hashes.update(
+            selected_checkpoints_sha256=dataframe_content_sha256(
+                checkpoint_table, sort_columns=["base_measure", "seed"]
+            ),
+            selected_summary_sha256=dataframe_content_sha256(
+                summary_table, sort_columns=["base_measure", "query_representation"]
+            ),
+            bootstrap_draws_sha256=dataframe_content_sha256(
+                bootstrap_table,
+                sort_columns=[
+                    "base_measure",
+                    "query_representation",
+                    "query_kind",
+                    "draw",
+                ],
+            ),
+            distribution_gaps_sha256=dataframe_content_sha256(
+                divergence_table, sort_columns=["base_measure", "seed", "query_id"]
+            ),
+        )
+    report = {
+        "protocol_version": str(params["protocol_version"]),
+        "protocol": str(params["protocol_path"]),
+        "input_versions": dict(params["input_versions"]),
+        "population": {
+            "training_rows": int(len(train)),
+            "gallery_rows": int(len(gallery)),
+            "training_queries": int(len(training_queries)),
+            "evaluation_queries": int(len(evaluation_queries)),
+            "known_training_pairs": int(known.sum()),
+            "verified_training_pairs": int(verified.sum()),
+            "contradicted_training_pairs": int((known & ~verified).sum()),
+            "test_rows_read": False,
+        },
+        "resolved_configuration": params,
+        "base_mass_hashes": base_mass_hashes,
+        "calibration": {
+            "selection_uses_validation_retrieval": False,
+            "selected_learning_rate": selected_learning_rate,
+            "candidates": candidate_summary.to_dict("records"),
+        },
+        "comparison": comparison,
+        "tracking": tracking_records,
+        "output_hashes": output_hashes,
+        "decision": {
+            "status": (
+                "stable_learning_rate_selected"
+                if selected_learning_rate is not None
+                else "no_stable_learning_rate"
+            ),
+            "validation_only": True,
+            "unknown_candidates_excluded_from_training": True,
+            "hyperparameter_selected_from_training_diagnostics_only": True,
+        },
+        "known_limitations": [
+            "Only four frozen atomic constraints have explicit contradicted candidates.",
+            "The resulting four-query conjunction evaluation is underpowered.",
+            "The historical test split is contaminated and was not read.",
+            "The annotation list contains positive calls but no explicit absence evidence.",
+        ],
+    }
+    return checkpoint_table, history_table, summary_table, report
+
+
 def _natural_parameter_partitions(
     queries: pd.DataFrame, params: dict[str, Any]
 ) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:

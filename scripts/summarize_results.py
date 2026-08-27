@@ -566,7 +566,9 @@ def _run_reproduction(stage, authorization, output_dir):
         _validate_runtime(config["runtime"])
         catalog = context.catalog
         scale = (
-            config.get("scale") if stage in {"scale", "additive", "natural-parameters"} else None
+            config.get("scale")
+            if stage in {"scale", "additive", "natural-parameters", "natural-parameter-calibration"}
+            else None
         )
         inputs = scale["inputs"] if scale else config["inputs"]
         input_version = str(inputs["panel_version"] if scale else inputs["e02b_version"])
@@ -625,11 +627,19 @@ def _run_reproduction(stage, authorization, output_dir):
         section_name = (
             "natural_parameters"
             if stage == "natural-parameters"
+            else "natural_parameter_calibration"
+            if stage == "natural-parameter-calibration"
             else stage
             if stage in {"composition", "scale", "additive"}
             else "supervision"
         )
-        if stage in {"composition", "scale", "additive", "natural-parameters"}:
+        if stage in {
+            "composition",
+            "scale",
+            "additive",
+            "natural-parameters",
+            "natural-parameter-calibration",
+        }:
             _validate_frozen_authorization(
                 authorization, config[section_name]["compute_authorization"]
             )
@@ -637,6 +647,74 @@ def _run_reproduction(stage, authorization, output_dir):
             if git_dirty:
                 raise RuntimeError(f"{stage} must start from a clean Git checkout")
         stage_started = time.perf_counter()
+        if stage == "natural-parameter-calibration":
+            checkpoints, history, summary, report = (
+                set_supervision.run_natural_parameter_calibration(
+                    pairs,
+                    queries,
+                    validation_states,
+                    all_query_states,
+                    query_manifest,
+                    input_manifest,
+                    dna_features["tfidf_6mer_svd_512"],
+                    dna_manifests["tfidf_6mer_svd_512"],
+                    text_features["qwen3_embedding_0_6b"],
+                    text_manifests["qwen3_embedding_0_6b"],
+                    _natural_parameter_params(
+                        config,
+                        section_name="natural_parameter_calibration",
+                        run_name_prefix="e09",
+                    ),
+                    deadline_monotonic=deadline,
+                )
+            )
+            elapsed = time.perf_counter() - stage_started
+            failed_tracking = [row for row in report["tracking"] if row.get("status") != "complete"]
+            if failed_tracking:
+                raise RuntimeError(f"W&B tracking did not complete: {failed_tracking}")
+            versions = {
+                name: catalog.get(name).resolve_save_version()
+                for name in (
+                    "e09_natural_parameter_checkpoints",
+                    "e09_natural_parameter_history",
+                    "e09_natural_parameter_summary",
+                    "e09_natural_parameter_report",
+                )
+            }
+            report["execution"] = {
+                **authorization,
+                "maximum_cost_usd": (
+                    authorization["instance_hour_limit"]
+                    * authorization["observed_instance_price_usd_per_hour"]
+                ),
+                "stage_elapsed_seconds": elapsed,
+                "stage_cost_usd": (
+                    elapsed / 3600.0 * authorization["observed_instance_price_usd_per_hour"]
+                ),
+                "git_commit": git_commit,
+                "git_dirty": False,
+                "runtime": config["runtime"],
+                "artifact_versions": versions,
+            }
+            catalog.save("e09_natural_parameter_checkpoints", checkpoints)
+            catalog.save("e09_natural_parameter_history", history)
+            catalog.save("e09_natural_parameter_summary", summary)
+            catalog.save("e09_natural_parameter_report", report)
+            print(
+                json.dumps(
+                    {
+                        "status": "e09_natural_parameter_calibration_complete",
+                        "calibration": report["calibration"],
+                        "comparison": report["comparison"],
+                        "output_hashes": report["output_hashes"],
+                        "tracking": report["tracking"],
+                        "execution": report["execution"],
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            return
         if stage == "natural-parameters":
             checkpoints, history, summary, report = (
                 set_supervision.run_natural_parameter_comparison(
@@ -964,9 +1042,9 @@ def _additive_params(config):
     return params
 
 
-def _natural_parameter_params(config):
+def _natural_parameter_params(config, *, section_name="natural_parameters", run_name_prefix="e08"):
     params = _supervision_params(config, section_name="scale")
-    section = config["natural_parameters"]
+    section = config[section_name]
     params.update(
         protocol_version=section["protocol_version"],
         training_semantic_query_ids=section["training_semantic_query_ids"],
@@ -982,8 +1060,10 @@ def _natural_parameter_params(config):
         probe=section["probe"],
         tracking=section["tracking"],
         query_representations=["direct_text", "atomic_sum"],
-        run_name_prefix="e08",
+        run_name_prefix=run_name_prefix,
     )
+    if "stability" in section:
+        params["stability"] = section["stability"]
     return params
 
 
@@ -1092,6 +1172,7 @@ def main():
             "scale",
             "additive",
             "natural-parameters",
+            "natural-parameter-calibration",
         ),
     )
     parser.add_argument("--approval-reference")
