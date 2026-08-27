@@ -33,11 +33,16 @@ E06_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e06/composition_report.json/"
     "2026-08-26T13.06.51.803Z/composition_report.json"
 )
+E07_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e07/additive_report.json/"
+    "2026-08-27T15.33.47.015Z/additive_report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
     E05_REPORT: "182fb0dd75a1bd3159bc24b488e4921ff7dac1c6292352a408c8ff6d2d44082d",
     E06_REPORT: "800e23597f209197835b9648c4663cc3d35e686d0ac59e04c50bf1838e015230",
+    E07_REPORT: "a9a1ca17eab82fca3c4774326013034552dbf34583239fddcb19c5017515e275",
 }
 
 
@@ -127,6 +132,7 @@ def _composition_rows(report, *, experiment=None):
             result = {
                 "experiment": experiment,
                 "training_rows": report["population"]["training_rows"],
+                "query_representation": "direct_text",
                 **result,
             }
         rows.append(result)
@@ -153,7 +159,39 @@ def _additive_rows(report):
     ]
 
 
-def _artifact_rows(e02b, gate2, e05, e06):
+def _additive_composition_rows(report):
+    comparison = report["additive_comparison"]
+    urls = " ".join(row["url"] for row in report["tracking"] if row["objective"] == "verified_set")
+    common = {
+        "experiment": "E07",
+        "training_rows": report["population"]["training_rows"],
+        "objective": "verified_set",
+    }
+    return [
+        {
+            **common,
+            "query_representation": "direct_text",
+            "unseen_pair_utility_at_10": comparison["direct_text"],
+            "difference_vs_paired": 0.0,
+            "difference_interval_lower": None,
+            "difference_interval_upper": None,
+            "decision": "baseline",
+            "wandb_runs": urls,
+        },
+        {
+            **common,
+            "query_representation": "atomic_sum",
+            "unseen_pair_utility_at_10": comparison["atomic_sum"],
+            "difference_vs_paired": comparison["atomic_sum_minus_direct_text"],
+            "difference_interval_lower": comparison["paired_component_bootstrap_95_interval"][0],
+            "difference_interval_upper": comparison["paired_component_bootstrap_95_interval"][1],
+            "decision": "positive_not_distinguishable_from_direct",
+            "wandb_runs": urls,
+        },
+    ]
+
+
+def _artifact_rows(e02b, gate2, e05, e06, e07):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -289,6 +327,15 @@ def _artifact_rows(e02b, gate2, e05, e06):
                 "note": "88,474-row atomic-only training; 80 unseen conjunction queries",
             },
             {
+                "artifact": "e07_additive_retrieval_report",
+                "kind": "report",
+                "status": "accepted",
+                "version": e07["execution"]["report_version"],
+                "sha256": REPORT_HASHES[E07_REPORT],
+                "location": E07_REPORT,
+                "note": "direct conjunction text versus summed projected atomic queries",
+            },
+            {
                 "artifact": "final_model_v1",
                 "kind": "model",
                 "status": "accepted",
@@ -360,7 +407,8 @@ def _generate_tables(args, *, check):
     gate2_hash = REPORT_HASHES.get(args.gate2_report)
     e05_hash = REPORT_HASHES.get(args.e05_report)
     e06_hash = REPORT_HASHES.get(args.e06_report)
-    if e02b_hash is None or gate2_hash is None or e05_hash is None or e06_hash is None:
+    e07_hash = REPORT_HASHES.get(args.e07_report)
+    if any(value is None for value in (e02b_hash, gate2_hash, e05_hash, e06_hash, e07_hash)):
         raise ValueError(
             "custom report paths require adding their accepted SHA-256 to REPORT_HASHES"
         )
@@ -369,14 +417,16 @@ def _generate_tables(args, *, check):
     gate2 = _read_report(args.gate2_report, gate2_hash)
     e05 = _read_report(args.e05_report, e05_hash)
     e06 = _read_report(args.e06_report, e06_hash)
+    e07 = _read_report(args.e07_report, e07_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
         "composition.csv": [
             *_composition_rows(e05, experiment="E05"),
             *_composition_rows(e06, experiment="E06"),
+            *_additive_composition_rows(e07),
         ],
-        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06),
+        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -863,6 +913,7 @@ def main():
     parser.add_argument("--gate2-report", default=GATE2_REPORT)
     parser.add_argument("--e05-report", default=E05_REPORT)
     parser.add_argument("--e06-report", default=E06_REPORT)
+    parser.add_argument("--e07-report", default=E07_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument(

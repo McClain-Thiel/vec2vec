@@ -620,3 +620,28 @@ result_reproduction:
       instance_type: g6.4xlarge
       instance_hour_limit: 0.25
       observed_instance_price_usd_per_hour: 1.3232
+    expected_output_hashes:
+      whitening_state_sha256: 2a6701d7c6de5b062491c9c58c573894e8d73af16fa020a49d8a66edc59d7433
+      checkpoints_sha256: c2820362b29df03f923e9b3ebf5db64b6d6e7abceb89c1a75c0b2b2a9b55880e
+      training_history_sha256: e4c72aad9543e793907d63df7be7e5f36d0cac154b2f8679d9191ed647371a9e
+      query_rankings_sha256: ebff02cb6d43a92d5b3d3fc4e94e257ee81b6041fa28497d11366ca8ca6ab163
+      query_metrics_sha256: fd54694efc6110994ed9032296c782c482dc8929bf3e2f6883ddeaa9ffed6079
+      query_summaries_sha256: 91a7568179727e63b56e6b6bcc6bb7561f11309856fed0165ed82e5386f91da6
+      bootstrap_draws_sha256: f9ec63dce6d1731f562a94ce26886724085e1e71387bce8f6273cc32d1f9511f
+      distribution_gaps_sha256: 74f6d0a10ae0f1aad2671d449f52af9cc1cbbbf3fcfc88129412c82d20d4e37a
+    accepted_run_artifact:
+      version: 2026-08-27T15.33.47.015Z
+      git_commit: 5331b73ae7e074f194d850d08059352fc1d7824a
+      report_sha256: a9a1ca17eab82fca3c4774326013034552dbf34583239fddcb19c5017515e275
+      summary_sha256: 54fa9a4e1ace084ac3ae69068a5f4234ec77e80f072a5d37edd0646ca0ddabdb
+      stage_elapsed_seconds: 414.9888244867325
+      stage_cost_usd: 0.15253144793356788
+      wrapper_elapsed_seconds: 436.6474753767252
+      wrapper_cost_usd: 0.16049220539402298
+      direct_text_utility_at_10: 0.17333333333333334
+      atomic_sum_utility_at_10: 0.19333333333333333
+      difference: 0.01999999999999999
+      difference_interval: [-0.01791666666666672, 0.060427083333333305]
+      atomic_sum_interval: [0.11290624999999996, 0.21876041666666665]
+      mean_jensen_shannon_divergence: 0.14577793365451722
+      wandb_run_ids: [tgvbjubz, 2ujk3rnd, 687abv4z, j9vyfig4, 5ldg9uf9, dogbw039]

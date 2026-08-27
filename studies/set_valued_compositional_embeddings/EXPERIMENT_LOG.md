@@ -2664,3 +2664,21 @@ This is an audit of the accepted cosine-normalized baseline, not the unnormalize
 model proposed in the original study plan. The result is exploratory and selects no
 hyperparameters. The run is capped at 0.25 `g6.4xlarge` instance-hours and `$0.33080` under
 approval reference `chat-2026-08-27-additive-audit-auto-under-20`.
+
+## 2026-08-27 — E07 additive retrieval audit accepted
+
+The clean L4 run at commit `5331b73` reproduced the accepted E06 direct-text results and all
+checkpoint, training-history, and whitening hashes. Atomic-sum utility@10 was `0.19333` versus
+`0.17333` for direct conjunction text, a difference of `0.02000` with paired whole-component
+interval `[-0.01792, 0.06043]`. Atomic-sum utility itself remained positive, interval
+`[0.11291, 0.21876]`. Mean full-gallery Jensen-Shannon divergence between the two induced
+distributions was `0.14578`.
+
+Thus vector addition retrieves valid unseen conjunctions under the cosine baseline, but there is
+no clear evidence that it outperforms direct conjunction encoding. This supports continuing to the
+original unnormalized maximum-entropy formulation; it does not establish the proposed natural-
+parameter algebra. S3 version `2026-08-27T15.33.47.015Z` passed read-back. Report and summary hashes
+are `a9a1ca17eab82fca3c4774326013034552dbf34583239fddcb19c5017515e275` and
+`54fa9a4e1ace084ac3ae69068a5f4234ec77e80f072a5d37edd0646ca0ddabdb`. All six W&B runs finished.
+The measured stage used 414.99 seconds and `$0.15253`; the wrapper used 436.65 seconds and
+`$0.16049`.

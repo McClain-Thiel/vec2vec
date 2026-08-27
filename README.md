@@ -25,6 +25,11 @@ Utility@10 improved from `-0.10167` to `0.17333`; the difference was `0.27500`, 
 `[0.18707, 0.33878]`. The E05 effect therefore survived the population-scale robustness check.
 The historical test split remains contaminated, so this is still exploratory validation evidence.
 
+E07 tested the original vector-addition readout. Summing the two projected atomic queries gave
+utility@10 `0.19333`, versus `0.17333` for encoding the conjunction directly. The difference was
+`0.02000`, with interval `[-0.01792, 0.06043]`: addition works, but is not clearly better than the
+direct-text baseline. The next model is the unnormalized maximum-entropy formulation.
+
 The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
 bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
 
