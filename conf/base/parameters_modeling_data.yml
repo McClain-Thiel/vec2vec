@@ -604,3 +604,19 @@ result_reproduction:
         units: [vec2vec-e06-tfidf-20260826.service, vec2vec-e06-qwen-20260826.service]
         result: provenance_capture_rejected_root_owned_systemd_context
         wrote_feature_artifacts: false
+  additive:
+    protocol_version: e07-additive-retrieval-audit-v0.1
+    query_representations: [direct_text, atomic_sum]
+    expected_direct_text_utility_at_10: 0.17333333333333334
+    tracking:
+      enabled: true
+      project: vec2vec
+      entity: null
+      group: e07-additive-retrieval-audit-v0.1
+      tags: [set-supervision, additive-retrieval, e07, validation-only]
+    compute_authorization:
+      approval_reference: chat-2026-08-27-additive-audit-auto-under-20
+      region: us-east-1
+      instance_type: g6.4xlarge
+      instance_hour_limit: 0.25
+      observed_instance_price_usd_per_hour: 1.3232

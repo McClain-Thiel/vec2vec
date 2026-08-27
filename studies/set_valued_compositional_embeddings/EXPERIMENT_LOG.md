@@ -2647,3 +2647,20 @@ Manifest SHA-256 is `284a1315ae1c39b2624f09f78ef3ec0f18e8f40fd8f0c0e11d96d274b61
 model and index SHA-256 values are `7b489c29d7dd765ac18910ac0aebb364ca81dbbadc7607ba54aa35697526f1f6`
 and `0d4d5450cf191e7e2aeafbf59c052a548cde3b0a8b4c43bf14c5292fc5ea8764`. Independent
 read-back reproduced sampled index vectors within `2.54e-7`. No evaluation was performed.
+
+## 2026-08-27 — E07 additive retrieval audit preregistered
+
+E05/E06 trained only on 28 atomic queries but evaluated the Qwen encoding of each unseen
+conjunction; they did not evaluate the original hypothesis that `q_A + q_B` retrieves the
+intersection. E07 closes that gap without tuning. It reproduces both accepted E06 objectives on
+88,474 training rows for seeds 13, 42, and 20260818, and audits additivity on the verified-set
+fits. It compares direct conjunction text with the sum of the two projected atomic vectors on the
+same 80 unseen conjunctions and 10,852-row component-disjoint validation gallery. The primary
+metric is pair-query utility@10; the paired whole-component bootstrap reports
+`atomic_sum - direct_text`. Mean Jensen-Shannon divergence of their full-gallery distributions is
+secondary. No test row may be read.
+
+This is an audit of the accepted cosine-normalized baseline, not the unnormalized maximum-entropy
+model proposed in the original study plan. The result is exploratory and selects no
+hyperparameters. The run is capped at 0.25 `g6.4xlarge` instance-hours and `$0.33080` under
+approval reference `chat-2026-08-27-additive-audit-auto-under-20`.

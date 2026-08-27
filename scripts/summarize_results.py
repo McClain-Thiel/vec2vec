@@ -133,6 +133,26 @@ def _composition_rows(report, *, experiment=None):
     return rows
 
 
+def _additive_rows(report):
+    comparison = report["additive_comparison"]
+    return [
+        {
+            "direct_text_utility_at_10": comparison["direct_text"],
+            "atomic_sum_utility_at_10": comparison["atomic_sum"],
+            "atomic_sum_minus_direct_text": comparison["atomic_sum_minus_direct_text"],
+            "difference_interval_lower": comparison["paired_component_bootstrap_95_interval"][0],
+            "difference_interval_upper": comparison["paired_component_bootstrap_95_interval"][1],
+            "atomic_sum_interval_lower": comparison["atomic_sum_component_bootstrap_95_interval"][
+                0
+            ],
+            "atomic_sum_interval_upper": comparison["atomic_sum_component_bootstrap_95_interval"][
+                1
+            ],
+            "mean_jensen_shannon_divergence": comparison["mean_jensen_shannon_divergence"],
+        }
+    ]
+
+
 def _artifact_rows(e02b, gate2, e05, e06):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
@@ -438,7 +458,7 @@ def _run_reproduction(stage, authorization, output_dir):
         config = context.params["result_reproduction"]
         _validate_runtime(config["runtime"])
         catalog = context.catalog
-        scale = config.get("scale") if stage == "scale" else None
+        scale = config.get("scale") if stage in {"scale", "additive"} else None
         inputs = scale["inputs"] if scale else config["inputs"]
         input_version = str(inputs["panel_version"] if scale else inputs["e02b_version"])
         input_prefix = "e06" if scale else "e02b"
@@ -493,8 +513,8 @@ def _run_reproduction(stage, authorization, output_dir):
         query_version = str(inputs["query_benchmark_version"])
         all_query_states = catalog.load("e00_query_candidate_state", version=query_version)
         query_manifest = catalog.load("e00_query_benchmark_manifest", version=query_version)
-        section_name = stage if stage in {"composition", "scale"} else "supervision"
-        if stage in {"composition", "scale"}:
+        section_name = stage if stage in {"composition", "scale", "additive"} else "supervision"
+        if stage in {"composition", "scale", "additive"}:
             _validate_frozen_authorization(
                 authorization, config[section_name]["compute_authorization"]
             )
@@ -502,6 +522,11 @@ def _run_reproduction(stage, authorization, output_dir):
             if git_dirty:
                 raise RuntimeError(f"{stage} must start from a clean Git checkout")
         stage_started = time.perf_counter()
+        supervision_params = (
+            _additive_params(config)
+            if stage == "additive"
+            else _supervision_params(config, section_name=section_name)
+        )
         outputs = set_supervision.run_set_supervision_comparison(
             pairs,
             queries,
@@ -513,7 +538,7 @@ def _run_reproduction(stage, authorization, output_dir):
             dna_manifests["tfidf_6mer_svd_512"],
             text_features["qwen3_embedding_0_6b"],
             text_manifests["qwen3_embedding_0_6b"],
-            _supervision_params(config, section_name=section_name),
+            supervision_params,
             deadline_monotonic=deadline,
         )
         *_, report = outputs
@@ -522,14 +547,30 @@ def _run_reproduction(stage, authorization, output_dir):
         if failed_tracking:
             raise RuntimeError(f"W&B tracking did not complete: {failed_tracking}")
 
-        if stage in {"composition", "scale"}:
-            _verify_output_hashes(
-                report["output_hashes"], config[section_name]["expected_output_hashes"]
-            )
-            summary = pd.DataFrame(_composition_rows(report))
-            result_prefix = "e06" if stage == "scale" else "e05"
-            summary_dataset = f"{result_prefix}_composition_summary"
-            report_dataset = f"{result_prefix}_composition_report"
+        if stage in {"composition", "scale", "additive"}:
+            expected_hashes = config[section_name].get("expected_output_hashes")
+            if expected_hashes is not None:
+                _verify_output_hashes(report["output_hashes"], expected_hashes)
+            if stage == "additive":
+                expected_direct = float(config["additive"]["expected_direct_text_utility_at_10"])
+                if not math.isclose(
+                    report["comparison"]["verified_set"],
+                    expected_direct,
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
+                ):
+                    raise ValueError(
+                        "additive audit did not reproduce the accepted direct-text result"
+                    )
+                summary = pd.DataFrame(_additive_rows(report))
+                result_prefix = "e07"
+                summary_dataset = "e07_additive_summary"
+                report_dataset = "e07_additive_report"
+            else:
+                summary = pd.DataFrame(_composition_rows(report))
+                result_prefix = "e06" if stage == "scale" else "e05"
+                summary_dataset = f"{result_prefix}_composition_summary"
+                report_dataset = f"{result_prefix}_composition_report"
             summary_version = catalog.get(summary_dataset).resolve_save_version()
             report_version = catalog.get(report_dataset).resolve_save_version()
             report["execution"] = {
@@ -557,8 +598,13 @@ def _run_reproduction(stage, authorization, output_dir):
             print(
                 json.dumps(
                     {
-                        "status": f"{result_prefix}_unseen_composition_complete",
+                        "status": (
+                            "e07_additive_retrieval_audit_complete"
+                            if stage == "additive"
+                            else f"{result_prefix}_unseen_composition_complete"
+                        ),
                         "comparison": report["comparison"],
+                        "additive_comparison": report.get("additive_comparison"),
                         "output_hashes": report["output_hashes"],
                         "tracking": report["tracking"],
                         "execution": report["execution"],
@@ -711,6 +757,20 @@ def _supervision_params(config, *, section_name="supervision"):
     return params
 
 
+def _additive_params(config):
+    params = _supervision_params(config, section_name="scale")
+    additive = config["additive"]
+    params.update(
+        protocol_version=additive["protocol_version"],
+        tracking=additive["tracking"],
+        query_representations=additive["query_representations"],
+        audit_atomic_sum=True,
+        completion_status="additive_retrieval_audit_complete",
+        run_name_prefix="e07-additive",
+    )
+    return params
+
+
 def _validate_frozen_authorization(observed, expected):
     differences = {
         name: {"expected": expected.get(name), "observed": observed.get(name)}
@@ -805,7 +865,9 @@ def main():
     parser.add_argument("--e06-report", default=E06_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
-    parser.add_argument("--reproduce", choices=("alignment", "supervision", "composition", "scale"))
+    parser.add_argument(
+        "--reproduce", choices=("alignment", "supervision", "composition", "scale", "additive")
+    )
     parser.add_argument("--approval-reference")
     parser.add_argument("--region")
     parser.add_argument("--instance-type")

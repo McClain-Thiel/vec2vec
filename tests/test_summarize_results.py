@@ -90,6 +90,11 @@ def _config():
             "probe": {"seeds": [13, 42, 20260818]},
             "tracking": {"enabled": True},
         },
+        "additive": {
+            "protocol_version": "additive-v1",
+            "query_representations": ["direct_text", "atomic_sum"],
+            "tracking": {"enabled": True},
+        },
     }
 
 
@@ -132,6 +137,13 @@ def test_reproduction_parameters_bind_frozen_inputs_and_features() -> None:
     assert scale["accepted_input_artifact"]["pairs_sha256"] == "e06-pairs-hash"
     assert scale["input_versions"]["e06_inputs"] == "e06-inputs-v1"
     assert scale["run_name_prefix"] == "e06"
+
+    additive = summarize_results._additive_params(config)
+    assert additive["protocol_version"] == "additive-v1"
+    assert additive["training_rows"] == 88
+    assert additive["query_representations"] == ["direct_text", "atomic_sum"]
+    assert additive["audit_atomic_sum"] is True
+    assert additive["run_name_prefix"] == "e07-additive"
 
 
 def test_scale_feature_loader_uses_e06_datasets() -> None:
