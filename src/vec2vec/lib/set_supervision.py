@@ -73,9 +73,13 @@ def run_set_supervision_comparison(
     summaries: list[pd.DataFrame] = []
     bootstraps: list[pd.DataFrame] = []
     tracking_records: list[dict[str, Any]] = []
+    distribution_gaps: list[dict[str, float | int | str]] = []
+    audit_additive = bool(params.get("audit_atomic_sum", False))
     probe = dict(params["probe"])
     for objective in objectives:
-        objective_scores: list[np.ndarray] = []
+        objective_scores: dict[str, list[np.ndarray]] = {"direct_text": []}
+        if audit_additive and objective == "verified_set":
+            objective_scores["atomic_sum"] = []
         for seed in seeds:
             wandb_run, tracking = _start_wandb(params, objective=objective, seed=seed)
             try:
@@ -99,45 +103,94 @@ def run_set_supervision_comparison(
                 raise
             history = history.assign(objective=objective, seed=seed)
             sequence_vectors = alignment_probe.project(gallery_sequence, state["sequence_head"])
-            query_vectors = alignment_probe.project(evaluation_query_text, state["text_head"])
-            ranking, query_metrics, scores = alignment_probe.query_rankings_and_metrics(
-                query_vectors,
-                sequence_vectors,
+            representations = {
+                "direct_text": alignment_probe.project(evaluation_query_text, state["text_head"])
+            }
+            if audit_additive and objective == "verified_set":
+                atomic_vectors = alignment_probe.project(training_query_text, state["text_head"])
+                representations["atomic_sum"] = _sum_atomic_queries(
+                    training_queries, evaluation_queries, atomic_vectors
+                )
+            seed_summaries = []
+            seed_scores = {}
+            for representation, query_vectors in representations.items():
+                ranking, query_metrics, scores = alignment_probe.query_rankings_and_metrics(
+                    query_vectors,
+                    sequence_vectors,
+                    evaluation_queries,
+                    gallery,
+                    validation_states,
+                    cutoffs=cutoffs,
+                )
+                ranking = ranking.assign(objective=objective, seed=seed)
+                query_metrics = query_metrics.assign(objective=objective, seed=seed)
+                summary = _query_summary(query_metrics, objective=objective, seed=seed)
+                if audit_additive:
+                    ranking = ranking.assign(query_representation=representation)
+                    query_metrics = query_metrics.assign(query_representation=representation)
+                    summary = summary.assign(query_representation=representation)
+                rankings.append(ranking)
+                metrics.append(query_metrics)
+                summaries.append(summary)
+                seed_summaries.append(summary)
+                seed_scores[representation] = scores
+                objective_scores[representation].append(scores)
+            if audit_additive and objective == "verified_set":
+                scale = min(
+                    float(np.exp(state["logit_scale"])),
+                    float(probe["maximum_logit_scale"]),
+                )
+                divergences = _jensen_shannon_rows(
+                    scale * seed_scores["direct_text"], scale * seed_scores["atomic_sum"]
+                )
+                distribution_gaps.extend(
+                    {
+                        "seed": seed,
+                        "query_id": str(query.query_id),
+                        "jensen_shannon_divergence": float(divergence),
+                    }
+                    for query, divergence in zip(
+                        evaluation_queries.itertuples(index=False), divergences, strict=True
+                    )
+                )
+            checkpoints.append(_checkpoint(state))
+            histories.append(history)
+            wandb_summary = pd.concat(seed_summaries, ignore_index=True)
+            if "query_representation" in wandb_summary:
+                wandb_summary["query_kind"] = (
+                    wandb_summary["query_representation"] + "/" + wandb_summary["query_kind"]
+                )
+            _log_wandb(wandb_run, tracking, history, wandb_summary)
+            _finish_wandb(wandb_run, tracking, exit_code=0)
+            tracking_records.append(tracking)
+        for representation, scores in objective_scores.items():
+            bootstrap = alignment_probe.whole_component_bootstrap_draws(
+                scores,
                 evaluation_queries,
                 gallery,
                 validation_states,
-                cutoffs=cutoffs,
-            )
-            ranking = ranking.assign(objective=objective, seed=seed)
-            query_metrics = query_metrics.assign(objective=objective, seed=seed)
-            summary = _query_summary(query_metrics, objective=objective, seed=seed)
-            objective_scores.append(scores)
-            checkpoints.append(_checkpoint(state))
-            histories.append(history)
-            rankings.append(ranking)
-            metrics.append(query_metrics)
-            summaries.append(summary)
-            _log_wandb(wandb_run, tracking, history, summary)
-            _finish_wandb(wandb_run, tracking, exit_code=0)
-            tracking_records.append(tracking)
-        bootstrap = alignment_probe.whole_component_bootstrap_draws(
-            objective_scores,
-            evaluation_queries,
-            gallery,
-            validation_states,
-            k=int(params["primary_k"]),
-            draws=int(probe["bootstrap_draws"]),
-            seed=int(probe["bootstrap_seed"]),
-            deadline_monotonic=deadline_monotonic,
-        ).assign(objective=objective)
-        bootstraps.append(bootstrap)
+                k=int(params["primary_k"]),
+                draws=int(probe["bootstrap_draws"]),
+                seed=int(probe["bootstrap_seed"]),
+                deadline_monotonic=deadline_monotonic,
+            ).assign(objective=objective)
+            if audit_additive:
+                bootstrap = bootstrap.assign(query_representation=representation)
+            bootstraps.append(bootstrap)
 
+    representation_columns = ["query_representation"] if audit_additive else []
     checkpoint_table = _concat(checkpoints, ["objective", "seed"])
     history_table = _concat(histories, ["objective", "seed", "update"])
-    ranking_table = _concat(rankings, ["objective", "seed", "query_id", "rank"])
-    metric_table = _concat(metrics, ["objective", "seed", "query_id", "k"])
-    summary_table = _concat(summaries, ["objective", "seed", "query_kind", "k"])
-    bootstrap_table = _concat(bootstraps, ["objective", "query_kind", "draw"])
+    ranking_table = _concat(
+        rankings, ["objective", *representation_columns, "seed", "query_id", "rank"]
+    )
+    metric_table = _concat(metrics, ["objective", *representation_columns, "seed", "query_id", "k"])
+    summary_table = _concat(
+        summaries, ["objective", *representation_columns, "seed", "query_kind", "k"]
+    )
+    bootstrap_table = _concat(
+        bootstraps, ["objective", *representation_columns, "query_kind", "draw"]
+    )
     output_hashes = {
         "whitening_state_sha256": dataframe_content_sha256(
             whitening_state, sort_columns=["feature_kind", "candidate_id"]
@@ -150,19 +203,27 @@ def run_set_supervision_comparison(
         ),
         "query_rankings_sha256": dataframe_content_sha256(
             ranking_table,
-            sort_columns=["objective", "seed", "query_id", "rank"],
+            sort_columns=["objective", *representation_columns, "seed", "query_id", "rank"],
         ),
         "query_metrics_sha256": dataframe_content_sha256(
-            metric_table, sort_columns=["objective", "seed", "query_id", "k"]
+            metric_table,
+            sort_columns=["objective", *representation_columns, "seed", "query_id", "k"],
         ),
         "query_summaries_sha256": dataframe_content_sha256(
             summary_table,
-            sort_columns=["objective", "seed", "query_kind", "k"],
+            sort_columns=["objective", *representation_columns, "seed", "query_kind", "k"],
         ),
         "bootstrap_draws_sha256": dataframe_content_sha256(
-            bootstrap_table, sort_columns=["objective", "query_kind", "draw"]
+            bootstrap_table,
+            sort_columns=["objective", *representation_columns, "query_kind", "draw"],
         ),
     }
+    gap_table = pd.DataFrame(distribution_gaps)
+    if audit_additive:
+        gap_table = gap_table.sort_values(["seed", "query_id"], kind="stable", ignore_index=True)
+        output_hashes["distribution_gaps_sha256"] = dataframe_content_sha256(
+            gap_table, sort_columns=["seed", "query_id"]
+        )
     report = {
         "protocol_version": str(params["protocol_version"]),
         "protocol": str(params["protocol_path"]),
@@ -186,6 +247,16 @@ def run_set_supervision_comparison(
             "validation_only": True,
         },
     }
+    if audit_additive:
+        report["additive_comparison"] = _additive_comparison(
+            summary_table, bootstrap_table, gap_table, params
+        )
+        report["decision"]["hyperparameter_tuning_performed"] = False
+        report["known_limitations"] = [
+            "The cosine-normalized probe is not the proposed unnormalized maximum-entropy model.",
+            "The historical test split is contaminated and was not read.",
+            "Canonical symbolic query text does not test paraphrase robustness.",
+        ]
     return (
         whitening_state,
         checkpoint_table,
@@ -196,6 +267,106 @@ def run_set_supervision_comparison(
         bootstrap_table,
         report,
     )
+
+
+def _sum_atomic_queries(
+    atomic_queries: pd.DataFrame,
+    conjunction_queries: pd.DataFrame,
+    atomic_vectors: np.ndarray,
+) -> np.ndarray:
+    vectors = np.asarray(atomic_vectors, dtype=np.float32)
+    if vectors.ndim != 2 or len(vectors) != len(atomic_queries):
+        raise ValueError("atomic query vectors do not align with atomic query metadata")
+    positions: dict[str, int] = {}
+    for index, raw in enumerate(atomic_queries["constraint_ids_json"]):
+        identifiers = json.loads(str(raw))
+        if not isinstance(identifiers, list) or len(identifiers) != 1:
+            raise ValueError("atomic query must contain exactly one constraint")
+        constraint_id = str(identifiers[0])
+        if constraint_id in positions:
+            raise ValueError("atomic query constraints are not unique")
+        positions[constraint_id] = index
+
+    rows = []
+    for raw in conjunction_queries["constraint_ids_json"]:
+        identifiers = json.loads(str(raw))
+        if not isinstance(identifiers, list) or len(identifiers) != 2:
+            raise ValueError("additive audit requires two-constraint conjunctions")
+        try:
+            left, right = (positions[str(value)] for value in identifiers)
+        except KeyError as error:
+            missing = error.args[0]
+            raise ValueError(f"conjunction contains an unavailable atom: {missing}") from error
+        rows.append(vectors[left] + vectors[right])
+    result = np.asarray(rows, dtype=np.float32)
+    if not np.isfinite(result).all() or np.any(np.linalg.norm(result, axis=1) == 0.0):
+        raise ValueError("summed atomic queries produced a zero or non-finite vector")
+    return result
+
+
+def _jensen_shannon_rows(left_scores: np.ndarray, right_scores: np.ndarray) -> np.ndarray:
+    left = np.asarray(left_scores, dtype=np.float64)
+    right = np.asarray(right_scores, dtype=np.float64)
+    if left.shape != right.shape or left.ndim != 2 or not np.isfinite(left).all():
+        raise ValueError("distribution score matrices must be finite and have equal shapes")
+    if not np.isfinite(right).all():
+        raise ValueError("distribution score matrices must be finite and have equal shapes")
+
+    def probabilities(values: np.ndarray) -> np.ndarray:
+        shifted = values - values.max(axis=1, keepdims=True)
+        mass = np.exp(shifted)
+        return mass / mass.sum(axis=1, keepdims=True)
+
+    left_probability = probabilities(left)
+    right_probability = probabilities(right)
+    midpoint = 0.5 * (left_probability + right_probability)
+    return 0.5 * np.sum(
+        left_probability * np.log(left_probability / midpoint)
+        + right_probability * np.log(right_probability / midpoint),
+        axis=1,
+    )
+
+
+def _additive_comparison(
+    summaries: pd.DataFrame,
+    bootstrap: pd.DataFrame,
+    gaps: pd.DataFrame,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    primary_k = int(params["primary_k"])
+    selected = summaries.loc[
+        summaries["objective"].eq("verified_set")
+        & summaries["query_kind"].eq("pair_conjunction")
+        & summaries["k"].eq(primary_k)
+    ]
+    point = selected.groupby("query_representation", sort=True)["utility"].mean()
+    expected = {"atomic_sum", "direct_text"}
+    if set(point.index) != expected:
+        raise ValueError("additive audit lacks one query representation")
+    draws = bootstrap.loc[
+        bootstrap["objective"].eq("verified_set") & bootstrap["query_kind"].eq("pair_conjunction")
+    ].pivot(index="draw", columns="query_representation", values="utility")
+    if set(draws.columns) != expected or draws.isna().any(axis=None):
+        raise ValueError("additive audit bootstrap lacks one query representation")
+    differences = draws["atomic_sum"] - draws["direct_text"]
+    difference_lower, difference_upper = differences.quantile([0.025, 0.975])
+    atomic_lower, atomic_upper = draws["atomic_sum"].quantile([0.025, 0.975])
+    return {
+        "primary_metric": f"validation_pair_query_macro_utility_at_{primary_k}",
+        "direct_text": float(point["direct_text"]),
+        "atomic_sum": float(point["atomic_sum"]),
+        "atomic_sum_minus_direct_text": float(point["atomic_sum"] - point["direct_text"]),
+        "paired_component_bootstrap_95_interval": [
+            float(difference_lower),
+            float(difference_upper),
+        ],
+        "atomic_sum_component_bootstrap_95_interval": [
+            float(atomic_lower),
+            float(atomic_upper),
+        ],
+        "mean_jensen_shannon_divergence": float(gaps["jensen_shannon_divergence"].mean()),
+        "interpretation": "exploratory_validation_only",
+    }
 
 
 def _query_partitions(
@@ -421,6 +592,9 @@ def _comparison(
     summaries: pd.DataFrame, bootstrap: pd.DataFrame, params: dict[str, Any]
 ) -> dict[str, Any]:
     primary_k = int(params["primary_k"])
+    if "query_representation" in summaries:
+        summaries = summaries.loc[summaries["query_representation"].eq("direct_text")]
+        bootstrap = bootstrap.loc[bootstrap["query_representation"].eq("direct_text")]
     selected = summaries.loc[
         summaries["query_kind"].eq("pair_conjunction") & summaries["k"].eq(primary_k)
     ]
@@ -481,6 +655,7 @@ def _start_wandb(
                 "seed": seed,
                 "training_query_kind": params.get("training_query_kind", "all"),
                 "evaluation_query_kind": params.get("evaluation_query_kind", "all"),
+                "query_representations": params.get("query_representations", ["direct_text"]),
                 "precision": str(params.get("precision", "float32")),
                 "probe": dict(params["probe"]),
                 "input_versions": dict(params["input_versions"]),

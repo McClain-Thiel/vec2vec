@@ -474,3 +474,13 @@ e06_composition_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e06/composition_report.json
   versioned: true
+
+e07_additive_summary:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e07/additive_summary.parquet
+  versioned: true
+
+e07_additive_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e07/additive_report.json
+  versioned: true

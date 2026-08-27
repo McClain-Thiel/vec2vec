@@ -33,11 +33,16 @@ E06_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e06/composition_report.json/"
     "2026-08-26T13.06.51.803Z/composition_report.json"
 )
+E07_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e07/additive_report.json/"
+    "2026-08-27T15.33.47.015Z/additive_report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
     E05_REPORT: "182fb0dd75a1bd3159bc24b488e4921ff7dac1c6292352a408c8ff6d2d44082d",
     E06_REPORT: "800e23597f209197835b9648c4663cc3d35e686d0ac59e04c50bf1838e015230",
+    E07_REPORT: "a9a1ca17eab82fca3c4774326013034552dbf34583239fddcb19c5017515e275",
 }
 
 
@@ -127,13 +132,66 @@ def _composition_rows(report, *, experiment=None):
             result = {
                 "experiment": experiment,
                 "training_rows": report["population"]["training_rows"],
+                "query_representation": "direct_text",
                 **result,
             }
         rows.append(result)
     return rows
 
 
-def _artifact_rows(e02b, gate2, e05, e06):
+def _additive_rows(report):
+    comparison = report["additive_comparison"]
+    return [
+        {
+            "direct_text_utility_at_10": comparison["direct_text"],
+            "atomic_sum_utility_at_10": comparison["atomic_sum"],
+            "atomic_sum_minus_direct_text": comparison["atomic_sum_minus_direct_text"],
+            "difference_interval_lower": comparison["paired_component_bootstrap_95_interval"][0],
+            "difference_interval_upper": comparison["paired_component_bootstrap_95_interval"][1],
+            "atomic_sum_interval_lower": comparison["atomic_sum_component_bootstrap_95_interval"][
+                0
+            ],
+            "atomic_sum_interval_upper": comparison["atomic_sum_component_bootstrap_95_interval"][
+                1
+            ],
+            "mean_jensen_shannon_divergence": comparison["mean_jensen_shannon_divergence"],
+        }
+    ]
+
+
+def _additive_composition_rows(report):
+    comparison = report["additive_comparison"]
+    urls = " ".join(row["url"] for row in report["tracking"] if row["objective"] == "verified_set")
+    common = {
+        "experiment": "E07",
+        "training_rows": report["population"]["training_rows"],
+        "objective": "verified_set",
+    }
+    return [
+        {
+            **common,
+            "query_representation": "direct_text",
+            "unseen_pair_utility_at_10": comparison["direct_text"],
+            "difference_vs_paired": 0.0,
+            "difference_interval_lower": None,
+            "difference_interval_upper": None,
+            "decision": "baseline",
+            "wandb_runs": urls,
+        },
+        {
+            **common,
+            "query_representation": "atomic_sum",
+            "unseen_pair_utility_at_10": comparison["atomic_sum"],
+            "difference_vs_paired": comparison["atomic_sum_minus_direct_text"],
+            "difference_interval_lower": comparison["paired_component_bootstrap_95_interval"][0],
+            "difference_interval_upper": comparison["paired_component_bootstrap_95_interval"][1],
+            "decision": "positive_not_distinguishable_from_direct",
+            "wandb_runs": urls,
+        },
+    ]
+
+
+def _artifact_rows(e02b, gate2, e05, e06, e07):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -269,6 +327,15 @@ def _artifact_rows(e02b, gate2, e05, e06):
                 "note": "88,474-row atomic-only training; 80 unseen conjunction queries",
             },
             {
+                "artifact": "e07_additive_retrieval_report",
+                "kind": "report",
+                "status": "accepted",
+                "version": e07["execution"]["report_version"],
+                "sha256": REPORT_HASHES[E07_REPORT],
+                "location": E07_REPORT,
+                "note": "direct conjunction text versus summed projected atomic queries",
+            },
+            {
                 "artifact": "final_model_v1",
                 "kind": "model",
                 "status": "accepted",
@@ -340,7 +407,8 @@ def _generate_tables(args, *, check):
     gate2_hash = REPORT_HASHES.get(args.gate2_report)
     e05_hash = REPORT_HASHES.get(args.e05_report)
     e06_hash = REPORT_HASHES.get(args.e06_report)
-    if e02b_hash is None or gate2_hash is None or e05_hash is None or e06_hash is None:
+    e07_hash = REPORT_HASHES.get(args.e07_report)
+    if any(value is None for value in (e02b_hash, gate2_hash, e05_hash, e06_hash, e07_hash)):
         raise ValueError(
             "custom report paths require adding their accepted SHA-256 to REPORT_HASHES"
         )
@@ -349,14 +417,16 @@ def _generate_tables(args, *, check):
     gate2 = _read_report(args.gate2_report, gate2_hash)
     e05 = _read_report(args.e05_report, e05_hash)
     e06 = _read_report(args.e06_report, e06_hash)
+    e07 = _read_report(args.e07_report, e07_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
         "composition.csv": [
             *_composition_rows(e05, experiment="E05"),
             *_composition_rows(e06, experiment="E06"),
+            *_additive_composition_rows(e07),
         ],
-        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06),
+        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -438,7 +508,7 @@ def _run_reproduction(stage, authorization, output_dir):
         config = context.params["result_reproduction"]
         _validate_runtime(config["runtime"])
         catalog = context.catalog
-        scale = config.get("scale") if stage == "scale" else None
+        scale = config.get("scale") if stage in {"scale", "additive"} else None
         inputs = scale["inputs"] if scale else config["inputs"]
         input_version = str(inputs["panel_version"] if scale else inputs["e02b_version"])
         input_prefix = "e06" if scale else "e02b"
@@ -493,8 +563,8 @@ def _run_reproduction(stage, authorization, output_dir):
         query_version = str(inputs["query_benchmark_version"])
         all_query_states = catalog.load("e00_query_candidate_state", version=query_version)
         query_manifest = catalog.load("e00_query_benchmark_manifest", version=query_version)
-        section_name = stage if stage in {"composition", "scale"} else "supervision"
-        if stage in {"composition", "scale"}:
+        section_name = stage if stage in {"composition", "scale", "additive"} else "supervision"
+        if stage in {"composition", "scale", "additive"}:
             _validate_frozen_authorization(
                 authorization, config[section_name]["compute_authorization"]
             )
@@ -502,6 +572,11 @@ def _run_reproduction(stage, authorization, output_dir):
             if git_dirty:
                 raise RuntimeError(f"{stage} must start from a clean Git checkout")
         stage_started = time.perf_counter()
+        supervision_params = (
+            _additive_params(config)
+            if stage == "additive"
+            else _supervision_params(config, section_name=section_name)
+        )
         outputs = set_supervision.run_set_supervision_comparison(
             pairs,
             queries,
@@ -513,7 +588,7 @@ def _run_reproduction(stage, authorization, output_dir):
             dna_manifests["tfidf_6mer_svd_512"],
             text_features["qwen3_embedding_0_6b"],
             text_manifests["qwen3_embedding_0_6b"],
-            _supervision_params(config, section_name=section_name),
+            supervision_params,
             deadline_monotonic=deadline,
         )
         *_, report = outputs
@@ -522,14 +597,30 @@ def _run_reproduction(stage, authorization, output_dir):
         if failed_tracking:
             raise RuntimeError(f"W&B tracking did not complete: {failed_tracking}")
 
-        if stage in {"composition", "scale"}:
-            _verify_output_hashes(
-                report["output_hashes"], config[section_name]["expected_output_hashes"]
-            )
-            summary = pd.DataFrame(_composition_rows(report))
-            result_prefix = "e06" if stage == "scale" else "e05"
-            summary_dataset = f"{result_prefix}_composition_summary"
-            report_dataset = f"{result_prefix}_composition_report"
+        if stage in {"composition", "scale", "additive"}:
+            expected_hashes = config[section_name].get("expected_output_hashes")
+            if expected_hashes is not None:
+                _verify_output_hashes(report["output_hashes"], expected_hashes)
+            if stage == "additive":
+                expected_direct = float(config["additive"]["expected_direct_text_utility_at_10"])
+                if not math.isclose(
+                    report["comparison"]["verified_set"],
+                    expected_direct,
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
+                ):
+                    raise ValueError(
+                        "additive audit did not reproduce the accepted direct-text result"
+                    )
+                summary = pd.DataFrame(_additive_rows(report))
+                result_prefix = "e07"
+                summary_dataset = "e07_additive_summary"
+                report_dataset = "e07_additive_report"
+            else:
+                summary = pd.DataFrame(_composition_rows(report))
+                result_prefix = "e06" if stage == "scale" else "e05"
+                summary_dataset = f"{result_prefix}_composition_summary"
+                report_dataset = f"{result_prefix}_composition_report"
             summary_version = catalog.get(summary_dataset).resolve_save_version()
             report_version = catalog.get(report_dataset).resolve_save_version()
             report["execution"] = {
@@ -557,8 +648,13 @@ def _run_reproduction(stage, authorization, output_dir):
             print(
                 json.dumps(
                     {
-                        "status": f"{result_prefix}_unseen_composition_complete",
+                        "status": (
+                            "e07_additive_retrieval_audit_complete"
+                            if stage == "additive"
+                            else f"{result_prefix}_unseen_composition_complete"
+                        ),
                         "comparison": report["comparison"],
+                        "additive_comparison": report.get("additive_comparison"),
                         "output_hashes": report["output_hashes"],
                         "tracking": report["tracking"],
                         "execution": report["execution"],
@@ -711,6 +807,20 @@ def _supervision_params(config, *, section_name="supervision"):
     return params
 
 
+def _additive_params(config):
+    params = _supervision_params(config, section_name="scale")
+    additive = config["additive"]
+    params.update(
+        protocol_version=additive["protocol_version"],
+        tracking=additive["tracking"],
+        query_representations=additive["query_representations"],
+        audit_atomic_sum=True,
+        completion_status="additive_retrieval_audit_complete",
+        run_name_prefix="e07-additive",
+    )
+    return params
+
+
 def _validate_frozen_authorization(observed, expected):
     differences = {
         name: {"expected": expected.get(name), "observed": observed.get(name)}
@@ -803,9 +913,12 @@ def main():
     parser.add_argument("--gate2-report", default=GATE2_REPORT)
     parser.add_argument("--e05-report", default=E05_REPORT)
     parser.add_argument("--e06-report", default=E06_REPORT)
+    parser.add_argument("--e07-report", default=E07_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
-    parser.add_argument("--reproduce", choices=("alignment", "supervision", "composition", "scale"))
+    parser.add_argument(
+        "--reproduce", choices=("alignment", "supervision", "composition", "scale", "additive")
+    )
     parser.add_argument("--approval-reference")
     parser.add_argument("--region")
     parser.add_argument("--instance-type")
