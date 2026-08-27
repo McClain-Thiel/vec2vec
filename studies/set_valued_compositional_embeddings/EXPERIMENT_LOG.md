@@ -2632,3 +2632,18 @@ E05 and E06 agree: verified-set supervision improves retrieval for unseen conjun
 frozen validation protocol, and the effect is not an artifact of the 20,000-row training sample.
 This remains exploratory because the historical test split is contaminated and no new raw-data
 snapshot exists for a clean confirmatory holdout.
+
+## 2026-08-27 — Final model fit accepted
+
+Final-model-v1 collapsed the historical splits after model selection and fit the accepted
+TF-IDF/SVD + Qwen3 + verified-set recipe to all 110,267 A/C/G/T plasmids. The clean L4 run at
+commit `7856556` finished in 1,376.90 seconds before persistence, cost approximately `$0.50609`,
+and logged to W&B run `m4eeei4w`. Final loss was `0.42155`; this is an optimization diagnostic,
+not an evaluation result.
+
+The validated 255.6 MB bundle and 110,267-row index are under
+`hf://buckets/McClain/plasmidclip-train-ckpts/models/vec2vec-final-v1/78565560b8473b9d1145cc9818084af63dfe0702`.
+Manifest SHA-256 is `284a1315ae1c39b2624f09f78ef3ec0f18e8f40fd8f0c0e11d96d274b61c877e`;
+model and index SHA-256 values are `7b489c29d7dd765ac18910ac0aebb364ca81dbbadc7607ba54aa35697526f1f6`
+and `0d4d5450cf191e7e2aeafbf59c052a548cde3b0a8b4c43bf14c5292fc5ea8764`. Independent
+read-back reproduced sampled index vectors within `2.54e-7`. No evaluation was performed.

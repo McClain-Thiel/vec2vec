@@ -269,6 +269,18 @@ def _artifact_rows(e02b, gate2, e05, e06):
                 "note": "88,474-row atomic-only training; 80 unseen conjunction queries",
             },
             {
+                "artifact": "final_model_v1",
+                "kind": "model",
+                "status": "accepted",
+                "version": "78565560b8473b9d1145cc9818084af63dfe0702",
+                "sha256": "284a1315ae1c39b2624f09f78ef3ec0f18e8f40fd8f0c0e11d96d274b61c877e",
+                "location": (
+                    "hf://buckets/McClain/plasmidclip-train-ckpts/models/vec2vec-final-v1/"
+                    "78565560b8473b9d1145cc9818084af63dfe0702"
+                ),
+                "note": "110,267-row final fit; W&B m4eeei4w; no evaluation",
+            },
+            {
                 "artifact": "e06_first_feature_attempt",
                 "kind": "run",
                 "status": "failed",
