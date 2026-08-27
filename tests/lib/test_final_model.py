@@ -8,6 +8,7 @@ import pytest
 from vec2vec.lib import final_model
 from vec2vec.lib.sequences import sequence_sha256
 from vec2vec.lib.similarity_graph import dataframe_content_sha256
+from vec2vec.lib.text_encoder import EncodedTexts
 
 
 def test_load_final_inputs_validates_and_collapses_splits(tmp_path, monkeypatch):
@@ -113,7 +114,13 @@ def test_bundle_round_trip_and_inference(tmp_path, monkeypatch):
     output = tmp_path / "bundle"
 
     manifest = final_model.save_bundle(
-        output, model, index, training, queries, history, {"protocol_version": "test"}
+        output,
+        model,
+        index,
+        training,
+        queries,
+        history,
+        {"protocol_version": "final-model-v1", "recipe": final_model.FINAL_RECIPE},
     )
 
     assert final_model.validate_bundle(output) == manifest
@@ -125,8 +132,42 @@ def test_bundle_round_trip_and_inference(tmp_path, monkeypatch):
     assert query_vectors.shape == (1, 512)
     assert np.allclose(np.linalg.norm(sequence_vectors, axis=1), 1.0)
     assert np.allclose(np.linalg.norm(query_vectors, axis=1), 1.0)
+    retrieved = final_model.retrieve(output, index[[0]], top_k=2)
+    assert retrieved.loc[0, "index_row"] == 0
+    assert retrieved["rank"].tolist() == [1, 2]
     with pytest.raises(ValueError, match="at least 6 bp"):
         final_model.project_sequences(output / "model.npz", ["ACGT"])
+    with pytest.raises(ValueError, match="3 columns"):
+        final_model.project_query_embeddings(
+            output / "model.npz", np.asarray([[1.0, 2.0]], dtype=np.float32)
+        )
+    with pytest.raises(ValueError, match="top_k"):
+        final_model.retrieve(output, index[[0]], top_k=4)
+
+    class StubEncoder:
+        def __init__(self, recipe, *, precision, device):
+            assert recipe == final_model.TextEncoderRecipe.model_validate(
+                final_model.FINAL_RECIPE["text"]
+            )
+            assert precision == "float32"
+            assert device == "cpu"
+
+        def encode(self, texts, *, role):
+            assert texts == ["query"]
+            assert role == "query"
+            return EncodedTexts(
+                vectors=np.asarray([[1.0, 2.0, 3.0]], dtype=np.float32),
+                token_counts=[7],
+                elapsed_seconds=0.1,
+            )
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(final_model, "FrozenTextEncoder", StubEncoder)
+    encoded_vectors, token_counts = final_model.encode_queries(output, ["query"], device="cpu")
+    assert encoded_vectors.shape == (1, 512)
+    assert token_counts == [7]
 
 
 def _source_row(sequence_id, sequence, split):

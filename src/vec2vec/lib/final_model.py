@@ -397,8 +397,72 @@ def project_query_embeddings(bundle_path: Path, embeddings: np.ndarray) -> np.nd
     """Project raw frozen-Qwen query embeddings with the persisted final state."""
     with np.load(bundle_path, allow_pickle=False) as model:
         values = np.asarray(embeddings, dtype=np.float32)
+        expected_dimension = int(model["text_whitening_mean"].shape[0])
+        if (
+            values.ndim != 2
+            or values.shape[0] == 0
+            or values.shape[1] != expected_dimension
+            or not np.isfinite(values).all()
+        ):
+            raise ValueError(
+                "query embeddings must be a non-empty finite matrix with "
+                f"{expected_dimension} columns"
+            )
         whitened = (values - model["text_whitening_mean"]) @ model["text_whitening_matrix"]
         return alignment_probe.project(whitened, model["text_head"])
+
+
+def encode_queries(
+    bundle_dir: Path,
+    queries: list[str],
+    *,
+    device: str,
+) -> tuple[np.ndarray, list[int]]:
+    """Encode text queries with the model recipe stored in a validated bundle."""
+    manifest = validate_bundle(bundle_dir)
+    if manifest.get("protocol_version") != FINAL_RECIPE["protocol_version"]:
+        raise ValueError("bundle is not an accepted final-model-v1 artifact")
+    text_recipe = TextEncoderRecipe.model_validate(manifest["recipe"]["text"])
+    precision = "bfloat16" if str(device).startswith("cuda") else "float32"
+    encoder = FrozenTextEncoder(text_recipe, precision=precision, device=device)
+    try:
+        encoded = encoder.encode(queries, role="query")
+    finally:
+        encoder.close()
+    vectors = project_query_embeddings(bundle_dir / "model.npz", encoded.vectors)
+    return vectors, encoded.token_counts
+
+
+def retrieve(bundle_dir: Path, query_vectors: np.ndarray, *, top_k: int) -> pd.DataFrame:
+    """Return deterministic cosine-ranked plasmid identities for projected queries."""
+    vectors = np.asarray(query_vectors, dtype=np.float32)
+    if vectors.ndim != 2 or vectors.shape[0] == 0 or vectors.shape[1] != 512:
+        raise ValueError("query vectors must be a non-empty matrix with 512 columns")
+    if not np.isfinite(vectors).all():
+        raise ValueError("query vectors contain non-finite values")
+    if not np.allclose(np.linalg.norm(vectors, axis=1), 1.0, atol=1e-5, rtol=0.0):
+        raise ValueError("query vectors must be L2 normalized")
+
+    index = np.load(bundle_dir / "sequence_index.npy", mmap_mode="r", allow_pickle=False)
+    identities = pd.read_parquet(bundle_dir / "sequence_ids.parquet")
+    if not 1 <= top_k <= len(index):
+        raise ValueError(f"top_k must be between 1 and {len(index)}")
+    if len(identities) != len(index) or not np.array_equal(
+        identities["index_row"].to_numpy(), np.arange(len(index))
+    ):
+        raise ValueError("sequence identities do not match index rows")
+
+    scores = np.asarray(index @ vectors.T, dtype=np.float32)
+    rows = []
+    index_rows = np.arange(len(index))
+    for query_index in range(len(vectors)):
+        order = np.lexsort((index_rows, -scores[:, query_index]))[:top_k]
+        selected = identities.iloc[order].copy()
+        selected.insert(0, "score", scores[order, query_index])
+        selected.insert(0, "rank", np.arange(1, top_k + 1))
+        selected.insert(0, "query_index", query_index)
+        rows.append(selected)
+    return pd.concat(rows, ignore_index=True)
 
 
 def _single_constraint_id(value: str) -> str:
