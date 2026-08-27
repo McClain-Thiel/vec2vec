@@ -698,3 +698,28 @@ result_reproduction:
         training_history_sha256: 0234d9972f371c9c7122cd778e760c2fba9120f2bdff51b485239819bd5e678f
         summary_sha256: ae3a8e006768f71e7ab9a6950e1976c3d55d3851b355c80b17521420a2888627
         bootstrap_draws_sha256: a8f5d897caf8bca668d2e4197cef9bf47f9b0a987189126db4b4dac92734588e
+    expected_output_hashes:
+      whitening_state_sha256: 2a6701d7c6de5b062491c9c58c573894e8d73af16fa020a49d8a66edc59d7433
+      checkpoints_sha256: 7866cd4b40ce720b32d2f1283de83071925121b8998b36dfcf9e7d0da0cafeca
+      training_history_sha256: 0234d9972f371c9c7122cd778e760c2fba9120f2bdff51b485239819bd5e678f
+      summary_sha256: ae3a8e006768f71e7ab9a6950e1976c3d55d3851b355c80b17521420a2888627
+      bootstrap_draws_sha256: a8f5d897caf8bca668d2e4197cef9bf47f9b0a987189126db4b4dac92734588e
+      distribution_gaps_sha256: 18955cf3cf4e425c56b4d77ec1541ddaebada8d08202554bbd933b3f78572b13
+    accepted_run_artifact:
+      version: 2026-08-27T16.17.31.598Z
+      git_commit: c6a1b45f5d5746c56048b7127378ce90cf5832b1
+      report_sha256: 178eb98d922296c89839c536f84773453c60fa0768eb1205d53815a0736da4c7
+      summary_sha256: ae3a8e006768f71e7ab9a6950e1976c3d55d3851b355c80b17521420a2888627
+      persisted_bytes: 25549858
+      stage_elapsed_seconds: 403.43214451521635
+      stage_cost_usd: 0.14828372600625953
+      wrapper_elapsed_seconds: 428.57021145895123
+      wrapper_cost_usd: 0.15752336216735674
+      combined_cost_including_rejected_attempt_usd: 0.31477204083418514
+      comparison:
+        uniform_plasmid_atomic_sum_utility_at_10: -0.43333333333333335
+        uniform_v2_component_atomic_sum_utility_at_10: -0.5083333333333333
+        component_minus_plasmid: -0.07499999999999996
+        component_minus_plasmid_interval: [-0.24187500000000006, 0.07499999999999996]
+        selection: indistinguishable
+      wandb_run_ids: [866oov1f, 2qk1ijlr, pqpjwx6m, rjorpwx6, 9vrlpouh, 1c2vt9co]

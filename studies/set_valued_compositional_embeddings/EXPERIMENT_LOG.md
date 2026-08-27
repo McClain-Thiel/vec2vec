@@ -2707,3 +2707,20 @@ space Jensen–Shannon calculation underflowed for extreme logits and persisted 
 `2026-08-27T16.08.12.789Z` is rejected and retained. The wrapper used 427.82 seconds and `$0.15725`.
 The technical retry may change only the log-space JSD calculation; it must reproduce the first
 run's checkpoint, history, summary, bootstrap, and whitening hashes exactly.
+
+## 2026-08-27 — E08 completed as an optimization failure
+
+The unchanged retry at commit `c6a1b45` reproduced every frozen model and primary-result hash.
+Uniform-plasmid atomic-sum utility@10 was `-0.43333` (interval `[-0.50000, -0.32500]`);
+uniform-v2-component was `-0.50833` (interval `[-0.63333, -0.37479]`). The component-minus-
+plasmid difference was `-0.07500`, interval `[-0.24188, 0.07500]`, so neither base measure was
+selected. Atomic sum was not distinguishable from direct text under either measure. Stable mean
+Jensen–Shannon divergences were `0.39462` and `0.46549`.
+
+This does not reject the natural-parameter hypothesis: optimization diverged in all six fits.
+Loss rose from roughly `11.6–13.1` after the first update to `317–1,134`, while query norms grew to
+means of `15.7–34.0`. The next experiment must stabilize scale/optimization on validation before
+another algebra comparison. Accepted evidence version `2026-08-27T16.17.31.598Z` has report
+SHA-256 `178eb98d922296c89839c536f84773453c60fa0768eb1205d53815a0736da4c7`; all six W&B runs
+finished. The accepted wrapper used 428.57 seconds and `$0.15752`; including the rejected
+diagnostic attempt, E08 used `$0.31477`.

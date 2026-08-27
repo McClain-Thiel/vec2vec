@@ -1,0 +1,5 @@
+base_measure,query_count,decision,query_representation,utility_at_10,atomic_sum_minus_direct_text,difference_interval_lower,difference_interval_upper
+uniform_plasmid,4,optimization_failed,direct_text,-0.3833333333333333,0.0,,
+uniform_plasmid,4,optimization_failed,atomic_sum,-0.43333333333333335,-0.050000000000000044,-0.13333333333333336,0.11666666666666664
+uniform_v2_component,4,optimization_failed,direct_text,-0.5416666666666666,0.0,,
+uniform_v2_component,4,optimization_failed,atomic_sum,-0.5083333333333333,0.033333333333333326,-0.10833333333333328,0.12499999999999994

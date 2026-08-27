@@ -37,12 +37,17 @@ E07_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e07/additive_report.json/"
     "2026-08-27T15.33.47.015Z/additive_report.json"
 )
+E08_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e08/natural_parameter_report.json/"
+    "2026-08-27T16.17.31.598Z/natural_parameter_report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
     E05_REPORT: "182fb0dd75a1bd3159bc24b488e4921ff7dac1c6292352a408c8ff6d2d44082d",
     E06_REPORT: "800e23597f209197835b9648c4663cc3d35e686d0ac59e04c50bf1838e015230",
     E07_REPORT: "a9a1ca17eab82fca3c4774326013034552dbf34583239fddcb19c5017515e275",
+    E08_REPORT: "178eb98d922296c89839c536f84773453c60fa0768eb1205d53815a0736da4c7",
 }
 
 
@@ -191,7 +196,45 @@ def _additive_composition_rows(report):
     ]
 
 
-def _artifact_rows(e02b, gate2, e05, e06, e07):
+def _natural_parameter_rows(report):
+    comparison = report["comparison"]
+    rows = []
+    for base_measure in ("uniform_plasmid", "uniform_v2_component"):
+        atomic_sum = comparison[base_measure]
+        additive = comparison["direct_vs_atomic_sum"][base_measure]
+        common = {
+            "base_measure": base_measure,
+            "query_count": report["population"]["evaluation_queries"],
+            "decision": "optimization_failed",
+        }
+        rows.extend(
+            [
+                {
+                    **common,
+                    "query_representation": "direct_text",
+                    "utility_at_10": atomic_sum - additive["atomic_sum_minus_direct_text"],
+                    "atomic_sum_minus_direct_text": 0.0,
+                    "difference_interval_lower": None,
+                    "difference_interval_upper": None,
+                },
+                {
+                    **common,
+                    "query_representation": "atomic_sum",
+                    "utility_at_10": atomic_sum,
+                    "atomic_sum_minus_direct_text": additive["atomic_sum_minus_direct_text"],
+                    "difference_interval_lower": additive["paired_component_bootstrap_95_interval"][
+                        0
+                    ],
+                    "difference_interval_upper": additive["paired_component_bootstrap_95_interval"][
+                        1
+                    ],
+                },
+            ]
+        )
+    return rows
+
+
+def _artifact_rows(e02b, gate2, e05, e06, e07, e08):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -336,6 +379,15 @@ def _artifact_rows(e02b, gate2, e05, e06, e07):
                 "note": "direct conjunction text versus summed projected atomic queries",
             },
             {
+                "artifact": "e08_natural_parameter_report",
+                "kind": "report",
+                "status": "accepted_negative_result",
+                "version": e08["execution"]["artifact_versions"]["e08_natural_parameter_report"],
+                "sha256": REPORT_HASHES[E08_REPORT],
+                "location": E08_REPORT,
+                "note": "exact max-entropy fit diverged; four closed-world conjunctions",
+            },
+            {
                 "artifact": "final_model_v1",
                 "kind": "model",
                 "status": "accepted",
@@ -408,7 +460,10 @@ def _generate_tables(args, *, check):
     e05_hash = REPORT_HASHES.get(args.e05_report)
     e06_hash = REPORT_HASHES.get(args.e06_report)
     e07_hash = REPORT_HASHES.get(args.e07_report)
-    if any(value is None for value in (e02b_hash, gate2_hash, e05_hash, e06_hash, e07_hash)):
+    e08_hash = REPORT_HASHES.get(args.e08_report)
+    if any(
+        value is None for value in (e02b_hash, gate2_hash, e05_hash, e06_hash, e07_hash, e08_hash)
+    ):
         raise ValueError(
             "custom report paths require adding their accepted SHA-256 to REPORT_HASHES"
         )
@@ -418,6 +473,7 @@ def _generate_tables(args, *, check):
     e05 = _read_report(args.e05_report, e05_hash)
     e06 = _read_report(args.e06_report, e06_hash)
     e07 = _read_report(args.e07_report, e07_hash)
+    e08 = _read_report(args.e08_report, e08_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
@@ -426,7 +482,8 @@ def _generate_tables(args, *, check):
             *_composition_rows(e06, experiment="E06"),
             *_additive_composition_rows(e07),
         ],
-        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07),
+        "natural_parameters.csv": _natural_parameter_rows(e08),
+        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07, e08),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -1023,6 +1080,7 @@ def main():
     parser.add_argument("--e05-report", default=E05_REPORT)
     parser.add_argument("--e06-report", default=E06_REPORT)
     parser.add_argument("--e07-report", default=E07_REPORT)
+    parser.add_argument("--e08-report", default=E08_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument(
