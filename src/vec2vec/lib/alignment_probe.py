@@ -280,6 +280,131 @@ def train_controlled_query_probe(
     return state, pd.DataFrame(history)
 
 
+def train_hard_negative_query_probe(
+    sequence_train: np.ndarray,
+    query_train: np.ndarray,
+    verified_mask: np.ndarray,
+    hard_negative_indices: np.ndarray,
+    *,
+    seed: int,
+    updates: int,
+    negatives_per_query: int,
+    learning_rate: float,
+    weight_decay: float,
+    maximum_logit_scale: float,
+    device: str,
+    initial_state: Mapping[str, Any],
+    deadline_monotonic: float | None = None,
+) -> tuple[dict[str, Any], pd.DataFrame]:
+    """Adapt an initialized alignment head with fixed, high-scoring weak negatives."""
+    import torch
+    import torch.nn.functional as functional
+
+    sequence = _finite_matrix(sequence_train, name="hard-negative sequence features")
+    queries = _finite_matrix(query_train, name="hard-negative query features")
+    labels = np.asarray(verified_mask)
+    negatives = np.asarray(hard_negative_indices)
+    if labels.dtype != np.bool_ or labels.shape != (len(queries), len(sequence)):
+        raise ValueError("hard-negative labels must be boolean and query-by-sequence")
+    if not labels.any(axis=1).all():
+        raise ValueError("every hard-negative query needs at least one positive")
+    if negatives.ndim != 2 or len(negatives) != len(queries):
+        raise ValueError("hard-negative indices must contain one pool per query")
+    if negatives.dtype.kind not in "iu" or negatives.size == 0:
+        raise ValueError("hard-negative indices must be a non-empty integer matrix")
+    if negatives.min() < 0 or negatives.max() >= len(sequence):
+        raise ValueError("hard-negative index is outside the training population")
+    if np.take_along_axis(labels, negatives, axis=1).any():
+        raise ValueError("hard-negative pools contain verified positives")
+    if updates < 1 or negatives_per_query < 1 or negatives_per_query > negatives.shape[1]:
+        raise ValueError("hard-negative update budget or sample size is invalid")
+    if learning_rate <= 0.0 or weight_decay < 0.0 or maximum_logit_scale <= 0.0:
+        raise ValueError("hard-negative optimizer settings are invalid")
+
+    _ensure_before_deadline(deadline_monotonic, operation="hard-negative probe setup")
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    target = torch.device(device)
+    sequence_tensor = torch.as_tensor(sequence, device=target)
+    query_tensor = torch.as_tensor(queries, device=target)
+    initial_sequence = np.asarray(initial_state["sequence_head"], dtype=np.float32)
+    initial_text = np.asarray(initial_state["text_head"], dtype=np.float32)
+    sequence_head = torch.nn.Linear(sequence.shape[1], initial_sequence.shape[0], bias=False).to(
+        target
+    )
+    text_head = torch.nn.Linear(queries.shape[1], initial_text.shape[0], bias=False).to(target)
+    initial_logit_scale = float(initial_state["logit_scale"])
+    if initial_sequence.shape != tuple(sequence_head.weight.shape):
+        raise ValueError("initial sequence head shape differs from the hard-negative head")
+    if initial_text.shape != tuple(text_head.weight.shape):
+        raise ValueError("initial text head shape differs from the hard-negative head")
+    if not np.isfinite(initial_logit_scale):
+        raise ValueError("initial hard-negative logit scale must be finite")
+    with torch.no_grad():
+        sequence_head.weight.copy_(torch.as_tensor(initial_sequence, device=target))
+        text_head.weight.copy_(torch.as_tensor(initial_text, device=target))
+    logit_scale = torch.nn.Parameter(torch.tensor(initial_logit_scale, device=target))
+    optimizer = torch.optim.AdamW(
+        [*sequence_head.parameters(), *text_head.parameters(), logit_scale],
+        lr=learning_rate,
+        weight_decay=weight_decay,
+    )
+    generator = np.random.default_rng(seed)
+    positives = [np.flatnonzero(row) for row in labels]
+    sampler_hash = hashlib.sha256()
+    history = []
+    for update in range(1, updates + 1):
+        _ensure_before_deadline(deadline_monotonic, operation=f"hard-negative update {update}")
+        selected_positive = np.asarray(
+            [rows[generator.integers(len(rows))] for rows in positives], dtype=np.int64
+        )
+        selected_negative = np.vstack(
+            [
+                rows[generator.choice(len(rows), size=negatives_per_query, replace=False)]
+                for rows in negatives
+            ]
+        )
+        selected = np.column_stack([selected_positive, selected_negative])
+        sampler_hash.update(selected.tobytes())
+        candidates = torch.as_tensor(selected, dtype=torch.int64, device=target)
+        projected_sequence = functional.normalize(sequence_head(sequence_tensor[candidates]), dim=2)
+        projected_query = functional.normalize(text_head(query_tensor), dim=1)
+        scale = logit_scale.exp().clamp(max=maximum_logit_scale)
+        logits = scale * torch.einsum("qd,qkd->qk", projected_query, projected_sequence)
+        loss = 0.5 * (
+            functional.softplus(-logits[:, 0]).mean() + functional.softplus(logits[:, 1:]).mean()
+        )
+        if not bool(torch.isfinite(loss)):
+            raise FloatingPointError(f"hard-negative loss became non-finite at update {update}")
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        history.append(
+            {
+                "update": update,
+                "loss": float(loss.detach().cpu()),
+                "logit_scale": float(logit_scale.detach().exp().clamp(max=maximum_logit_scale)),
+                "negatives_per_query": negatives_per_query,
+            }
+        )
+    state = {
+        "objective": "sampled_hard_negative_binary_cross_entropy",
+        "seed": seed,
+        "sequence_head": sequence_head.weight.detach().cpu().numpy().astype(np.float32),
+        "text_head": text_head.weight.detach().cpu().numpy().astype(np.float32),
+        "logit_scale": float(logit_scale.detach().cpu()),
+        "updates": updates,
+        "negatives_per_query": negatives_per_query,
+        "hard_negative_pool_rows": negatives.shape[1],
+        "sampler_sha256": sampler_hash.hexdigest(),
+    }
+    return state, pd.DataFrame(history)
+
+
 def train_maximum_entropy_probe(
     sequence_train: np.ndarray,
     query_train: np.ndarray,

@@ -218,6 +218,67 @@ def test_controlled_query_probe_can_continue_from_an_alignment_state() -> None:
     np.testing.assert_allclose(state["text_head"], initial["text_head"], atol=1e-6)
 
 
+def test_hard_negative_query_probe_rejects_positive_pool_overlap() -> None:
+    sequence = np.eye(4, dtype=np.float32)
+    queries = np.eye(2, 4, dtype=np.float32)
+    labels = np.asarray([[True, False, False, False], [False, True, False, False]])
+    initial = {
+        "sequence_head": np.eye(4, dtype=np.float32),
+        "text_head": np.eye(4, dtype=np.float32),
+        "logit_scale": 0.0,
+    }
+
+    with pytest.raises(ValueError, match="verified positives"):
+        alignment_probe.train_hard_negative_query_probe(
+            sequence,
+            queries,
+            labels,
+            np.asarray([[0, 2], [2, 3]]),
+            seed=13,
+            updates=1,
+            negatives_per_query=1,
+            learning_rate=0.001,
+            weight_decay=0.0,
+            maximum_logit_scale=100.0,
+            device="cpu",
+            initial_state=initial,
+        )
+
+
+def test_hard_negative_query_probe_is_deterministic() -> None:
+    sequence = np.eye(4, dtype=np.float32)
+    queries = np.eye(2, 4, dtype=np.float32)
+    labels = np.asarray([[True, False, False, False], [False, True, False, False]])
+    negatives = np.asarray([[1, 2, 3], [0, 2, 3]])
+    initial = {
+        "sequence_head": np.eye(4, dtype=np.float32),
+        "text_head": np.eye(4, dtype=np.float32),
+        "logit_scale": 0.0,
+    }
+    kwargs = {
+        "seed": 13,
+        "updates": 3,
+        "negatives_per_query": 2,
+        "learning_rate": 0.001,
+        "weight_decay": 0.0,
+        "maximum_logit_scale": 100.0,
+        "device": "cpu",
+        "initial_state": initial,
+    }
+
+    first, first_history = alignment_probe.train_hard_negative_query_probe(
+        sequence, queries, labels, negatives, **kwargs
+    )
+    second, second_history = alignment_probe.train_hard_negative_query_probe(
+        sequence, queries, labels, negatives, **kwargs
+    )
+
+    np.testing.assert_array_equal(first["sequence_head"], second["sequence_head"])
+    np.testing.assert_array_equal(first["text_head"], second["text_head"])
+    pd.testing.assert_frame_equal(first_history, second_history)
+    assert first["sampler_sha256"] == second["sampler_sha256"]
+
+
 def test_maximum_entropy_probe_uses_only_known_states_and_preserves_norms() -> None:
     sequence = np.asarray([[1.0, 0.0], [0.8, 0.2], [0.0, 1.0], [0.2, 0.8]], dtype=np.float32)
     queries = np.eye(2, dtype=np.float32)

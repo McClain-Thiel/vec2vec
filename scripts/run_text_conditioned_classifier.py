@@ -333,6 +333,7 @@ def _prepare_features(
     atomic_queries: pd.DataFrame,
     *,
     deadline: float,
+    query_texts: list[str] | None = None,
 ) -> dict[str, Any]:
     train = pairs.loc[pairs["panel_role"].eq("alignment_train")].sort_values(
         "sequence_id", kind="stable", ignore_index=True
@@ -386,7 +387,11 @@ def _prepare_features(
     )
     try:
         encoded = encoder.encode(
-            atomic_queries["canonical_query_text"].astype(str).tolist(),
+            (
+                atomic_queries["canonical_query_text"].astype(str).tolist()
+                if query_texts is None
+                else query_texts
+            ),
             role="query",
             deadline_monotonic=deadline,
         )

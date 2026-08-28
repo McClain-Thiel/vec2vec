@@ -1147,3 +1147,69 @@ description_initialized_tuning_experiment:
       - 0.010937500000000013
       - 0.2312890624999998
     wandb_run_id: zasefr8p
+
+# E15 keeps E14's held-atom folds and tests semantic prompt enrichment plus explicit hard negatives.
+semantic_hard_negative_tuning_experiment:
+  protocol_version: e15-semantic-hard-negative-tuning-v0.1
+  inputs:
+    queries_sha256: b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770
+    atomic_queries: 64
+    pair_queries: 128
+    e14_version: 2026-08-28T11.46.22.782Z
+    e14_variant: atomic_lr_3e-05
+    e14_compositional_metrics_sha256: dfb0694089ea9db9d690c9cfa2486eb17b967c216bdf740a986a33a3136d3615
+  outer_folds: 8
+  fold_salt: e13-text-conditioned-head-v0.1:atom-fold
+  device: cuda
+  text_feature_precision: bfloat16
+  whitening_epsilon: 0.000001
+  semantic_prompts:
+    prompts_per_atom: 4
+    recipe: canonical_plus_retrieval_template_plus_definition_plus_normalized_name
+  description_pretraining:
+    seed: 20260818
+    projection_dimension: 512
+    epochs: 20
+    batch_size: 4096
+    learning_rate: 0.001
+    weight_decay: 0.01
+    initial_temperature: 0.07
+    maximum_logit_scale: 100.0
+  adaptation:
+    seed: 20260818
+    updates: 200
+    learning_rate: 0.00003
+    weight_decay: 0.01
+  hard_negatives:
+    source: highest_description_initialized_unreported_scores
+    pool_rows_per_atom: 256
+  variants:
+    semantic_verified_set: null
+    semantic_hard_negative_4: 4
+    semantic_hard_negative_16: 16
+  calibration:
+    method: shared_positive_slope_class_balanced_bce
+    training_rows: 8192
+    sample_salt: e15-semantic-hard-negative-tuning-v0.1:calibration
+    updates: 100
+    learning_rate: 0.05
+  score_representation: calibrated_log_probability_sum
+  gallery_component_column: leakage_component_v2
+  cutoffs: [1, 5, 10, 50]
+  primary_k: 10
+  bootstrap_draws: 2000
+  bootstrap_seed: 20260818
+  selection:
+    rule: maximize_strict_adherence_then_component_coverage_within_tolerance
+    strict_adherence_tolerance: 0.01
+  tracking:
+    project: vec2vec
+    entity: null
+    group: e15-semantic-hard-negative-tuning-v0.1
+    tags: [semantic-prompts, hard-negatives, held-atom, compositional-search, e15, exploratory]
+  compute_authorization:
+    approval_reference: chat-2026-08-28-e15-semantic-hard-negative-auto-under-20
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 2.0
+    observed_instance_price_usd_per_hour: 1.3232

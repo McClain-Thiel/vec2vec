@@ -2971,3 +2971,22 @@ finished. Stage time/cost was 366.59 seconds / `$0.13474`; wrapper time/cost was
 `$0.15220`. The result supports plasmid-level text–DNA supervision, but its absolute retrieval
 quality is still too weak; the next experiment should improve semantic supervision rather than
 continue learning-rate tuning.
+
+## 2026-08-28 — E15 semantic prompts and hard negatives preregistered
+
+E15 keeps the exact E14 population, eight held-atom folds, weak labels, calibration sample, 128
+conjunctions, and validation-only measurement contract. Each atomic query is represented by the
+mean of four frozen Qwen embeddings: the canonical query, a retrieval instruction, a functional
+definition, and a normalized-name prompt. Definitions use deterministic type templates plus a
+small frozen alias map for common selectable markers and reporters. The held atom's labels remain
+absent from its fold's adaptation.
+
+Starting from the same 20-epoch plasmid-description alignment, compare semantic prompts under the
+E14 verified-set objective with sampled binary adaptation using either 4 or 16 hard negatives per
+query. Each atom's fixed 256-row pool is its highest-scoring unreported training plasmids before
+atomic adaptation. Learning rate stays at E14's selected `3e-5`; this tests the supervision and
+negative-sampling algorithms rather than reopening that axis. Selection maximizes strict
+adherence@10, then useful component fraction within a 0.01 adherence tolerance, and reports a
+paired difference from E14. No test row is read. W&B group is
+`e15-semantic-hard-negative-tuning-v0.1`; the g6.4xlarge ceiling is two hours / `$2.6464` under
+reference `chat-2026-08-28-e15-semantic-hard-negative-auto-under-20`.

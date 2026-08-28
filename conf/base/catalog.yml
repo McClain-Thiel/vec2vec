@@ -609,3 +609,23 @@ e14_description_initialized_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e14/report.json
   versioned: true
+
+e15_semantic_hard_negative_checkpoint:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e15/semantic_hard_negative_checkpoint.parquet
+  versioned: true
+
+e15_semantic_hard_negative_atomic_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e15/atomic_metrics.parquet
+  versioned: true
+
+e15_semantic_hard_negative_compositional_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e15/compositional_metrics.parquet
+  versioned: true
+
+e15_semantic_hard_negative_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e15/report.json
+  versioned: true
