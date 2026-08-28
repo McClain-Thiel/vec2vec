@@ -46,6 +46,11 @@ Atomic-sum utility@10 was `0.41771`, versus `0.18229` for direct conjunction tex
 difference was `0.23542`, interval `[0.19010, 0.27760]`. This supports additive retrieval under the
 assumption that unreported annotations are noisy negatives, not true biological absences.
 
+E11 replaced the shared text-conditioned head with direct classifiers for the 64 known atoms.
+Calibrated probability-product utility@10 reached `0.82188`, improving on E10 by `0.40417`, interval
+`[0.32030, 0.49324]`. This demonstrates large head, objective, and calibration headroom, but the
+direct heads do not support unseen natural-language atoms.
+
 The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
 bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
 
@@ -54,7 +59,7 @@ The complete retained evidence is five tables:
 - [`results/encoders.csv`](results/encoders.csv): all 12 encoder pairs.
 - [`results/supervision.csv`](results/supervision.csv): paired versus set supervision.
 - [`results/composition.csv`](results/composition.csv): E05 and population-scale E06 unseen pairs.
-- [`results/natural_parameters.csv`](results/natural_parameters.csv): E08–E10 natural parameters.
+- [`results/natural_parameters.csv`](results/natural_parameters.csv): E08–E11 retrieval models.
 - [`results/artifacts.csv`](results/artifacts.csv): exact versions, hashes, locations, and failures.
 
 Regenerate and verify them from the accepted S3 reports:

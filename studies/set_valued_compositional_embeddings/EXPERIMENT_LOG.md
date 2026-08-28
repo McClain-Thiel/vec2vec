@@ -2807,3 +2807,39 @@ metric rows, and report SHA-256 `3b84fd0a20a377165a15f470e17365400756c5790526cef
 All W&B runs finished: `nncvbyr2`, `tp266gz5`, and `59xmy72h`. The measured stage took 345.59
 seconds and `$0.12702`; the systemd wrapper ran about 394 seconds and `$0.14482`. No test row was
 read. The L4 is idle and no E10 process remains.
+
+## 2026-08-28 — E11 direct atomic-classifier ceiling preregistered
+
+E11 asks whether E10 is limited by its shared Qwen-to-natural-parameter projection. It reuses the
+exact E10 64 atoms, 128 conjunctions, 88,474 training rows, 10,852 validation rows, query hash
+`b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770`, and TF-IDF/SVD DNA
+features. One deterministic zero-initialized linear classifier is fit per atom with class-balanced
+binary cross-entropy over all 551,749 positive and 5,110,587 unreported weak-negative pairs. No
+test row is read and no retrieval result selects a hyperparameter.
+
+The frozen primary AND score is the sum of empirical-prior-corrected log probabilities. Raw-logit
+sum and calibrated minimum are diagnostics. Primary utility@10 is paired by query against accepted
+E10 atomic addition and bootstrapped over the 128 queries with 2,000 draws. Training uses 400
+full-batch AdamW updates, learning rate `0.01`, weight decay `1e-4`, float32, and W&B group
+`e11-atomic-classifier-v0.1`. The `g6.4xlarge` ceiling is one hour / `$1.3232` under reference
+`chat-2026-08-28-e11-atomic-classifier-auto-under-20`.
+
+## 2026-08-28 — E11 finds large known-atom classifier and calibration headroom
+
+The deterministic fit was stable: balanced training loss fell from `0.69315` to `0.06386`, with
+maximum weight norm `4.41`. Atomic utility@10 reached `0.93125`. The preregistered calibrated
+log-probability sum reached conjunction utility@10 `0.82188`, interval `[0.75781, 0.88281]`, versus
+E10 atomic addition `0.41771`. The paired improvement was `0.40417`, interval
+`[0.32030, 0.49324]`. Calibrated minimum was a post-hoc diagnostic at `0.83125`; it is not selected.
+Raw-logit sum was only `0.34219`, showing that per-atom prior calibration, not addition alone,
+accounts for much of the gain. The direct heads are a known-vocabulary ceiling and do not yet
+support unseen natural-language atoms.
+
+Accepted S3 version `2026-08-28T10.19.38.951Z` passed independent checkpoint, metric, bootstrap,
+and W&B read-back; report SHA-256 is
+`8ea38fa831993052fa5f71b6dd66bb107d5092febc8172b25985dda81626e4c4`. Run `ktlo1bk4` finished on
+an NVIDIA L4 in float32. Measured stage time/cost was 116.59 seconds / `$0.04285`; the systemd
+wrapper was 156 seconds / `$0.05734`, with 1.8 GB peak memory and no swap. It ran from base commit
+`dcd205d83db70ef6f1e156900105a6e42e9ea0bd` plus recorded dirty diff
+`4ca30b167c06643c9a490cb6653aa289ef0f1bc840cabc18683bdb36bf1f6810`. No test row was read and
+no E11 process remains.

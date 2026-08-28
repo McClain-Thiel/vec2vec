@@ -544,3 +544,18 @@ e10_weak_annotation_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e10/report.json
   versioned: true
+
+e11_atomic_classifier_checkpoint:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e11/atomic_classifier_checkpoint.parquet
+  versioned: true
+
+e11_atomic_classifier_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e11/atomic_classifier_metrics.parquet
+  versioned: true
+
+e11_atomic_classifier_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e11/atomic_classifier_report.json
+  versioned: true

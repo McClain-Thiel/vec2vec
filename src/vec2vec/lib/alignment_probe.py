@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -403,6 +404,120 @@ def train_maximum_entropy_probe(
         "initial_text_head_sha256": initial_text_head_sha256,
     }
     return state, pd.DataFrame(history)
+
+
+def train_atomic_logistic_probe(
+    sequence_train: np.ndarray,
+    verified_mask: np.ndarray,
+    *,
+    updates: int,
+    learning_rate: float,
+    weight_decay: float,
+    device: str,
+    deadline_monotonic: float | None = None,
+) -> tuple[dict[str, Any], pd.DataFrame]:
+    """Fit deterministic, class-balanced one-vs-rest atomic classifiers."""
+    import torch
+
+    sequence = _finite_matrix(sequence_train, name="atomic-classifier sequence features")
+    verified = np.asarray(verified_mask)
+    if verified.dtype != np.bool_ or verified.ndim != 2:
+        raise ValueError("atomic-classifier verified mask must be a two-dimensional boolean array")
+    if verified.shape[1] != len(sequence):
+        raise ValueError("atomic-classifier labels must align with training sequences")
+    if not verified.any(axis=1).all() or verified.all(axis=1).any():
+        raise ValueError("every atomic classifier needs positive and weak-negative rows")
+    if updates < 1 or learning_rate <= 0.0 or weight_decay < 0.0:
+        raise ValueError("atomic-classifier optimizer settings are invalid")
+
+    _ensure_before_deadline(deadline_monotonic, operation="atomic-classifier setup")
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    target = torch.device(device)
+    features = torch.as_tensor(sequence, dtype=torch.float32, device=target)
+    labels = torch.as_tensor(verified.T, dtype=torch.float32, device=target)
+    positive_counts = labels.sum(dim=0)
+    negative_counts = (1.0 - labels).sum(dim=0)
+    head = torch.nn.Linear(sequence.shape[1], verified.shape[0], bias=True).to(target)
+    torch.nn.init.zeros_(head.weight)
+    torch.nn.init.zeros_(head.bias)
+    optimizer = torch.optim.AdamW(
+        [
+            {"params": [head.weight], "weight_decay": weight_decay},
+            {"params": [head.bias], "weight_decay": 0.0},
+        ],
+        lr=learning_rate,
+    )
+
+    def loss_value() -> Any:
+        logits = head(features)
+        positive = (torch.nn.functional.softplus(-logits) * labels).sum(dim=0) / positive_counts
+        negative = (torch.nn.functional.softplus(logits) * (1.0 - labels)).sum(
+            dim=0
+        ) / negative_counts
+        return (0.5 * (positive + negative)).mean()
+
+    def measurements(update: int, loss: Any) -> dict[str, float | int]:
+        with torch.no_grad():
+            weight_norms = torch.linalg.vector_norm(head.weight, dim=1)
+        return {
+            "update": update,
+            "loss": float(loss.detach().cpu()),
+            "weight_norm_mean": float(weight_norms.mean().cpu()),
+            "weight_norm_max": float(weight_norms.max().cpu()),
+            "bias_abs_max": float(head.bias.detach().abs().max().cpu()),
+        }
+
+    with torch.no_grad():
+        history = [measurements(0, loss_value())]
+    for update in range(1, updates + 1):
+        _ensure_before_deadline(deadline_monotonic, operation=f"atomic-classifier update {update}")
+        loss = loss_value()
+        if not bool(torch.isfinite(loss)):
+            raise FloatingPointError(f"atomic-classifier loss became non-finite at update {update}")
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        history.append(measurements(update, loss))
+
+    with torch.no_grad():
+        history[-1] = measurements(updates, loss_value())
+
+    prevalence = verified.mean(axis=1, dtype=np.float64)
+    log_prior_odds = np.log(prevalence) - np.log1p(-prevalence)
+    state = {
+        "objective": "class_balanced_full_weak_binary_cross_entropy",
+        "weight": head.weight.detach().cpu().numpy().astype(np.float32),
+        "bias": head.bias.detach().cpu().numpy().astype(np.float32),
+        "log_prior_odds": log_prior_odds.astype(np.float32),
+        "updates": updates,
+        "training_rows": len(sequence),
+        "atomic_queries": verified.shape[0],
+        "positive_pairs": int(verified.sum()),
+        "weak_negative_pairs": int(verified.size - verified.sum()),
+    }
+    return state, pd.DataFrame(history)
+
+
+def atomic_logistic_scores(
+    sequence_features: np.ndarray,
+    state: Mapping[str, Any],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return balanced logits and empirical-prior-corrected logits per atom."""
+    sequence = _finite_matrix(sequence_features, name="atomic-classifier scoring features")
+    weight = _finite_matrix(state["weight"], name="atomic-classifier weights")
+    bias = np.asarray(state["bias"], dtype=np.float32)
+    log_prior_odds = np.asarray(state["log_prior_odds"], dtype=np.float32)
+    if weight.shape[1] != sequence.shape[1]:
+        raise ValueError("atomic-classifier feature and weight dimensions differ")
+    if bias.shape != (len(weight),) or log_prior_odds.shape != bias.shape:
+        raise ValueError("atomic-classifier bias or prior shape differs from its weights")
+    raw = sequence @ weight.T + bias[None, :]
+    calibrated = raw + log_prior_odds[None, :]
+    if not np.isfinite(raw).all() or not np.isfinite(calibrated).all():
+        raise ValueError("atomic-classifier scoring produced non-finite values")
+    return raw.astype(np.float32), calibrated.astype(np.float32)
 
 
 def symmetric_many_positive_loss(logits: Any, positive_mask: Any) -> Any:

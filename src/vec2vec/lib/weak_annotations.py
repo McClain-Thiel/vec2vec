@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import re
 import unicodedata
@@ -123,6 +124,44 @@ def retrieval_metrics(
                 }
             )
     return pd.DataFrame(rows)
+
+
+def fuse_atomic_classifier_scores(
+    raw_logits: np.ndarray,
+    calibrated_logits: np.ndarray,
+    atomic_queries: pd.DataFrame,
+    pair_queries: pd.DataFrame,
+) -> dict[str, np.ndarray]:
+    """Compose atomic classifier evidence using three fixed AND scoring rules."""
+    raw = np.asarray(raw_logits, dtype=np.float64)
+    calibrated = np.asarray(calibrated_logits, dtype=np.float64)
+    if raw.shape != calibrated.shape or raw.shape[1] != len(atomic_queries):
+        raise ValueError("atomic classifier scores and atomic queries must align")
+    if not np.isfinite(raw).all() or not np.isfinite(calibrated).all():
+        raise ValueError("atomic classifier scores must be finite")
+    by_key = {
+        json.loads(str(row.annotation_keys_json))[0]: position
+        for position, row in enumerate(atomic_queries.itertuples(index=False))
+    }
+    if len(by_key) != len(atomic_queries):
+        raise ValueError("atomic classifier queries repeat an annotation key")
+    pair_positions = []
+    for row in pair_queries.itertuples(index=False):
+        keys = json.loads(str(row.annotation_keys_json))
+        if len(keys) != 2 or any(key not in by_key for key in keys):
+            raise ValueError("pair query does not contain two known atomic keys")
+        pair_positions.append((by_key[keys[0]], by_key[keys[1]]))
+    left = np.asarray([positions[0] for positions in pair_positions])
+    right = np.asarray([positions[1] for positions in pair_positions])
+    left_calibrated = calibrated[:, left]
+    right_calibrated = calibrated[:, right]
+    left_log_probability = -np.logaddexp(0.0, -left_calibrated)
+    right_log_probability = -np.logaddexp(0.0, -right_calibrated)
+    return {
+        "raw_logit_sum": (raw[:, left] + raw[:, right]).T,
+        "calibrated_log_probability_sum": (left_log_probability + right_log_probability).T,
+        "calibrated_min_logit": np.minimum(left_calibrated, right_calibrated).T,
+    }
 
 
 def paired_query_bootstrap(

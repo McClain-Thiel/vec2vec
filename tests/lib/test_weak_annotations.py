@@ -125,3 +125,27 @@ def test_retrieval_metrics_and_paired_bootstrap_use_weak_binary_labels() -> None
     assert comparison["direct_text"] == 0.0
     assert comparison["atomic_sum"] == 1.0
     assert comparison["atomic_sum_minus_direct_text"] == 1.0
+
+
+def test_atomic_classifier_fusion_requires_evidence_for_both_atoms() -> None:
+    atomic = pd.DataFrame(
+        {
+            "annotation_keys_json": ['["a"]', '["b"]'],
+        }
+    )
+    pairs = pd.DataFrame(
+        {
+            "annotation_keys_json": ['["a","b"]'],
+        }
+    )
+    raw = np.asarray([[5.0, -5.0], [2.0, 2.0], [-5.0, 5.0]])
+    fused = weak_annotations.fuse_atomic_classifier_scores(raw, raw, atomic, pairs)
+
+    assert set(fused) == {
+        "raw_logit_sum",
+        "calibrated_log_probability_sum",
+        "calibrated_min_logit",
+    }
+    assert fused["calibrated_log_probability_sum"].shape == (1, 3)
+    assert fused["calibrated_log_probability_sum"][0].argmax() == 1
+    assert fused["calibrated_min_logit"][0].argmax() == 1

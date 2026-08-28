@@ -285,3 +285,32 @@ def test_component_bootstrap_can_use_v2_leakage_components() -> None:
     )
 
     assert len(draws) == 20
+
+
+def test_atomic_logistic_probe_learns_each_weak_binary_label() -> None:
+    sequence = np.asarray(
+        [[2.0, 0.0], [1.0, 0.0], [-2.0, 0.0], [0.0, 2.0], [0.0, -2.0], [0.0, -1.0]],
+        dtype=np.float32,
+    )
+    verified = np.asarray(
+        [
+            [True, True, False, False, False, False],
+            [False, False, False, True, False, False],
+        ]
+    )
+
+    state, history = alignment_probe.train_atomic_logistic_probe(
+        sequence,
+        verified,
+        updates=100,
+        learning_rate=0.05,
+        weight_decay=0.0001,
+        device="cpu",
+    )
+    raw, calibrated = alignment_probe.atomic_logistic_scores(sequence, state)
+
+    assert history.iloc[-1]["loss"] < history.iloc[0]["loss"]
+    assert raw.shape == calibrated.shape == (6, 2)
+    assert raw[verified[0], 0].min() > raw[~verified[0], 0].max()
+    assert raw[verified[1], 1].min() > raw[~verified[1], 1].max()
+    assert state["weak_negative_pairs"] == 9

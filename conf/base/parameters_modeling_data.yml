@@ -887,3 +887,63 @@ weak_annotation_experiment:
     atomic_sum_minus_direct_text: 0.2354166666666667
     difference_interval: [0.1901041666666667, 0.27760416666666665]
     wandb_run_ids: [nncvbyr2, tp266gz5, 59xmy72h]
+
+# E11 is a diagnostic ceiling for the 64 known annotation atoms. It deliberately gives up unseen
+# text-query support to isolate the DNA representation and query-projection bottlenecks.
+weak_annotation_classifier_experiment:
+  protocol_version: e11-atomic-classifier-v0.1
+  inputs:
+    queries_sha256: b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770
+    pair_queries: 128
+    e10_metrics_version: 2026-08-27T18.46.12.234Z
+    e10_metrics_sha256: b3e9452baa9eb667c244c2cdb89f384039cc4a301cf8edea6906e0c3439e33b6
+  device: cuda
+  classifier:
+    objective: class_balanced_full_weak_binary_cross_entropy
+    initialization: zeros
+    whitening_epsilon: 0.000001
+    updates: 400
+    learning_rate: 0.01
+    weight_decay: 0.0001
+    prior_calibration: empirical_training_prevalence
+    weak_negatives: all_unreported_annotations
+  fusion:
+    primary_representation: calibrated_log_probability_sum
+    representations:
+      [raw_logit_sum, calibrated_log_probability_sum, calibrated_min_logit]
+    cutoffs: [1, 5, 10, 50]
+    primary_k: 10
+    bootstrap_draws: 2000
+    bootstrap_seed: 20260818
+  stability:
+    maximum_final_loss_ratio: 0.99
+    maximum_weight_norm: 100.0
+    maximum_bias_abs: 100.0
+  tracking:
+    project: vec2vec
+    entity: null
+    group: e11-atomic-classifier-v0.1
+    tags: [atomic-classifier, weak-labels, calibrated-and, e11, exploratory]
+  compute_authorization:
+    approval_reference: chat-2026-08-28-e11-atomic-classifier-auto-under-20
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 1.0
+    observed_instance_price_usd_per_hour: 1.3232
+  accepted_run_artifact:
+    version: 2026-08-28T10.19.38.951Z
+    report_sha256: 8ea38fa831993052fa5f71b6dd66bb107d5092febc8172b25985dda81626e4c4
+    checkpoint_sha256: f400faf5f580eae2be2ddef68ef9ef46e8d610be1ef121b9f258280532712bd0
+    metrics_sha256: 04874e2bb9c268d2b494c314145eb3e3dc9dcb2459ab4af83c3d0619e0b3c130
+    persisted_bytes: 251114
+    stage_elapsed_seconds: 116.58989718556404
+    stage_cost_usd: 0.04285326443220509
+    wrapper_elapsed_seconds: 156
+    wrapper_cost_usd: 0.05733866666666667
+    atomic_utility_at_10: 0.9312499999999999
+    calibrated_log_probability_sum_utility_at_10: 0.8218749999999999
+    calibrated_min_logit_utility_at_10: 0.83125
+    raw_logit_sum_utility_at_10: 0.3421875
+    primary_minus_e10: 0.40416666666666656
+    primary_minus_e10_interval: [0.3202994791666667, 0.49324218749999993]
+    wandb_run_id: ktlo1bk4
