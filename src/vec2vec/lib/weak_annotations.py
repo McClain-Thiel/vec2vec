@@ -164,6 +164,73 @@ def fuse_atomic_classifier_scores(
     }
 
 
+def compositional_retrieval_metrics(
+    scores: np.ndarray,
+    compositional_queries: pd.DataFrame,
+    atomic_queries: pd.DataFrame,
+    atomic_positive_mask: np.ndarray,
+    gallery_components: np.ndarray,
+    *,
+    cutoffs: tuple[int, ...],
+) -> pd.DataFrame:
+    """Measure strict adherence, partial adherence, and non-redundant useful hits."""
+    values = np.asarray(scores, dtype=np.float64)
+    positives = np.asarray(atomic_positive_mask)
+    components = np.asarray(gallery_components).astype(str)
+    if values.shape != (len(compositional_queries), positives.shape[1]):
+        raise ValueError("compositional scores and atomic labels must share a gallery")
+    if positives.dtype != np.bool_ or positives.shape[0] != len(atomic_queries):
+        raise ValueError("atomic positive labels must align with the atomic queries")
+    if components.shape != (values.shape[1],) or not np.isfinite(values).all():
+        raise ValueError("gallery components and finite scores must align")
+    if not cutoffs or min(cutoffs) < 1 or max(cutoffs) > values.shape[1]:
+        raise ValueError("compositional cutoffs must fit the gallery")
+    by_key = {
+        json.loads(str(row.annotation_keys_json))[0]: position
+        for position, row in enumerate(atomic_queries.itertuples(index=False))
+    }
+    if len(by_key) != len(atomic_queries):
+        raise ValueError("atomic queries repeat an annotation key")
+
+    rows = []
+    for query_position, query in enumerate(compositional_queries.itertuples(index=False)):
+        keys = list(map(str, json.loads(str(query.annotation_keys_json))))
+        if len(keys) < 2 or any(key not in by_key for key in keys):
+            raise ValueError("a compositional query contains fewer than two known atoms")
+        clause_labels = positives[[by_key[key] for key in keys]]
+        strict_labels = clause_labels.all(axis=0)
+        order = np.argsort(-values[query_position], kind="stable")
+        strict_positions = np.flatnonzero(strict_labels[order])
+        if not len(strict_positions):
+            raise ValueError("a compositional query has no fully adherent gallery row")
+        for cutoff in cutoffs:
+            selected = order[:cutoff]
+            selected_clauses = clause_labels[:, selected]
+            satisfied_counts = selected_clauses.sum(axis=0)
+            strict = satisfied_counts == len(keys)
+            partial = (satisfied_counts > 0) & ~strict
+            strict_components = set(components[selected][strict])
+            strict_adherence = float(strict.mean())
+            rows.append(
+                {
+                    "query_id": str(query.query_id),
+                    "clauses": len(keys),
+                    "k": cutoff,
+                    "strict_adherence": strict_adherence,
+                    "mean_clause_adherence": float(selected_clauses.mean()),
+                    "partial_only_fraction": float(partial.mean()),
+                    "zero_clause_fraction": float((satisfied_counts == 0).mean()),
+                    "useful_component_fraction": len(strict_components) / cutoff,
+                    "strict_component_diversity": (
+                        len(strict_components) / int(strict.sum()) if strict.any() else 0.0
+                    ),
+                    "signed_strict_utility": 2.0 * strict_adherence - 1.0,
+                    "first_strict_rank": int(strict_positions[0] + 1),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
 def paired_query_bootstrap(
     metrics: pd.DataFrame,
     *,

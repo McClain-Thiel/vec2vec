@@ -149,3 +149,40 @@ def test_atomic_classifier_fusion_requires_evidence_for_both_atoms() -> None:
     assert fused["calibrated_log_probability_sum"].shape == (1, 3)
     assert fused["calibrated_log_probability_sum"][0].argmax() == 1
     assert fused["calibrated_min_logit"][0].argmax() == 1
+
+
+def test_compositional_metrics_separate_adherence_from_useful_diversity() -> None:
+    atomic = pd.DataFrame({"annotation_keys_json": ['["a"]', '["b"]']})
+    queries = pd.DataFrame(
+        {
+            "query_id": ["a-and-b"],
+            "annotation_keys_json": ['["a","b"]'],
+        }
+    )
+    positives = np.asarray(
+        [
+            [True, True, False, False],
+            [True, False, True, False],
+        ]
+    )
+    scores = np.asarray([[4.0, 3.0, 2.0, 1.0]])
+
+    metrics = weak_annotations.compositional_retrieval_metrics(
+        scores,
+        queries,
+        atomic,
+        positives,
+        np.asarray(["component-1", "component-1", "component-2", "component-3"]),
+        cutoffs=(2, 4),
+    ).set_index("k")
+
+    assert metrics.loc[2, "strict_adherence"] == 0.5
+    assert metrics.loc[2, "mean_clause_adherence"] == 0.75
+    assert metrics.loc[2, "partial_only_fraction"] == 0.5
+    assert metrics.loc[2, "zero_clause_fraction"] == 0.0
+    assert metrics.loc[2, "useful_component_fraction"] == 0.5
+    assert metrics.loc[2, "strict_component_diversity"] == 1.0
+    assert metrics.loc[2, "signed_strict_utility"] == 0.0
+    assert metrics.loc[2, "first_strict_rank"] == 1
+    assert metrics.loc[4, "strict_adherence"] == 0.25
+    assert metrics.loc[4, "mean_clause_adherence"] == 0.5

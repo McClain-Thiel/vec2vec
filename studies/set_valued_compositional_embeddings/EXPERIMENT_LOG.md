@@ -2843,3 +2843,17 @@ wrapper was 156 seconds / `$0.05734`, with 1.8 GB peak memory and no swap. It ra
 `dcd205d83db70ef6f1e156900105a6e42e9ea0bd` plus recorded dirty diff
 `4ca30b167c06643c9a490cb6653aa289ef0f1bc840cabc18683bdb36bf1f6810`. No test row was read and
 no E11 process remains.
+
+## 2026-08-28 — Compositional-search measurement contract
+
+Compositional search will report separate axes at each K. `strict_adherence` is the fraction of
+retrieved plasmids satisfying every required atom. `mean_clause_adherence` gives partial credit for
+individual required atoms and exposes one-sided retrieval. `useful_component_fraction` is the
+number of distinct sequence-similarity components among strictly adherent hits divided by K, so a
+top-K list of near-duplicates does not look fully useful. Partial-only and zero-clause fractions,
+strict-component diversity, and first-strict rank are diagnostics. The historical signed utility
+`2 * strict_adherence - 1` remains for continuity only.
+
+No combined scalar is selected yet: adherence and non-redundant utility must both be shown. The
+current contract covers positive AND queries. When explicit exclusions are added, forbidden-clause
+violation will be a separate axis rather than being averaged into positive adherence.
