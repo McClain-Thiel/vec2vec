@@ -2934,3 +2934,40 @@ hash, metric, and W&B read-back. Report SHA-256 is
 `94195a62c8b5be7366dd2d0edeb6b6795fdf3da41c81c31abe2050bc2a97c4a0`. W&B run `zrgdllpy`
 finished. Stage time/cost was 328.67 seconds / `$0.12080`; wrapper time/cost was 374.74 seconds /
 `$0.13774`. No test row was read and g6-big was idle afterward.
+
+## 2026-08-28 — E14 description-initialized held-atom tuning preregistered
+
+E14 tests the next concrete explanation for E13's failure: 64 names are insufficient to learn
+text–DNA semantics, so first align all 88,474 training plasmids with their frozen Qwen description
+embeddings. One 20-epoch paired-description alignment fit initializes both 512-dimensional heads.
+Eight atom folds are identical to E13. Within each fold, compare description-only transfer with
+verified-set atomic adaptation at learning rates `1e-5`, `3e-5`, and `1e-4` for 200 updates. Every
+evaluated atom remains absent from its fold's atomic adaptation.
+
+A shared positive-slope calibration is fit using only the other 56 atoms and 8,192 deterministic
+training plasmids; pair scores sum calibrated log probabilities. All four variants report held-atom
+atomic utility plus E12 adherence and component coverage for the same 128 conjunctions. This is an
+explicit validation-tuning experiment: select maximum strict adherence@10, then maximum useful
+component fraction among variants within 0.01 adherence. Report the paired improvement over E13;
+do not read test rows or make a confirmatory claim. W&B group is
+`e14-description-initialized-tuning-v0.1`. The g6.4xlarge ceiling is two hours / `$2.6464` under
+reference `chat-2026-08-28-e14-description-initialized-auto-under-20`.
+
+## 2026-08-28 — E14 description initialization helps, but transfer remains weak
+
+The preregistered selection rule chose atomic adaptation at `3e-5`: held-atom atomic utility@10 was
+`0.04375`; conjunction strict adherence@10 was `0.19141`, useful component fraction was `0.11484`,
+and signed strict utility was `-0.61719`. This improves signed utility over E13 by `0.12500` with a
+paired query-bootstrap interval of `[0.01094, 0.23129]`. The highest strict adherence was `0.19531`
+at `1e-4`, but `3e-5` was within the frozen `0.01` tolerance and had better component coverage.
+Description-only transfer was worse (`-0.75625` signed utility). This is validation tuning, not a
+confirmatory result, and no test row was read.
+
+Accepted version `2026-08-28T11.46.22.782Z` passed built-in and independent row, identifier,
+partition, array-hash, output-hash, metric, and W&B checks. Report SHA-256 is
+`245545153c3419aa90d4c570c496ee72276d0707c5a3d77c1ff7e95475167267`; checkpoint SHA-256 is
+`0be86892f3bbe5178c076072efbee27cd3e44f0ab5bd3b5e7ae8147627d5a65d`. W&B run `zasefr8p`
+finished. Stage time/cost was 366.59 seconds / `$0.13474`; wrapper time/cost was 414.10 seconds /
+`$0.15220`. The result supports plasmid-level text–DNA supervision, but its absolute retrieval
+quality is still too weak; the next experiment should improve semantic supervision rather than
+continue learning-rate tuning.

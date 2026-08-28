@@ -61,6 +61,10 @@ failed: held-atom atomic utility@10 was `-0.46875` and conjunction strict adhere
 `0.12891`. The next model must learn text–DNA semantics from plasmid-level supervision or a much
 larger ontology; interpolating 64 classifier heads is not viable.
 
+E14 added plasmid-description alignment before held-atom atomic adaptation. It improved signed
+strict utility@10 from `-0.74219` to `-0.61719`, but strict adherence@10 remained only `0.19141`.
+The direction is useful; the absolute result is not a viable natural-query retriever.
+
 The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
 bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
 
@@ -68,7 +72,7 @@ The complete retained evidence is five tables:
 
 - [`results/encoders.csv`](results/encoders.csv): all 12 encoder pairs.
 - [`results/supervision.csv`](results/supervision.csv): paired versus set supervision.
-- [`results/composition.csv`](results/composition.csv): E05 and population-scale E06 unseen pairs.
+- [`results/composition.csv`](results/composition.csv): unseen-pair and compositional retrieval.
 - [`results/natural_parameters.csv`](results/natural_parameters.csv): E08–E11 retrieval models.
 - [`results/artifacts.csv`](results/artifacts.csv): exact versions, hashes, locations, and failures.
 

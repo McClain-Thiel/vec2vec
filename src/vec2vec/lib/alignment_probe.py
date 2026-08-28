@@ -167,6 +167,7 @@ def train_controlled_query_probe(
     maximum_logit_scale: float,
     device: str,
     deadline_monotonic: float | None = None,
+    initial_state: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], pd.DataFrame]:
     """Fit one controlled-query probe on deterministic verified-candidate batches."""
     import torch
@@ -201,6 +202,20 @@ def train_controlled_query_probe(
     logit_scale = torch.nn.Parameter(
         torch.tensor(float(np.log(1.0 / initial_temperature)), device=target)
     )
+    if initial_state is not None:
+        initial_sequence = np.asarray(initial_state["sequence_head"], dtype=np.float32)
+        initial_text = np.asarray(initial_state["text_head"], dtype=np.float32)
+        if initial_sequence.shape != tuple(sequence_head.weight.shape):
+            raise ValueError("initial sequence head shape differs from the controlled-query head")
+        if initial_text.shape != tuple(text_head.weight.shape):
+            raise ValueError("initial text head shape differs from the controlled-query head")
+        initial_logit_scale = float(initial_state["logit_scale"])
+        if not np.isfinite(initial_logit_scale):
+            raise ValueError("initial logit scale must be finite")
+        with torch.no_grad():
+            sequence_head.weight.copy_(torch.as_tensor(initial_sequence, device=target))
+            text_head.weight.copy_(torch.as_tensor(initial_text, device=target))
+            logit_scale.fill_(initial_logit_scale)
     initial_sequence_head_sha256 = _tensor_sha256(sequence_head.weight)
     initial_text_head_sha256 = _tensor_sha256(text_head.weight)
     optimizer = torch.optim.AdamW(

@@ -401,8 +401,11 @@ def _prepare_features(
     return {
         "dna_train": dna_whitening.transform(dna_train_raw).astype(np.float64),
         "dna_validation": dna_whitening.transform(dna_validation_raw).astype(np.float64),
+        "text_train": text_whitening.transform(text_train_raw).astype(np.float64),
         "query": query,
         "train_ids": train["sequence_id"].astype(str).tolist(),
+        "dna_whitening_mean": dna_whitening.mean.astype(np.float32),
+        "dna_whitening_matrix": dna_whitening.matrix.astype(np.float32),
         "dna_whitening_mean_sha256": _array_sha256(dna_whitening.mean),
         "dna_whitening_matrix_sha256": _array_sha256(dna_whitening.matrix),
         "text_whitening_mean": text_whitening.mean.astype(np.float32),

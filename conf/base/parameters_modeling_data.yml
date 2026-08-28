@@ -1068,3 +1068,82 @@ text_conditioned_classifier_experiment:
     e13_minus_e10: -1.1598958333333331
     e13_minus_e11: -1.5640625
     wandb_run_id: zrgdllpy
+
+# E14 is explicitly a validation-tuning experiment. It tests whether broad plasmid-description
+# alignment provides the missing held-atom semantics before weak-label atomic adaptation.
+description_initialized_tuning_experiment:
+  protocol_version: e14-description-initialized-tuning-v0.1
+  inputs:
+    queries_sha256: b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770
+    atomic_queries: 64
+    pair_queries: 128
+    e13_version: 2026-08-28T11.22.25.340Z
+    e13_compositional_metrics_sha256: df98eb1c4af9006606020f86b4f376e0f738b90bf3101189b0fee2867bfe1477
+  outer_folds: 8
+  fold_salt: e13-text-conditioned-head-v0.1:atom-fold
+  device: cuda
+  text_feature_precision: bfloat16
+  whitening_epsilon: 0.000001
+  description_pretraining:
+    seed: 20260818
+    projection_dimension: 512
+    epochs: 20
+    batch_size: 4096
+    learning_rate: 0.001
+    weight_decay: 0.01
+    initial_temperature: 0.07
+    maximum_logit_scale: 100.0
+  fine_tuning:
+    seed: 20260818
+    objective: verified_set
+    updates: 200
+    learning_rates: [0.00001, 0.00003, 0.0001]
+    weight_decay: 0.01
+  calibration:
+    method: shared_positive_slope_class_balanced_bce
+    training_rows: 8192
+    sample_salt: e14-description-initialized-tuning-v0.1:calibration
+    updates: 100
+    learning_rate: 0.05
+  score_representation: calibrated_log_probability_sum
+  gallery_component_column: leakage_component_v2
+  cutoffs: [1, 5, 10, 50]
+  primary_k: 10
+  bootstrap_draws: 2000
+  bootstrap_seed: 20260818
+  selection:
+    rule: maximize_strict_adherence_then_component_coverage_within_tolerance
+    strict_adherence_tolerance: 0.01
+  tracking:
+    project: vec2vec
+    entity: null
+    group: e14-description-initialized-tuning-v0.1
+    tags: [description-alignment, held-atom, tuning, compositional-search, e14, exploratory]
+  compute_authorization:
+    approval_reference: chat-2026-08-28-e14-description-initialized-auto-under-20
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 2.0
+    observed_instance_price_usd_per_hour: 1.3232
+  accepted_run_artifact:
+    status: accepted_exploratory_tuning
+    version: 2026-08-28T11.46.22.782Z
+    report_sha256: 245545153c3419aa90d4c570c496ee72276d0707c5a3d77c1ff7e95475167267
+    checkpoint_sha256: 0be86892f3bbe5178c076072efbee27cd3e44f0ab5bd3b5e7ae8147627d5a65d
+    atomic_metrics_sha256: 579ec5781fd9890c1bc592d6db316c4cfd80bf90187e4eb333f87acecb0260ac
+    compositional_metrics_sha256: dfb0694089ea9db9d690c9cfa2486eb17b967c216bdf740a986a33a3136d3615
+    persisted_bytes: 15516140
+    stage_elapsed_seconds: 366.5926580950618
+    stage_cost_usd: 0.13474316810871825
+    wrapper_elapsed_seconds: 414.10007190704346
+    wrapper_cost_usd: 0.15220478198538884
+    selected_variant: atomic_lr_3e-05
+    atomic_utility_at_10: 0.04375
+    signed_strict_utility_at_10: -0.6171875
+    strict_adherence_at_10: 0.19140625
+    useful_component_fraction_at_10: 0.11484375
+    selected_minus_e13: 0.125
+    selected_minus_e13_query_bootstrap_95_interval:
+      - 0.010937500000000013
+      - 0.2312890624999998
+    wandb_run_id: zasefr8p

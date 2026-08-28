@@ -59,6 +59,9 @@ E12_REPORT = (
 E13_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e13/report.json/2026-08-28T11.22.25.340Z/report.json"
 )
+E14_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e14/report.json/2026-08-28T11.46.22.782Z/report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
@@ -71,6 +74,7 @@ REPORT_HASHES = {
     E11_REPORT: "8ea38fa831993052fa5f71b6dd66bb107d5092febc8172b25985dda81626e4c4",
     E12_REPORT: "f3b8b23bca6b651aaaf59c0b775589448e854480556c65deeddbf95f63d96638",
     E13_REPORT: "cf7b2352d6dab807bb63add83742f073348d488ce3b7ab8138136a9113dd0011",
+    E14_REPORT: "245545153c3419aa90d4c570c496ee72276d0707c5a3d77c1ff7e95475167267",
 }
 
 
@@ -361,7 +365,39 @@ def _text_conditioned_rows(report):
     ]
 
 
-def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13):
+def _description_initialized_rows(report):
+    selected = report["selection"]["variant"]
+    rows = []
+    for variant, result in report["variants"].items():
+        primary = result["compositional_summary"]["primary_k"]
+        rows.append(
+            {
+                "experiment": "E14",
+                "training_rows": report["population"]["training_rows"],
+                "query_representation": variant,
+                "objective": "description_alignment_plus_held_atom_tuning",
+                "unseen_pair_utility_at_10": primary["signed_strict_utility"]["mean"],
+                "difference_vs_paired": (
+                    report["comparison"]["selected_minus_e13"] if variant == selected else None
+                ),
+                "difference_interval_lower": (
+                    report["comparison"]["selected_minus_e13_query_bootstrap_95_interval"][0]
+                    if variant == selected
+                    else None
+                ),
+                "difference_interval_upper": (
+                    report["comparison"]["selected_minus_e13_query_bootstrap_95_interval"][1]
+                    if variant == selected
+                    else None
+                ),
+                "decision": "tuning_selected" if variant == selected else "tuning_candidate",
+                "wandb_runs": report["tracking"]["url"],
+            }
+        )
+    return rows
+
+
+def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -560,6 +596,17 @@ def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13):
                 "note": "held-atom text-to-head mapping failed; no test rows",
             },
             {
+                "artifact": "e14_description_initialized_report",
+                "kind": "report",
+                "status": "accepted_exploratory_tuning",
+                "version": e14["execution"]["artifact_versions"][
+                    "e14_description_initialized_report"
+                ],
+                "sha256": REPORT_HASHES[E14_REPORT],
+                "location": E14_REPORT,
+                "note": "description alignment plus held-atom tuning; no test rows",
+            },
+            {
                 "artifact": "final_model_v1",
                 "kind": "model",
                 "status": "accepted",
@@ -638,6 +685,7 @@ def _generate_tables(args, *, check):
     e11_hash = REPORT_HASHES.get(args.e11_report)
     e12_hash = REPORT_HASHES.get(args.e12_report)
     e13_hash = REPORT_HASHES.get(args.e13_report)
+    e14_hash = REPORT_HASHES.get(args.e14_report)
     if any(
         value is None
         for value in (
@@ -652,6 +700,7 @@ def _generate_tables(args, *, check):
             e11_hash,
             e12_hash,
             e13_hash,
+            e14_hash,
         )
     ):
         raise ValueError(
@@ -669,6 +718,7 @@ def _generate_tables(args, *, check):
     e11 = _read_report(args.e11_report, e11_hash)
     e12 = _read_report(args.e12_report, e12_hash)
     e13 = _read_report(args.e13_report, e13_hash)
+    e14 = _read_report(args.e14_report, e14_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
@@ -678,6 +728,7 @@ def _generate_tables(args, *, check):
             *_additive_composition_rows(e07),
             *_compositional_measurement_rows(e12),
             *_text_conditioned_rows(e13),
+            *_description_initialized_rows(e14),
         ],
         "natural_parameters.csv": [
             *_natural_parameter_rows(
@@ -695,7 +746,9 @@ def _generate_tables(args, *, check):
             *_weak_annotation_rows(e10),
             *_atomic_classifier_rows(e11),
         ],
-        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13),
+        "artifacts.csv": _artifact_rows(
+            e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14
+        ),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -1381,6 +1434,7 @@ def main():
     parser.add_argument("--e11-report", default=E11_REPORT)
     parser.add_argument("--e12-report", default=E12_REPORT)
     parser.add_argument("--e13-report", default=E13_REPORT)
+    parser.add_argument("--e14-report", default=E14_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument(

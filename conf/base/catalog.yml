@@ -589,3 +589,23 @@ e13_text_conditioned_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e13/report.json
   versioned: true
+
+e14_description_initialized_checkpoint:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e14/description_initialized_checkpoint.parquet
+  versioned: true
+
+e14_description_initialized_atomic_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e14/atomic_metrics.parquet
+  versioned: true
+
+e14_description_initialized_compositional_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e14/compositional_metrics.parquet
+  versioned: true
+
+e14_description_initialized_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e14/report.json
+  versioned: true

@@ -7,3 +7,7 @@ E07,88474,direct_text,verified_set,0.17333333333333334,0.0,,,baseline,https://wa
 E07,88474,atomic_sum,verified_set,0.19333333333333333,0.01999999999999999,-0.01791666666666672,0.060427083333333305,positive_not_distinguishable_from_direct,https://wandb.ai/mcclain/vec2vec/runs/j9vyfig4 https://wandb.ai/mcclain/vec2vec/runs/5ldg9uf9 https://wandb.ai/mcclain/vec2vec/runs/dogbw039
 E12,88474,calibrated_log_probability_sum,strict_adherence_and_component_coverage,0.8218749999999999,,,,accepted_measurement_contract,https://wandb.ai/mcclain/vec2vec/runs/haxngr19
 E13,88474,held_atom_text_conditioned_head,nested_training_head_reconstruction,-0.7421875,,,,accepted_negative_result,https://wandb.ai/mcclain/vec2vec/runs/zrgdllpy
+E14,88474,atomic_lr_0.0001,description_alignment_plus_held_atom_tuning,-0.609375,,,,tuning_candidate,https://wandb.ai/mcclain/vec2vec/runs/zasefr8p
+E14,88474,atomic_lr_1e-05,description_alignment_plus_held_atom_tuning,-0.65,,,,tuning_candidate,https://wandb.ai/mcclain/vec2vec/runs/zasefr8p
+E14,88474,atomic_lr_3e-05,description_alignment_plus_held_atom_tuning,-0.6171875,0.125,0.010937500000000013,0.2312890624999998,tuning_selected,https://wandb.ai/mcclain/vec2vec/runs/zasefr8p
+E14,88474,description_only,description_alignment_plus_held_atom_tuning,-0.7562499999999999,,,,tuning_candidate,https://wandb.ai/mcclain/vec2vec/runs/zasefr8p

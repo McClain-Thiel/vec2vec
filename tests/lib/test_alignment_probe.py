@@ -187,6 +187,37 @@ def test_controlled_query_probe_rejects_query_without_verified_sequence() -> Non
         )
 
 
+def test_controlled_query_probe_can_continue_from_an_alignment_state() -> None:
+    sequence = np.eye(4, dtype=np.float32)
+    text = np.eye(4, dtype=np.float32)
+    labels = np.eye(4, dtype=bool)
+    initial = {
+        "sequence_head": np.eye(4, dtype=np.float32),
+        "text_head": np.eye(4, dtype=np.float32),
+        "logit_scale": float(np.log(2.0)),
+    }
+
+    state, history = alignment_probe.train_controlled_query_probe(
+        sequence,
+        text,
+        labels,
+        objective="verified_set",
+        seed=3,
+        projection_dimension=4,
+        updates=1,
+        learning_rate=1e-8,
+        weight_decay=0.0,
+        initial_temperature=0.07,
+        maximum_logit_scale=100.0,
+        device="cpu",
+        initial_state=initial,
+    )
+
+    assert len(history) == 1
+    np.testing.assert_allclose(state["sequence_head"], initial["sequence_head"], atol=1e-6)
+    np.testing.assert_allclose(state["text_head"], initial["text_head"], atol=1e-6)
+
+
 def test_maximum_entropy_probe_uses_only_known_states_and_preserves_norms() -> None:
     sequence = np.asarray([[1.0, 0.0], [0.8, 0.2], [0.0, 1.0], [0.2, 0.8]], dtype=np.float32)
     queries = np.eye(2, dtype=np.float32)
