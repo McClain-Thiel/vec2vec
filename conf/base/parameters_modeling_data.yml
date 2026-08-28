@@ -797,3 +797,93 @@ result_reproduction:
         component_minus_plasmid_interval: [-0.525, 0.375]
         selection: indistinguishable
       evaluation_wandb_run_ids: [ijgux8vj, 7k9n8t80, oup4om3u, h2vgf6kz, r6ancqw7, 7enalm87]
+
+# E10 deliberately treats an uncalled feature as a noisy weak negative. It is an exploratory
+# scale check, not evidence that the feature is biologically absent.
+weak_annotation_experiment:
+  protocol_version: e10-weak-annotations-v0.1
+  inputs:
+    panel_version: 2026-08-26T12.24.14.212Z
+    pairs_sha256: 90d9157d8695c788ec162a48a6a3cb2f9ae33be725345ff0e955840d0ecb21de
+    training_rows: 88474
+    validation_rows: 10852
+    dna_feature_version: 2026-08-26T12.43.28.764Z
+    dna_features_sha256: 4376e4e0cec03dcfa6665239436f396818648aab5ef2d7c9bfd518ad537e6fe0
+    text_feature_version: 2026-08-26T12.43.28.764Z
+    text_features_sha256: 9c131e45a457163f141e840056faf383a2ee0a7a84fc9a967e361d41aa5c2fce
+    annotation_bucket_uri: hf://buckets/McClain/plasmidclip-train-ckpts/datasets/full158k-structured-v1/full158k_structured.parquet
+    annotation_xet_hash: 6d247cfad610042bdac978b402d6a44f20d72716a30d03870cd0346d3b7f250a
+    annotation_file_sha256: eaf4ef6885aded6e984f974c71f1c32ffb08b74cf1cf96aa69af8d6f3993f855
+    annotation_rows: 115120
+  expected_query_sha256: b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770
+  vocabulary:
+    atoms: 64
+    minimum_normalized_characters: 3
+    maximum_normalized_characters: 64
+    maximum_words: 8
+    minimum_train_rows: 250
+    maximum_train_rows: 25000
+    minimum_train_components: 20
+    minimum_validation_rows: 20
+    minimum_validation_components: 5
+    maximum_atom_jaccard: 0.95
+  conjunctions:
+    pairs: 128
+    minimum_train_rows: 100
+    minimum_train_components: 10
+    minimum_validation_rows: 20
+    minimum_validation_components: 5
+    maximum_atom_jaccard: 0.80
+    maximum_pairs_per_atom: 6
+  weak_negatives:
+    semantics: annotation_not_reported
+    maximum_ratio_per_positive: 4.0
+    maximum_rows_per_atom: 20000
+    selection_salt: e10-weak-annotations-v0.1:weak-negative-sample
+  device: cuda
+  text_feature_precision: bfloat16
+  primary_k: 10
+  probe:
+    seeds: [13, 42, 20260818]
+    projection_dimension: 512
+    whitening_epsilon: 0.000001
+    updates: 300
+    learning_rate: 0.00003
+    weight_decay: 0.01
+    temperature: 0.07
+    cutoffs: [1, 5, 10, 50]
+    bootstrap_draws: 2000
+    bootstrap_seed: 20260818
+  stability:
+    maximum_final_loss_ratio: 0.99
+    maximum_loss_ratio: 1.10
+    maximum_query_norm: 5.0
+    maximum_sequence_norm: 5.0
+  tracking:
+    project: vec2vec
+    entity: null
+    group: e10-weak-annotations-v0.1
+    tags: [maximum-entropy, weak-labels, unseen-composition, e10, exploratory]
+  compute_authorization:
+    approval_reference: chat-2026-08-27-e10-weak-annotations-auto-under-20
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 6.0
+    observed_instance_price_usd_per_hour: 1.3232
+  accepted_run_artifact:
+    version: 2026-08-27T18.46.12.234Z
+    report_sha256: 3b84fd0a20a377165a15f470e17365400756c5790526cef09169cb5d8b04f6b8
+    queries_sha256: b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770
+    checkpoints_sha256: 88b32a4c7fc75db90167d79fa3cd7bcdf998945ecd129529bab6b23a2b3f51fb
+    metrics_sha256: b3e9452baa9eb667c244c2cdb89f384039cc4a301cf8edea6906e0c3439e33b6
+    persisted_bytes: 13707574
+    stage_elapsed_seconds: 345.5872182138264
+    stage_cost_usd: 0.12702250198348197
+    wrapper_elapsed_seconds_approx: 394
+    wrapper_cost_usd_approx: 0.14481688888888888
+    atomic_utility_at_10: 0.8156250000000002
+    direct_conjunction_utility_at_10: 0.18229166666666666
+    atomic_sum_utility_at_10: 0.41770833333333335
+    atomic_sum_minus_direct_text: 0.2354166666666667
+    difference_interval: [0.1901041666666667, 0.27760416666666665]
+    wandb_run_ids: [nncvbyr2, tp266gz5, 59xmy72h]

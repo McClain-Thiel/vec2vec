@@ -524,3 +524,23 @@ e09_natural_parameter_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e09/natural_parameter_report.json
   versioned: true
+
+e10_weak_annotation_queries:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e10/queries.parquet
+  versioned: true
+
+e10_weak_annotation_checkpoints:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e10/checkpoints.parquet
+  versioned: true
+
+e10_weak_annotation_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e10/metrics.parquet
+  versioned: true
+
+e10_weak_annotation_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e10/report.json
+  versioned: true

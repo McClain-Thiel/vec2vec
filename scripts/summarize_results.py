@@ -45,6 +45,9 @@ E09_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e09/natural_parameter_report.json/"
     "2026-08-27T17.30.52.908Z/natural_parameter_report.json"
 )
+E10_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e10/report.json/2026-08-27T18.46.12.234Z/report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
@@ -53,6 +56,7 @@ REPORT_HASHES = {
     E07_REPORT: "a9a1ca17eab82fca3c4774326013034552dbf34583239fddcb19c5017515e275",
     E08_REPORT: "178eb98d922296c89839c536f84773453c60fa0768eb1205d53815a0736da4c7",
     E09_REPORT: "f1e844788ed5bc6b8f063e991cee2f50094f0c5c9bb0bef8680e60952ea86bab",
+    E10_REPORT: "3b84fd0a20a377165a15f470e17365400756c5790526cef09169cb5d8b04f6b8",
 }
 
 
@@ -241,7 +245,36 @@ def _natural_parameter_rows(report, *, experiment, decision, learning_rate):
     return rows
 
 
-def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09):
+def _weak_annotation_rows(report):
+    comparison = report["comparison"]
+    common = {
+        "experiment": "E10",
+        "learning_rate": report["resolved_configuration"]["probe"]["learning_rate"],
+        "base_measure": "uniform_v2_component",
+        "query_count": report["population"]["held_out_conjunction_queries"],
+        "decision": "exploratory_weak_labels",
+    }
+    return [
+        {
+            **common,
+            "query_representation": "direct_text",
+            "utility_at_10": comparison["direct_text"],
+            "atomic_sum_minus_direct_text": 0.0,
+            "difference_interval_lower": None,
+            "difference_interval_upper": None,
+        },
+        {
+            **common,
+            "query_representation": "atomic_sum",
+            "utility_at_10": comparison["atomic_sum"],
+            "atomic_sum_minus_direct_text": comparison["atomic_sum_minus_direct_text"],
+            "difference_interval_lower": comparison["difference_95_interval"][0],
+            "difference_interval_upper": comparison["difference_95_interval"][1],
+        },
+    ]
+
+
+def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -404,6 +437,15 @@ def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09):
                 "note": "training-only stability selection; four closed-world conjunctions",
             },
             {
+                "artifact": "e10_weak_annotation_report",
+                "kind": "report",
+                "status": "accepted_exploratory",
+                "version": e10["execution"]["artifact_versions"]["e10_weak_annotation_report"],
+                "sha256": REPORT_HASHES[E10_REPORT],
+                "location": E10_REPORT,
+                "note": "64 weak-label atoms; 128 unseen conjunctions; no test rows",
+            },
+            {
                 "artifact": "final_model_v1",
                 "kind": "model",
                 "status": "accepted",
@@ -478,9 +520,19 @@ def _generate_tables(args, *, check):
     e07_hash = REPORT_HASHES.get(args.e07_report)
     e08_hash = REPORT_HASHES.get(args.e08_report)
     e09_hash = REPORT_HASHES.get(args.e09_report)
+    e10_hash = REPORT_HASHES.get(args.e10_report)
     if any(
         value is None
-        for value in (e02b_hash, gate2_hash, e05_hash, e06_hash, e07_hash, e08_hash, e09_hash)
+        for value in (
+            e02b_hash,
+            gate2_hash,
+            e05_hash,
+            e06_hash,
+            e07_hash,
+            e08_hash,
+            e09_hash,
+            e10_hash,
+        )
     ):
         raise ValueError(
             "custom report paths require adding their accepted SHA-256 to REPORT_HASHES"
@@ -493,6 +545,7 @@ def _generate_tables(args, *, check):
     e07 = _read_report(args.e07_report, e07_hash)
     e08 = _read_report(args.e08_report, e08_hash)
     e09 = _read_report(args.e09_report, e09_hash)
+    e10 = _read_report(args.e10_report, e10_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
@@ -514,8 +567,9 @@ def _generate_tables(args, *, check):
                 decision="stable_selected",
                 learning_rate=e09["calibration"]["selected_learning_rate"],
             ),
+            *_weak_annotation_rows(e10),
         ],
-        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09),
+        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -1197,6 +1251,7 @@ def main():
     parser.add_argument("--e07-report", default=E07_REPORT)
     parser.add_argument("--e08-report", default=E08_REPORT)
     parser.add_argument("--e09-report", default=E09_REPORT)
+    parser.add_argument("--e10-report", default=E10_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument(

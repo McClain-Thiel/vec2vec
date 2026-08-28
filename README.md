@@ -41,6 +41,11 @@ for uniform component, but both intervals include zero and the experiment has on
 conjunctions. E08's negative result was an optimization artifact; broader algebra claims need more
 explicit negative supervision.
 
+E10 scaled the stable formulation to 64 weakly annotated features and 128 unseen conjunctions.
+Atomic-sum utility@10 was `0.41771`, versus `0.18229` for direct conjunction text; the paired
+difference was `0.23542`, interval `[0.19010, 0.27760]`. This supports additive retrieval under the
+assumption that unreported annotations are noisy negatives, not true biological absences.
+
 The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
 bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
 
@@ -49,7 +54,7 @@ The complete retained evidence is five tables:
 - [`results/encoders.csv`](results/encoders.csv): all 12 encoder pairs.
 - [`results/supervision.csv`](results/supervision.csv): paired versus set supervision.
 - [`results/composition.csv`](results/composition.csv): E05 and population-scale E06 unseen pairs.
-- [`results/natural_parameters.csv`](results/natural_parameters.csv): E08 failure and stable E09.
+- [`results/natural_parameters.csv`](results/natural_parameters.csv): E08–E10 natural parameters.
 - [`results/artifacts.csv`](results/artifacts.csv): exact versions, hashes, locations, and failures.
 
 Regenerate and verify them from the accepted S3 reports:

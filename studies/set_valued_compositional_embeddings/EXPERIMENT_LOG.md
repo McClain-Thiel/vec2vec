@@ -2758,3 +2758,52 @@ selected. This establishes that E08's failure was optimization-induced, but four
 too few for a general algebra claim. Accepted S3 version `2026-08-27T17.30.52.908Z` has report
 SHA-256 `f1e844788ed5bc6b8f063e991cee2f50094f0c5c9bb0bef8680e60952ea86bab`; wrapper time was
 522.16 seconds and cost `$0.19192`.
+
+## 2026-08-27 — E10 weak-annotation scale experiment preregistered
+
+**Question:** Does the stable natural-parameter model retrieve many annotation-defined features
+and unseen two-feature conjunctions when an uncalled feature is treated as a noisy weak negative?
+
+**Weak-label assumption:** a positive means the pinned annotation list contains the normalized
+feature name; a weak negative means the same pipeline did not report it. This is not evidence of
+biological absence. The experiment is exploratory and cannot support a confirmatory biological
+claim.
+
+**Frozen data:** join the accepted E06 component-disjoint panel (88,474 train; 10,852 validation)
+to the private HF bucket object `full158k-structured-v1/full158k_structured.parquet`. The object has
+Xet hash `6d247cfad610042bdac978b402d6a44f20d72716a30d03870cd0346d3b7f250a`, file SHA-256
+`eaf4ef6885aded6e984f974c71f1c32ffb08b74cf1cf96aa69af8d6f3993f855`, and 115,120 rows. The
+historical test split will not be read.
+
+**Frozen vocabulary and queries:** normalize only spelling, case, Unicode, and punctuation; do not
+merge biological aliases. Select 64 atoms by fixed train/validation support and component rules,
+removing near-duplicate call sets above Jaccard 0.95. Select 128 supported conjunctions with train
+Jaccard at most 0.80, maximum degree six, and at least one conjunction per atom. The resulting query
+table SHA-256 is `b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770`.
+There are 551,749 positive training pairs, 1,230,048 deterministically sampled weak negatives, and
+81,681 positive validation query pairs. Held-out conjunction support ranges from 22 to 1,416
+validation plasmids (median 97.5).
+
+**Frozen model and evaluation:** reuse the accepted E06 TF-IDF/SVD DNA and Qwen3 text features,
+the E09 learning rate `3e-5`, uniform-v2-component base mass, 512-dimensional unnormalized heads,
+300 updates, and seeds 13, 42, and 20260818. Compare direct conjunction text with the sum of its
+two atomic natural parameters at K=10; report atomic retrieval, paired query-bootstrap intervals,
+all training stability diagnostics, and all three W&B runs. No hyperparameter is selected from E10
+retrieval outcomes. The g6.4xlarge L4 ceiling is 6 hours at $1.3232/hour, at most $7.9392.
+
+## 2026-08-27 — E10 weak-label scaling supports additive retrieval
+
+All three frozen fits were stable: initial losses `9.55–9.61` fell to `7.415–7.419`, maximum query
+norms were `3.31–3.35`, and maximum sampled sequence norms were `2.89–3.05`. Atomic retrieval
+utility@10 was `0.81563` (90.78% weak-label precision@10). Across 128 unseen conjunctions,
+atomic-sum utility@10 was `0.41771` (70.89% precision) versus `0.18229` (59.11% precision) for
+direct conjunction text. The paired difference was `0.23542`; the 2,000-draw query-bootstrap
+interval was `[0.19010, 0.27760]`. This is strong exploratory evidence that addition scales beyond
+four atoms under the weak closed-world annotation assumption, not evidence of biological absence
+or final-holdout generalization.
+
+Accepted S3 version `2026-08-27T18.46.12.234Z` contains 192 query rows, three checkpoints, 3,840
+metric rows, and report SHA-256 `3b84fd0a20a377165a15f470e17365400756c5790526cef09169cb5d8b04f6b8`.
+All W&B runs finished: `nncvbyr2`, `tp266gz5`, and `59xmy72h`. The measured stage took 345.59
+seconds and `$0.12702`; the systemd wrapper ran about 394 seconds and `$0.14482`. No test row was
+read. The L4 is idle and no E10 process remains.
