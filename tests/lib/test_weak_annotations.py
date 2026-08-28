@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from vec2vec.lib import weak_annotations
 
@@ -186,3 +187,19 @@ def test_compositional_metrics_separate_adherence_from_useful_diversity() -> Non
     assert metrics.loc[2, "first_strict_rank"] == 1
     assert metrics.loc[4, "strict_adherence"] == 0.25
     assert metrics.loc[4, "mean_clause_adherence"] == 0.5
+
+
+def test_ridge_map_recovers_centered_multioutput_relationship() -> None:
+    inputs = np.asarray([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+    expected_mapping = np.asarray([[2.0, -1.0], [0.5, 3.0]])
+    expected_intercept = np.asarray([4.0, -2.0])
+    targets = inputs @ expected_mapping + expected_intercept
+
+    mapping, intercept = weak_annotations.fit_ridge_map(inputs, targets, alpha=1e-8)
+
+    np.testing.assert_allclose(inputs @ mapping + intercept, targets, atol=1e-7)
+
+
+def test_ridge_map_rejects_nonpositive_regularization() -> None:
+    with pytest.raises(ValueError, match="positive regularization"):
+        weak_annotations.fit_ridge_map(np.ones((2, 1)), np.ones((2, 1)), alpha=0.0)

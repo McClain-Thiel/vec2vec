@@ -2857,3 +2857,80 @@ strict-component diversity, and first-strict rank are diagnostics. The historica
 No combined scalar is selected yet: adherence and non-redundant utility must both be shown. The
 current contract covers positive AND queries. When explicit exclusions are added, forbidden-clause
 violation will be a separate axis rather than being averaged into positive adherence.
+
+## 2026-08-28 — E12 compositional measurement preregistered
+
+E12 evaluates the already accepted E11 ranking without fitting or selecting anything. It reuses
+the exact E10/E11 validation gallery, 128 held-out two-atom conjunctions, accepted E11 checkpoint
+version `2026-08-28T10.19.38.951Z`, and preregistered calibrated log-probability-sum AND score.
+At K=1, 5, 10, and 50 it reports strict adherence, mean clause adherence, partial-only and
+zero-clause fractions, useful similarity-component fraction, strict-hit component diversity, and
+first strict rank. The historical signed strict utility is retained only as a read-back check and
+must reproduce E11 utility@10 `0.821875`; no combined scalar is selected.
+
+The primary cutoff remains K=10. Intervals use 2,000 deterministic bootstrap draws over the 128
+queries with seed 20260818. Test rows remain unread. Results are logged to W&B group
+`e12-compositional-evaluation-v0.1`. The g6.4xlarge ceiling is 0.5 hours / `$0.6616` under reference
+`chat-2026-08-28-e12-compositional-eval-auto-under-20`.
+
+The first execution (`vec2vec-e12-compositional-eval-20260828.service`) failed after 147 seconds
+because the root-owned transient systemd context had no W&B API key. It persisted no E12 output.
+The failure is retained; the technical retry changes only the service user to `ubuntu`, leaving all
+scientific parameters and input artifacts unchanged. The failed attempt cost approximately
+`$0.05389` at the recorded instance price.
+
+## 2026-08-28 — E12 separates adherence from non-redundant utility
+
+The accepted E11 ranking reproduced signed strict utility@10 `0.821875` exactly. At K=10, strict
+adherence was `0.91094` (query-bootstrap interval `[0.87891, 0.94141]`) and mean clause adherence
+was `0.95273` (`[0.93515, 0.96914]`). Partial-only results occupied `0.08359` of the list and
+zero-clause results `0.00547`. Strict hits covered `0.43047 * K` distinct similarity components
+(`[0.38984, 0.46797]`); component diversity among strict hits was `0.48985`. Mean first strict rank
+was `1.21094`.
+
+Accepted S3 version `2026-08-28T11.09.04.400Z` contains 512 metric rows for all 128 queries and
+four cutoffs. Metric SHA-256 is `fd00d93e8ebf7534bf190df4bd4ed70e36b87336fbc1d2bdaf0d58fbc27be6f5`;
+report SHA-256 is `f3b8b23bca6b651aaaf59c0b775589448e854480556c65deeddbf95f63d96638`.
+W&B run `haxngr19` finished. The accepted stage cost `$0.04208`; accepted wrapper cost `$0.05708`;
+combined cost including the retained failed execution was `$0.11096`. No test row was read, no
+combined scalar was selected, and g6-big was idle afterward.
+
+## 2026-08-28 — E13 held-atom text-conditioned classifier preregistered
+
+**Question:** Can frozen Qwen query semantics recover useful calibrated DNA classifiers for atomic
+names whose direct classifiers are withheld from the mapping fit?
+
+E13 treats each accepted E11 calibrated affine head (512 DNA weights plus calibrated intercept) as
+a training-only target. Atomic names use the frozen Qwen3-Embedding-0.6B recipe, training-document
+whitening, and row L2 normalization. Eight deterministic outer folds each withhold eight of the 64
+atoms. For every outer fold, ridge alpha is selected from `1e-6, 1e-4, 1e-2, 1, 100` by seven-fold
+inner reconstruction of target logits on 4,096 deterministically selected training plasmids. The
+loss is mean squared logit error divided by each target head's training-logit variance. Validation
+retrieval never selects alpha. The deployment mapper uses the modal outer-selected alpha, with the
+smaller alpha breaking a tie, and is then fit on all 64 heads.
+
+Every validation atom is scored only by an outer-fold mapper that did not see its direct head.
+Atomic utility and the 128 conjunctions are evaluated at K=1, 5, 10, and 50. Pair scoring remains
+the sum of calibrated log probabilities. E12 adherence and component-coverage axes are primary;
+paired query-bootstrap differences from E10 atomic addition and the E11 known-atom ceiling are
+reported at K=10. No test row is read. The W&B group is `e13-text-conditioned-head-v0.1`. The
+g6.4xlarge ceiling is one hour / `$1.3232` under reference
+`chat-2026-08-28-e13-text-conditioned-auto-under-20`.
+
+## 2026-08-28 — E13 held-atom text conditioning fails
+
+All eight nested folds selected ridge alpha `1.0` using training-head reconstruction alone. On
+validation, held-atom atomic utility@10 was `-0.46875`. The 128 composed pairs reached only
+`0.12891` strict adherence@10 (interval `[0.08359, 0.18203]`), signed utility `-0.74219`, and useful
+component fraction `0.05000`. Signed utility was `-1.15990` below E10 atomic addition (interval
+`[-1.28232, -1.03905]`) and `-1.56406` below the E11 known-atom ceiling (`[-1.67656, -1.43906]`).
+This rejects the hypothesis that 64 canonical-name/head pairs are enough for Qwen geometry to
+interpolate unseen calibrated DNA classifiers. The all-atom mapper is persisted for provenance but
+is not accepted as a deployable retrieval model.
+
+Accepted negative-result version `2026-08-28T11.22.25.340Z` passed independent row, array, output
+hash, metric, and W&B read-back. Report SHA-256 is
+`cf7b2352d6dab807bb63add83742f073348d488ce3b7ab8138136a9113dd0011`; checkpoint SHA-256 is
+`94195a62c8b5be7366dd2d0edeb6b6795fdf3da41c81c31abe2050bc2a97c4a0`. W&B run `zrgdllpy`
+finished. Stage time/cost was 328.67 seconds / `$0.12080`; wrapper time/cost was 374.74 seconds /
+`$0.13774`. No test row was read and g6-big was idle afterward.

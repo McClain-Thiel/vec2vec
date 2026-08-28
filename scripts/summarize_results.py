@@ -52,6 +52,13 @@ E11_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e11/atomic_classifier_report.json/"
     "2026-08-28T10.19.38.951Z/atomic_classifier_report.json"
 )
+E12_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e12/compositional_report.json/"
+    "2026-08-28T11.09.04.400Z/compositional_report.json"
+)
+E13_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e13/report.json/2026-08-28T11.22.25.340Z/report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
@@ -62,6 +69,8 @@ REPORT_HASHES = {
     E09_REPORT: "f1e844788ed5bc6b8f063e991cee2f50094f0c5c9bb0bef8680e60952ea86bab",
     E10_REPORT: "3b84fd0a20a377165a15f470e17365400756c5790526cef09169cb5d8b04f6b8",
     E11_REPORT: "8ea38fa831993052fa5f71b6dd66bb107d5092febc8172b25985dda81626e4c4",
+    E12_REPORT: "f3b8b23bca6b651aaaf59c0b775589448e854480556c65deeddbf95f63d96638",
+    E13_REPORT: "cf7b2352d6dab807bb63add83742f073348d488ce3b7ab8138136a9113dd0011",
 }
 
 
@@ -317,7 +326,42 @@ def _atomic_classifier_rows(report):
     return rows
 
 
-def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11):
+def _compositional_measurement_rows(report):
+    primary = report["summary"]["primary_k"]
+    return [
+        {
+            "experiment": "E12",
+            "training_rows": 88474,
+            "query_representation": report["resolved_configuration"]["score_representation"],
+            "objective": "strict_adherence_and_component_coverage",
+            "unseen_pair_utility_at_10": primary["signed_strict_utility"]["mean"],
+            "difference_vs_paired": None,
+            "difference_interval_lower": None,
+            "difference_interval_upper": None,
+            "decision": "accepted_measurement_contract",
+            "wandb_runs": report["tracking"]["url"],
+        }
+    ]
+
+
+def _text_conditioned_rows(report):
+    return [
+        {
+            "experiment": "E13",
+            "training_rows": report["population"]["training_rows"],
+            "query_representation": "held_atom_text_conditioned_head",
+            "objective": "nested_training_head_reconstruction",
+            "unseen_pair_utility_at_10": report["comparison"]["e13"],
+            "difference_vs_paired": None,
+            "difference_interval_lower": None,
+            "difference_interval_upper": None,
+            "decision": "accepted_negative_result",
+            "wandb_runs": report["tracking"]["url"],
+        }
+    ]
+
+
+def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -498,6 +542,24 @@ def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11):
                 "note": "known-atom classifier ceiling; calibrated probability-product AND",
             },
             {
+                "artifact": "e12_compositional_report",
+                "kind": "report",
+                "status": "accepted_exploratory",
+                "version": e12["execution"]["artifact_versions"]["e12_compositional_report"],
+                "sha256": REPORT_HASHES[E12_REPORT],
+                "location": E12_REPORT,
+                "note": "strict adherence and non-redundant component coverage; no test rows",
+            },
+            {
+                "artifact": "e13_text_conditioned_report",
+                "kind": "report",
+                "status": "accepted_negative_result",
+                "version": e13["execution"]["artifact_versions"]["e13_text_conditioned_report"],
+                "sha256": REPORT_HASHES[E13_REPORT],
+                "location": E13_REPORT,
+                "note": "held-atom text-to-head mapping failed; no test rows",
+            },
+            {
                 "artifact": "final_model_v1",
                 "kind": "model",
                 "status": "accepted",
@@ -574,6 +636,8 @@ def _generate_tables(args, *, check):
     e09_hash = REPORT_HASHES.get(args.e09_report)
     e10_hash = REPORT_HASHES.get(args.e10_report)
     e11_hash = REPORT_HASHES.get(args.e11_report)
+    e12_hash = REPORT_HASHES.get(args.e12_report)
+    e13_hash = REPORT_HASHES.get(args.e13_report)
     if any(
         value is None
         for value in (
@@ -586,6 +650,8 @@ def _generate_tables(args, *, check):
             e09_hash,
             e10_hash,
             e11_hash,
+            e12_hash,
+            e13_hash,
         )
     ):
         raise ValueError(
@@ -601,6 +667,8 @@ def _generate_tables(args, *, check):
     e09 = _read_report(args.e09_report, e09_hash)
     e10 = _read_report(args.e10_report, e10_hash)
     e11 = _read_report(args.e11_report, e11_hash)
+    e12 = _read_report(args.e12_report, e12_hash)
+    e13 = _read_report(args.e13_report, e13_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
@@ -608,6 +676,8 @@ def _generate_tables(args, *, check):
             *_composition_rows(e05, experiment="E05"),
             *_composition_rows(e06, experiment="E06"),
             *_additive_composition_rows(e07),
+            *_compositional_measurement_rows(e12),
+            *_text_conditioned_rows(e13),
         ],
         "natural_parameters.csv": [
             *_natural_parameter_rows(
@@ -625,7 +695,7 @@ def _generate_tables(args, *, check):
             *_weak_annotation_rows(e10),
             *_atomic_classifier_rows(e11),
         ],
-        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11),
+        "artifacts.csv": _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13),
     }
     for name, rows in tables.items():
         _write_or_check(args.output_dir / name, _csv_text(rows), check)
@@ -1309,6 +1379,8 @@ def main():
     parser.add_argument("--e09-report", default=E09_REPORT)
     parser.add_argument("--e10-report", default=E10_REPORT)
     parser.add_argument("--e11-report", default=E11_REPORT)
+    parser.add_argument("--e12-report", default=E12_REPORT)
+    parser.add_argument("--e13-report", default=E13_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument(

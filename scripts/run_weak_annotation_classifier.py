@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit, run, and validate E11 direct atomic-classifier retrieval."""
+"""Run E11 atomic classifiers and evaluate their compositional retrieval."""
 
 from __future__ import annotations
 
@@ -31,12 +31,30 @@ OUTPUT_DATASETS = (
     "e11_atomic_classifier_metrics",
     "e11_atomic_classifier_report",
 )
+COMPOSITION_OUTPUT_DATASETS = (
+    "e12_compositional_metrics",
+    "e12_compositional_report",
+)
 PRIMARY_REPRESENTATION = "calibrated_log_probability_sum"
+COMPOSITION_METRICS = (
+    "strict_adherence",
+    "mean_clause_adherence",
+    "partial_only_fraction",
+    "zero_clause_fraction",
+    "useful_component_fraction",
+    "strict_component_diversity",
+    "signed_strict_utility",
+    "first_strict_rank",
+)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("audit", "run", "validate"), required=True)
+    parser.add_argument(
+        "--stage",
+        choices=("audit", "run", "validate", "composition", "validate-composition"),
+        required=True,
+    )
     parser.add_argument("--annotations", type=Path)
     parser.add_argument("--version")
     parser.add_argument("--approval-reference")
@@ -49,6 +67,7 @@ def main() -> None:
     catalog, context_params = _catalog_and_params()
     e10_params = dict(context_params["weak_annotation_experiment"])
     params = dict(context_params["weak_annotation_classifier_experiment"])
+    composition_params = dict(context_params["compositional_search_evaluation"])
     if str(params["fusion"]["primary_representation"]) != PRIMARY_REPRESENTATION:
         raise ValueError("E11 primary representation differs from the frozen implementation")
     if args.stage == "validate":
@@ -56,8 +75,13 @@ def main() -> None:
             parser.error("--version is required for validation")
         _validate_outputs(catalog, params, args.version)
         return
+    if args.stage == "validate-composition":
+        if not args.version:
+            parser.error("--version is required for validation")
+        _validate_composition_outputs(catalog, composition_params, args.version)
+        return
     if args.annotations is None:
-        parser.error("--annotations is required for audit and run")
+        parser.error("--annotations is required for audit, run, and composition")
 
     pairs = catalog.load("e06_pairs", version=str(e10_params["inputs"]["panel_version"]))
     _verify_frame_hash(
@@ -88,6 +112,16 @@ def main() -> None:
                 },
                 sort_keys=True,
             )
+        )
+        return
+    if args.stage == "composition":
+        _run_composition_stage(
+            args,
+            catalog,
+            e10_params,
+            composition_params,
+            pairs,
+            benchmark,
         )
         return
 
@@ -174,6 +208,252 @@ def main() -> None:
     catalog.save("e11_atomic_classifier_metrics", metrics)
     catalog.save("e11_atomic_classifier_report", report)
     _validate_outputs(catalog, params, next(iter(versions.values())))
+
+
+def _run_composition_stage(
+    args: argparse.Namespace,
+    catalog: Any,
+    e10_params: dict[str, Any],
+    params: dict[str, Any],
+    pairs: pd.DataFrame,
+    benchmark: weak_annotations.WeakAnnotationBenchmark,
+) -> None:
+    authorization = _validated_composition_authorization(args, params)
+    started = time.perf_counter()
+    metrics, result = _evaluate_composition(catalog, e10_params, params, pairs, benchmark)
+    elapsed = time.perf_counter() - started
+    versions = {
+        name: catalog.get(name).resolve_save_version() for name in COMPOSITION_OUTPUT_DATASETS
+    }
+    if len(set(versions.values())) != 1:
+        raise RuntimeError(f"E12 output save versions differ: {versions}")
+    report = {
+        "protocol_version": str(params["protocol_version"]),
+        "weak_label_semantics": (
+            "positive means the pinned annotation list contains the normalized feature; "
+            "every unreported feature is a weak negative"
+        ),
+        "resolved_configuration": params,
+        "inputs": {
+            **params["inputs"],
+            "annotation_file_sha256": _file_sha256(args.annotations),
+        },
+        "population": {
+            "validation_rows": int(e10_params["inputs"]["validation_rows"]),
+            "atomic_queries": int(benchmark.queries["query_kind"].eq("atomic").sum()),
+            "conjunction_queries": int(
+                benchmark.queries["query_kind"].eq("pair_conjunction").sum()
+            ),
+            "test_rows_read": False,
+        },
+        **result,
+        "output_hashes": {
+            "metrics_sha256": dataframe_content_sha256(metrics, sort_columns=["query_id", "k"])
+        },
+        "execution": {
+            **authorization,
+            "maximum_cost_usd": (
+                authorization["instance_hour_limit"]
+                * authorization["observed_instance_price_usd_per_hour"]
+            ),
+            "elapsed_seconds": elapsed,
+            "cost_usd": elapsed / 3600.0 * authorization["observed_instance_price_usd_per_hour"],
+            "hardware": _hardware(),
+            "git": _git_state(),
+            "source_sha256": {
+                "script": _file_sha256(Path(__file__)),
+                "alignment_probe_library": _file_sha256(
+                    PROJECT_ROOT / "src/vec2vec/lib/alignment_probe.py"
+                ),
+                "weak_annotations_library": _file_sha256(
+                    PROJECT_ROOT / "src/vec2vec/lib/weak_annotations.py"
+                ),
+                "parameters": _file_sha256(PROJECT_ROOT / "conf/base/parameters_modeling_data.yml"),
+            },
+            "artifact_versions": versions,
+        },
+        "known_limitations": [
+            "Uncalled annotations are noisy weak negatives, not verified biological absences.",
+            "The reused exploratory validation split is not a final holdout.",
+            "The direct atomic heads do not support unseen natural-language atoms.",
+            "Sequence-similarity components measure redundancy, not functional diversity.",
+            "Confidence intervals resample queries, not annotation or gallery uncertainty.",
+        ],
+    }
+    catalog.save("e12_compositional_metrics", metrics)
+    catalog.save("e12_compositional_report", report)
+    _validate_composition_outputs(catalog, params, next(iter(versions.values())))
+
+
+def _evaluate_composition(
+    catalog: Any,
+    e10_params: dict[str, Any],
+    params: dict[str, Any],
+    pairs: pd.DataFrame,
+    benchmark: weak_annotations.WeakAnnotationBenchmark,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    import wandb
+
+    train = pairs.loc[pairs["panel_role"].eq("alignment_train")].sort_values(
+        "sequence_id", kind="stable", ignore_index=True
+    )
+    validation = pairs.loc[pairs["panel_role"].eq("validation_gallery")].sort_values(
+        "sequence_id", kind="stable", ignore_index=True
+    )
+    dna_features = catalog.load(
+        "e06_dna_features_tfidf_6mer_svd_512",
+        version=str(e10_params["inputs"]["dna_feature_version"]),
+    )
+    _verify_frame_hash(
+        dna_features,
+        expected=str(e10_params["inputs"]["dna_features_sha256"]),
+        sort_columns=["candidate_id", "sequence_sha256"],
+        name="E06 DNA features",
+    )
+    dna_train_raw = fixed_representation_alignment._join_embeddings(
+        train, dna_features, key="sequence_sha256"
+    )
+    dna_validation_raw = fixed_representation_alignment._join_embeddings(
+        validation, dna_features, key="sequence_sha256"
+    )
+    whitening = alignment_probe.Whitening.fit(
+        dna_train_raw, epsilon=float(params["whitening_epsilon"])
+    )
+    dna_validation = whitening.transform(dna_validation_raw)
+    source = _load_accepted_classifier(catalog, params)
+    if (
+        _array_sha256(whitening.mean)
+        != source["report"]["feature_preparation"]["dna_whitening_mean_sha256"]
+    ):
+        raise RuntimeError("E12 recomputed whitening mean differs from E11")
+    if (
+        _array_sha256(whitening.matrix)
+        != source["report"]["feature_preparation"]["dna_whitening_matrix_sha256"]
+    ):
+        raise RuntimeError("E12 recomputed whitening matrix differs from E11")
+
+    _, calibrated = alignment_probe.atomic_logistic_scores(dna_validation, source["state"])
+    atomic_queries = benchmark.queries.loc[
+        benchmark.queries["query_kind"].eq("atomic")
+    ].reset_index(drop=True)
+    pair_queries = benchmark.queries.loc[
+        benchmark.queries["query_kind"].eq("pair_conjunction")
+    ].reset_index(drop=True)
+    pair_scores = weak_annotations.fuse_atomic_classifier_scores(
+        calibrated, calibrated, atomic_queries, pair_queries
+    )[str(params["score_representation"])]
+    atomic_positions = np.flatnonzero(benchmark.queries["query_kind"].eq("atomic").to_numpy())
+    metrics = weak_annotations.compositional_retrieval_metrics(
+        pair_scores,
+        pair_queries,
+        atomic_queries,
+        benchmark.validation_verified[atomic_positions],
+        validation[str(params["gallery_component_column"])].to_numpy(),
+        cutoffs=tuple(map(int, params["cutoffs"])),
+    ).sort_values(["query_id", "k"], kind="stable", ignore_index=True)
+    summary = _composition_summary(metrics, params)
+    expected = float(params["inputs"]["expected_signed_strict_utility_at_10"])
+    observed = float(summary["primary_k"]["signed_strict_utility"]["mean"])
+    if not np.isclose(observed, expected, atol=1e-12, rtol=0.0):
+        raise RuntimeError(
+            f"E12 signed strict utility does not reproduce E11: {observed} != {expected}"
+        )
+
+    run = wandb.init(
+        project=str(params["tracking"]["project"]),
+        entity=params["tracking"].get("entity"),
+        group=str(params["tracking"]["group"]),
+        name="e12-accepted-e11-compositional-evaluation",
+        tags=list(params["tracking"]["tags"]),
+        config={
+            "protocol_version": str(params["protocol_version"]),
+            "score_representation": str(params["score_representation"]),
+            "cutoffs": list(map(int, params["cutoffs"])),
+            "source_version": str(params["inputs"]["e11_version"]),
+        },
+        reinit="finish_previous",
+    )
+    try:
+        for cutoff, values in summary["by_k"].items():
+            for metric, value in values.items():
+                run.summary[f"validation/{metric}_at_{cutoff}"] = value
+        run_id, run_url = str(run.id), str(run.url)
+        run.finish(exit_code=0)
+    except BaseException:
+        run.finish(exit_code=1)
+        raise
+    return metrics, {
+        "source_artifacts": source["artifacts"],
+        "summary": summary,
+        "tracking": {"run_id": run_id, "url": run_url, "status": "complete"},
+        "decision": {
+            "status": "accepted_exploratory_measurement",
+            "score_selected_before_evaluation": True,
+            "combined_scalar_selected": False,
+            "confirmatory_claim": False,
+            "test_rows_read": False,
+        },
+    }
+
+
+def _load_accepted_classifier(catalog: Any, params: dict[str, Any]) -> dict[str, Any]:
+    version = str(params["inputs"]["e11_version"])
+    checkpoint = catalog.load("e11_atomic_classifier_checkpoint", version=version)
+    metrics = catalog.load("e11_atomic_classifier_metrics", version=version)
+    report = catalog.load("e11_atomic_classifier_report", version=version)
+    observed = {
+        "checkpoint_sha256": dataframe_content_sha256(checkpoint, sort_columns=["fit_id"]),
+        "metrics_sha256": dataframe_content_sha256(
+            metrics, sort_columns=["query_kind", "query_id", "representation", "k"]
+        ),
+        "report_sha256": json_content_sha256(report),
+    }
+    expected = {
+        name: str(params["inputs"][f"e11_{name}"])
+        for name in ("checkpoint_sha256", "metrics_sha256", "report_sha256")
+    }
+    if observed != expected:
+        raise RuntimeError(f"E12 source E11 artifact hashes differ: {observed}")
+    row = checkpoint.iloc[0]
+    state = {
+        "weight": np.asarray(row["weight"], dtype=np.float32).reshape(
+            int(row["weight_rows"]), int(row["weight_columns"])
+        ),
+        "bias": np.asarray(row["bias"], dtype=np.float32),
+        "log_prior_odds": np.asarray(row["log_prior_odds"], dtype=np.float32),
+    }
+    for name, values in state.items():
+        if _array_sha256(values) != str(row[f"{name}_sha256"]):
+            raise RuntimeError(f"E12 source checkpoint {name} hash differs")
+    return {
+        "state": state,
+        "report": report,
+        "artifacts": {"version": version, **observed},
+    }
+
+
+def _composition_summary(metrics: pd.DataFrame, params: dict[str, Any]) -> dict[str, Any]:
+    by_k = {
+        str(cutoff): {metric: float(group[metric].mean()) for metric in COMPOSITION_METRICS}
+        for cutoff, group in metrics.groupby("k", sort=True)
+    }
+    primary = metrics.loc[metrics["k"].eq(int(params["primary_k"]))].sort_values("query_id")
+    draws = int(params["bootstrap_draws"])
+    generator = np.random.default_rng(int(params["bootstrap_seed"]))
+    positions = generator.integers(0, len(primary), size=(draws, len(primary)))
+    primary_summary = {}
+    for metric in COMPOSITION_METRICS:
+        values = primary[metric].to_numpy(dtype=np.float64)
+        primary_summary[metric] = {
+            "mean": float(values.mean()),
+            "query_bootstrap_95_interval": _interval(values[positions].mean(axis=1)),
+        }
+    return {
+        "by_k": by_k,
+        "primary_k": primary_summary,
+        "resampling_unit": "held_out_conjunction_query",
+        "bootstrap_draws": draws,
+    }
 
 
 def _run(
@@ -464,6 +744,76 @@ def _validate_outputs(catalog: Any, params: dict[str, Any], version: str) -> Non
     )
 
 
+def _validate_composition_outputs(catalog: Any, params: dict[str, Any], version: str) -> None:
+    metrics = catalog.load("e12_compositional_metrics", version=version)
+    report = catalog.load("e12_compositional_report", version=version)
+    observed_hash = dataframe_content_sha256(metrics, sort_columns=["query_id", "k"])
+    if observed_hash != str(report["output_hashes"]["metrics_sha256"]):
+        raise RuntimeError("E12 persisted metric hash differs")
+    expected_rows = int(params["inputs"]["pair_queries"]) * len(params["cutoffs"])
+    if len(metrics) != expected_rows:
+        raise RuntimeError(f"E12 metric row count differs: {len(metrics)} != {expected_rows}")
+    if metrics["query_id"].nunique() != int(params["inputs"]["pair_queries"]):
+        raise RuntimeError("E12 query coverage is incomplete")
+    if set(metrics["k"].astype(int)) != set(map(int, params["cutoffs"])):
+        raise RuntimeError("E12 cutoff coverage is incomplete")
+    counts = metrics.groupby("query_id", sort=False)["k"].nunique()
+    if not counts.eq(len(params["cutoffs"])).all():
+        raise RuntimeError("E12 does not contain every cutoff for every query")
+    bounded = (
+        "strict_adherence",
+        "mean_clause_adherence",
+        "partial_only_fraction",
+        "zero_clause_fraction",
+        "useful_component_fraction",
+        "strict_component_diversity",
+    )
+    if not np.isfinite(metrics[list(COMPOSITION_METRICS)].to_numpy()).all():
+        raise RuntimeError("E12 contains non-finite metrics")
+    if any(not metrics[column].between(0.0, 1.0).all() for column in bounded):
+        raise RuntimeError("E12 bounded metric lies outside [0, 1]")
+    if not np.allclose(
+        metrics["strict_adherence"]
+        + metrics["partial_only_fraction"]
+        + metrics["zero_clause_fraction"],
+        1.0,
+        atol=1e-12,
+        rtol=0.0,
+    ):
+        raise RuntimeError("E12 strict, partial, and zero fractions do not partition retrieval")
+    if not np.allclose(
+        metrics["signed_strict_utility"],
+        2.0 * metrics["strict_adherence"] - 1.0,
+        atol=1e-12,
+        rtol=0.0,
+    ):
+        raise RuntimeError("E12 signed utility is inconsistent with strict adherence")
+    if metrics["first_strict_rank"].lt(1).any():
+        raise RuntimeError("E12 first-strict ranks are invalid")
+    summary = _composition_summary(metrics, params)
+    if summary != report["summary"]:
+        raise RuntimeError("E12 persisted summary differs from recalculation")
+    observed_utility = float(summary["primary_k"]["signed_strict_utility"]["mean"])
+    expected_utility = float(params["inputs"]["expected_signed_strict_utility_at_10"])
+    if not np.isclose(observed_utility, expected_utility, atol=1e-12, rtol=0.0):
+        raise RuntimeError("E12 does not reproduce the accepted E11 primary utility")
+    if report["tracking"].get("status") != "complete":
+        raise RuntimeError("E12 W&B run is incomplete")
+    print(
+        json.dumps(
+            {
+                "status": "e12_compositional_outputs_validated",
+                "version": version,
+                "report_sha256": json_content_sha256(report),
+                "metrics_sha256": observed_hash,
+                "primary_k": summary["primary_k"],
+                "tracking": report["tracking"],
+            },
+            sort_keys=True,
+        )
+    )
+
+
 def _validated_authorization(args: argparse.Namespace, params: dict[str, Any]) -> dict[str, Any]:
     observed = {
         "approval_reference": args.approval_reference,
@@ -477,6 +827,24 @@ def _validated_authorization(args: argparse.Namespace, params: dict[str, Any]) -
     maximum_cost = float(args.instance_hour_limit) * float(args.price_usd_per_hour)
     if maximum_cost >= 20.0:
         raise ValueError(f"E11 authorization must remain below $20, observed ${maximum_cost:.2f}")
+    return observed
+
+
+def _validated_composition_authorization(
+    args: argparse.Namespace, params: dict[str, Any]
+) -> dict[str, Any]:
+    observed = {
+        "approval_reference": args.approval_reference,
+        "region": args.region,
+        "instance_type": args.instance_type,
+        "instance_hour_limit": args.instance_hour_limit,
+        "observed_instance_price_usd_per_hour": args.price_usd_per_hour,
+    }
+    if observed != params["compute_authorization"]:
+        raise ValueError(f"compute authorization differs from frozen E12 contract: {observed}")
+    maximum_cost = float(args.instance_hour_limit) * float(args.price_usd_per_hour)
+    if maximum_cost >= 20.0:
+        raise ValueError(f"E12 authorization must remain below $20, observed ${maximum_cost:.2f}")
     return observed
 
 

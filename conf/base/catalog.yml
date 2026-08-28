@@ -559,3 +559,33 @@ e11_atomic_classifier_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e11/atomic_classifier_report.json
   versioned: true
+
+e12_compositional_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e12/compositional_metrics.parquet
+  versioned: true
+
+e12_compositional_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e12/compositional_report.json
+  versioned: true
+
+e13_text_conditioned_checkpoint:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e13/text_conditioned_checkpoint.parquet
+  versioned: true
+
+e13_text_conditioned_atomic_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e13/atomic_metrics.parquet
+  versioned: true
+
+e13_text_conditioned_compositional_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e13/compositional_metrics.parquet
+  versioned: true
+
+e13_text_conditioned_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e13/report.json
+  versioned: true

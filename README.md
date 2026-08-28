@@ -51,6 +51,16 @@ Calibrated probability-product utility@10 reached `0.82188`, improving on E10 by
 `[0.32030, 0.49324]`. This demonstrates large head, objective, and calibration headroom, but the
 direct heads do not support unseen natural-language atoms.
 
+E12 decomposed that score: strict adherence@10 was `0.91094`, while strictly adherent hits covered
+`0.43047 * K` distinct sequence-similarity components. The model is accurate on known conjunctions
+but returns substantial redundant sequence families; adherence and useful diversity remain
+separate optimization targets.
+
+E13 then held out each atom's direct classifier and predicted it from Qwen name embeddings. This
+failed: held-atom atomic utility@10 was `-0.46875` and conjunction strict adherence@10 was only
+`0.12891`. The next model must learn text–DNA semantics from plasmid-level supervision or a much
+larger ontology; interpolating 64 classifier heads is not viable.
+
 The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
 bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
 

@@ -947,3 +947,124 @@ weak_annotation_classifier_experiment:
     primary_minus_e10: 0.40416666666666656
     primary_minus_e10_interval: [0.3202994791666667, 0.49324218749999993]
     wandb_run_id: ktlo1bk4
+
+# E12 applies the measurement contract to the already accepted E11 ranking. It does not fit or
+# select a model, score function, cutoff, or combined objective.
+compositional_search_evaluation:
+  protocol_version: e12-compositional-evaluation-v0.1
+  inputs:
+    queries_sha256: b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770
+    pair_queries: 128
+    e11_version: 2026-08-28T10.19.38.951Z
+    e11_report_sha256: 8ea38fa831993052fa5f71b6dd66bb107d5092febc8172b25985dda81626e4c4
+    e11_checkpoint_sha256: f400faf5f580eae2be2ddef68ef9ef46e8d610be1ef121b9f258280532712bd0
+    e11_metrics_sha256: 04874e2bb9c268d2b494c314145eb3e3dc9dcb2459ab4af83c3d0619e0b3c130
+    expected_signed_strict_utility_at_10: 0.8218749999999999
+  whitening_epsilon: 0.000001
+  score_representation: calibrated_log_probability_sum
+  gallery_component_column: leakage_component_v2
+  cutoffs: [1, 5, 10, 50]
+  primary_k: 10
+  bootstrap_draws: 2000
+  bootstrap_seed: 20260818
+  tracking:
+    project: vec2vec
+    entity: null
+    group: e12-compositional-evaluation-v0.1
+    tags: [atomic-classifier, compositional-search, adherence, diversity, e12, exploratory]
+  compute_authorization:
+    approval_reference: chat-2026-08-28-e12-compositional-eval-auto-under-20
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 0.5
+    observed_instance_price_usd_per_hour: 1.3232
+  technical_retry:
+    failed_unit: vec2vec-e12-compositional-eval-20260828.service
+    failure: root_systemd_context_had_no_wandb_api_key
+    outputs_persisted: false
+    scientific_parameters_changed: false
+    failed_wrapper_elapsed_seconds: 146.6072120666504
+    failed_wrapper_cost_usd: 0.05388629527960883
+  accepted_run_artifact:
+    version: 2026-08-28T11.09.04.400Z
+    report_sha256: f3b8b23bca6b651aaaf59c0b775589448e854480556c65deeddbf95f63d96638
+    metrics_sha256: fd00d93e8ebf7534bf190df4bd4ed70e36b87336fbc1d2bdaf0d58fbc27be6f5
+    persisted_bytes: 25034
+    stage_elapsed_seconds: 114.4849095158279
+    stage_cost_usd: 0.042079564519817626
+    wrapper_elapsed_seconds: 155.28992986679077
+    wrapper_cost_usd: 0.05707767644437153
+    combined_cost_including_failed_attempt_usd: 0.11096397172398037
+    strict_adherence_at_10: 0.9109375
+    mean_clause_adherence_at_10: 0.9527343749999999
+    partial_only_fraction_at_10: 0.08359375000000001
+    zero_clause_fraction_at_10: 0.00546875
+    useful_component_fraction_at_10: 0.43046875
+    strict_component_diversity_at_10: 0.4898499503968254
+    first_strict_rank_mean: 1.2109375
+    wandb_run_id: haxngr19
+
+# E13 tests whether frozen Qwen semantics can predict calibrated E11 classifier heads for atoms
+# whose heads are excluded from mapper training. Retrieval validation never selects ridge strength.
+text_conditioned_classifier_experiment:
+  protocol_version: e13-text-conditioned-head-v0.1
+  inputs:
+    queries_sha256: b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770
+    atomic_queries: 64
+    pair_queries: 128
+    e11_version: 2026-08-28T10.19.38.951Z
+    e11_report_sha256: 8ea38fa831993052fa5f71b6dd66bb107d5092febc8172b25985dda81626e4c4
+    e11_checkpoint_sha256: f400faf5f580eae2be2ddef68ef9ef46e8d610be1ef121b9f258280532712bd0
+    e11_metrics_sha256: 04874e2bb9c268d2b494c314145eb3e3dc9dcb2459ab4af83c3d0619e0b3c130
+    e10_metrics_version: 2026-08-27T18.46.12.234Z
+    e10_metrics_sha256: b3e9452baa9eb667c244c2cdb89f384039cc4a301cf8edea6906e0c3439e33b6
+  target: accepted_e11_calibrated_affine_atomic_heads
+  outer_folds: 8
+  fold_salt: e13-text-conditioned-head-v0.1:atom-fold
+  ridge:
+    alphas: [0.000001, 0.0001, 0.01, 1.0, 100.0]
+    selection: nested_normalized_training_logit_mse
+    training_logit_sample_rows: 4096
+    sample_salt: e13-text-conditioned-head-v0.1:training-logit-sample
+    deployment_alpha: modal_outer_selection_tie_smallest
+  device: cuda
+  text_feature_precision: bfloat16
+  whitening_epsilon: 0.000001
+  text_normalization: l2_after_training_document_whitening
+  score_representation: calibrated_log_probability_sum
+  gallery_component_column: leakage_component_v2
+  cutoffs: [1, 5, 10, 50]
+  primary_k: 10
+  bootstrap_draws: 2000
+  bootstrap_seed: 20260818
+  tracking:
+    project: vec2vec
+    entity: null
+    group: e13-text-conditioned-head-v0.1
+    tags: [text-conditioned, held-atom, calibrated-and, compositional-search, e13, exploratory]
+  compute_authorization:
+    approval_reference: chat-2026-08-28-e13-text-conditioned-auto-under-20
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 1.0
+    observed_instance_price_usd_per_hour: 1.3232
+  accepted_run_artifact:
+    status: accepted_negative_result
+    version: 2026-08-28T11.22.25.340Z
+    report_sha256: cf7b2352d6dab807bb63add83742f073348d488ce3b7ab8138136a9113dd0011
+    checkpoint_sha256: 94195a62c8b5be7366dd2d0edeb6b6795fdf3da41c81c31abe2050bc2a97c4a0
+    atomic_metrics_sha256: 580de23d8b244e55f41b58d953e53b58e152d38e9082394f47c0cf045d3a0804
+    compositional_metrics_sha256: df98eb1c4af9006606020f86b4f376e0f738b90bf3101189b0fee2867bfe1477
+    persisted_bytes: 11706640
+    stage_elapsed_seconds: 328.67056906595826
+    stage_cost_usd: 0.12080469360779887
+    wrapper_elapsed_seconds: 374.7406349182129
+    wrapper_cost_usd: 0.13773800225660535
+    deployment_alpha: 1.0
+    atomic_utility_at_10: -0.46875
+    signed_strict_utility_at_10: -0.7421875
+    strict_adherence_at_10: 0.12890625
+    useful_component_fraction_at_10: 0.05
+    e13_minus_e10: -1.1598958333333331
+    e13_minus_e11: -1.5640625
+    wandb_run_id: zrgdllpy

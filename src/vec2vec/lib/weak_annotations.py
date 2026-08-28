@@ -231,6 +231,34 @@ def compositional_retrieval_metrics(
     return pd.DataFrame(rows)
 
 
+def fit_ridge_map(
+    inputs: np.ndarray,
+    targets: np.ndarray,
+    *,
+    alpha: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Fit a centered multi-output ridge map through its small sample-space kernel."""
+    source = np.asarray(inputs, dtype=np.float64)
+    destination = np.asarray(targets, dtype=np.float64)
+    if source.ndim != 2 or destination.ndim != 2 or len(source) != len(destination):
+        raise ValueError("ridge inputs and targets must be aligned matrices")
+    if len(source) < 2 or source.shape[1] < 1 or destination.shape[1] < 1:
+        raise ValueError("ridge mapping requires at least two nonempty observations")
+    if alpha <= 0.0 or not np.isfinite(source).all() or not np.isfinite(destination).all():
+        raise ValueError("ridge mapping requires positive regularization and finite values")
+    source_mean = source.mean(axis=0)
+    target_mean = destination.mean(axis=0)
+    centered_source = source - source_mean
+    centered_target = destination - target_mean
+    gram = centered_source @ centered_source.T
+    dual = np.linalg.solve(gram + alpha * np.eye(len(source)), centered_target)
+    mapping = centered_source.T @ dual
+    intercept = target_mean - source_mean @ mapping
+    if not np.isfinite(mapping).all() or not np.isfinite(intercept).all():
+        raise FloatingPointError("ridge mapping produced non-finite parameters")
+    return mapping, intercept
+
+
 def paired_query_bootstrap(
     metrics: pd.DataFrame,
     *,
