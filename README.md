@@ -65,6 +65,10 @@ E14 added plasmid-description alignment before held-atom atomic adaptation. It i
 strict utility@10 from `-0.74219` to `-0.61719`, but strict adherence@10 remained only `0.19141`.
 The direction is useful; the absolute result is not a viable natural-query retriever.
 
+E15 enriched atomic prompts and tested explicit hard negatives. Prompt enrichment reached
+`0.20859` strict adherence@10 (`+0.03438` signed utility over E14, interval crossing zero), while
+both hard-negative variants regressed sharply. Better positive semantics remain the useful axis.
+
 The deployable final fit uses all 110,267 eligible annotated plasmids and is stored in the HF
 bucket with W&B run `m4eeei4w`. It performs no evaluation and adds no scientific claim.
 

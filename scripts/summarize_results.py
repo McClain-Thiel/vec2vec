@@ -62,6 +62,9 @@ E13_REPORT = (
 E14_REPORT = (
     "s3://plasmidclip/kedro/08_reporting/e14/report.json/2026-08-28T11.46.22.782Z/report.json"
 )
+E15_REPORT = (
+    "s3://plasmidclip/kedro/08_reporting/e15/report.json/2026-08-28T12.12.29.240Z/report.json"
+)
 REPORT_HASHES = {
     E02B_REPORT: "a675a3a3fac1b87827749764caeea07a395debf86c0ee886998417fd9a5b8d25",
     GATE2_REPORT: "32914b0f7dec4a0c9c893dbb0eecd80a16dce049d46e642405f22f61cbbee9b2",
@@ -75,6 +78,7 @@ REPORT_HASHES = {
     E12_REPORT: "f3b8b23bca6b651aaaf59c0b775589448e854480556c65deeddbf95f63d96638",
     E13_REPORT: "cf7b2352d6dab807bb63add83742f073348d488ce3b7ab8138136a9113dd0011",
     E14_REPORT: "245545153c3419aa90d4c570c496ee72276d0707c5a3d77c1ff7e95475167267",
+    E15_REPORT: "a70972fa1b4ffcef6a01bf77591ed75f27aa9d7dad9cf02c4f99b92d5e2983c3",
 }
 
 
@@ -397,7 +401,39 @@ def _description_initialized_rows(report):
     return rows
 
 
-def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14):
+def _semantic_hard_negative_rows(report):
+    selected = report["selection"]["variant"]
+    rows = []
+    for variant, result in report["variants"].items():
+        primary = result["compositional_summary"]["primary_k"]
+        rows.append(
+            {
+                "experiment": "E15",
+                "training_rows": report["population"]["training_rows"],
+                "query_representation": variant,
+                "objective": "semantic_prompts_and_hard_negative_tuning",
+                "unseen_pair_utility_at_10": primary["signed_strict_utility"]["mean"],
+                "difference_vs_paired": (
+                    report["comparison"]["selected_minus_e14"] if variant == selected else None
+                ),
+                "difference_interval_lower": (
+                    report["comparison"]["selected_minus_e14_query_bootstrap_95_interval"][0]
+                    if variant == selected
+                    else None
+                ),
+                "difference_interval_upper": (
+                    report["comparison"]["selected_minus_e14_query_bootstrap_95_interval"][1]
+                    if variant == selected
+                    else None
+                ),
+                "decision": "tuning_selected" if variant == selected else "tuning_candidate",
+                "wandb_runs": report["tracking"]["url"],
+            }
+        )
+    return rows
+
+
+def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15):
     rows = []
     for kind, candidates in e02b["accepted_feature_artifacts"].items():
         for candidate, artifact in candidates.items():
@@ -607,6 +643,17 @@ def _artifact_rows(e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14
                 "note": "description alignment plus held-atom tuning; no test rows",
             },
             {
+                "artifact": "e15_semantic_hard_negative_report",
+                "kind": "report",
+                "status": "accepted_exploratory_tuning",
+                "version": e15["execution"]["artifact_versions"][
+                    "e15_semantic_hard_negative_report"
+                ],
+                "sha256": REPORT_HASHES[E15_REPORT],
+                "location": E15_REPORT,
+                "note": "semantic prompts helped slightly; sampled hard negatives failed",
+            },
+            {
                 "artifact": "final_model_v1",
                 "kind": "model",
                 "status": "accepted",
@@ -686,6 +733,7 @@ def _generate_tables(args, *, check):
     e12_hash = REPORT_HASHES.get(args.e12_report)
     e13_hash = REPORT_HASHES.get(args.e13_report)
     e14_hash = REPORT_HASHES.get(args.e14_report)
+    e15_hash = REPORT_HASHES.get(args.e15_report)
     if any(
         value is None
         for value in (
@@ -701,6 +749,7 @@ def _generate_tables(args, *, check):
             e12_hash,
             e13_hash,
             e14_hash,
+            e15_hash,
         )
     ):
         raise ValueError(
@@ -719,6 +768,7 @@ def _generate_tables(args, *, check):
     e12 = _read_report(args.e12_report, e12_hash)
     e13 = _read_report(args.e13_report, e13_hash)
     e14 = _read_report(args.e14_report, e14_hash)
+    e15 = _read_report(args.e15_report, e15_hash)
     tables = {
         "encoders.csv": _encoder_rows(e02b),
         "supervision.csv": _supervision_rows(gate2),
@@ -729,6 +779,7 @@ def _generate_tables(args, *, check):
             *_compositional_measurement_rows(e12),
             *_text_conditioned_rows(e13),
             *_description_initialized_rows(e14),
+            *_semantic_hard_negative_rows(e15),
         ],
         "natural_parameters.csv": [
             *_natural_parameter_rows(
@@ -747,7 +798,7 @@ def _generate_tables(args, *, check):
             *_atomic_classifier_rows(e11),
         ],
         "artifacts.csv": _artifact_rows(
-            e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14
+            e02b, gate2, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15
         ),
     }
     for name, rows in tables.items():
@@ -1435,6 +1486,7 @@ def main():
     parser.add_argument("--e12-report", default=E12_REPORT)
     parser.add_argument("--e13-report", default=E13_REPORT)
     parser.add_argument("--e14-report", default=E14_REPORT)
+    parser.add_argument("--e15-report", default=E15_REPORT)
     parser.add_argument("--output-dir", type=Path, default=Path("results"))
     parser.add_argument("--check", action="store_true")
     parser.add_argument(

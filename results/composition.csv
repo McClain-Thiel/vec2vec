@@ -11,3 +11,6 @@ E14,88474,atomic_lr_0.0001,description_alignment_plus_held_atom_tuning,-0.609375
 E14,88474,atomic_lr_1e-05,description_alignment_plus_held_atom_tuning,-0.65,,,,tuning_candidate,https://wandb.ai/mcclain/vec2vec/runs/zasefr8p
 E14,88474,atomic_lr_3e-05,description_alignment_plus_held_atom_tuning,-0.6171875,0.125,0.010937500000000013,0.2312890624999998,tuning_selected,https://wandb.ai/mcclain/vec2vec/runs/zasefr8p
 E14,88474,description_only,description_alignment_plus_held_atom_tuning,-0.7562499999999999,,,,tuning_candidate,https://wandb.ai/mcclain/vec2vec/runs/zasefr8p
+E15,88474,semantic_hard_negative_16,semantic_prompts_and_hard_negative_tuning,-0.8265625,,,,tuning_candidate,https://wandb.ai/mcclain/vec2vec/runs/nqk90df1
+E15,88474,semantic_hard_negative_4,semantic_prompts_and_hard_negative_tuning,-0.83125,,,,tuning_candidate,https://wandb.ai/mcclain/vec2vec/runs/nqk90df1
+E15,88474,semantic_verified_set,semantic_prompts_and_hard_negative_tuning,-0.5828125,0.034375,-0.012500000000000004,0.08597656249999978,tuning_selected,https://wandb.ai/mcclain/vec2vec/runs/nqk90df1

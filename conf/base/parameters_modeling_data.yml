@@ -1213,3 +1213,27 @@ semantic_hard_negative_tuning_experiment:
     instance_type: g6.4xlarge
     instance_hour_limit: 2.0
     observed_instance_price_usd_per_hour: 1.3232
+  accepted_run_artifact:
+    status: accepted_exploratory_tuning
+    version: 2026-08-28T12.12.29.240Z
+    report_sha256: a70972fa1b4ffcef6a01bf77591ed75f27aa9d7dad9cf02c4f99b92d5e2983c3
+    checkpoint_sha256: 160b479fcb77f4d7f3ea7cb54e1b5098fa50dbc9997b3d52f8761b2769312237
+    atomic_metrics_sha256: d3dc7bb60ad4b74bc3eea4b72a573e585fc5689cf59e1bac6a8d6d0c0ceb7ca8
+    compositional_metrics_sha256: 67bb87b900b7e57fb5820b382fd0d17d45b7d08f0a6c414198aef87a913067aa
+    persisted_bytes: 15503578
+    stage_elapsed_seconds: 365.6394988670945
+    stage_cost_usd: 0.13439282913914985
+    wrapper_elapsed_seconds_approx: 411
+    wrapper_cost_usd_approx: 0.15106533333333333
+    selected_variant: semantic_verified_set
+    atomic_utility_at_10: -0.03749999999999999
+    signed_strict_utility_at_10: -0.5828125
+    strict_adherence_at_10: 0.20859375
+    useful_component_fraction_at_10: 0.11796875000000001
+    selected_minus_e14: 0.034375
+    selected_minus_e14_query_bootstrap_95_interval:
+      - -0.012500000000000004
+      - 0.08597656249999978
+    hard_negative_4_signed_strict_utility_at_10: -0.83125
+    hard_negative_16_signed_strict_utility_at_10: -0.8265625
+    wandb_run_id: nqk90df1

@@ -2990,3 +2990,21 @@ adherence@10, then useful component fraction within a 0.01 adherence tolerance, 
 paired difference from E14. No test row is read. W&B group is
 `e15-semantic-hard-negative-tuning-v0.1`; the g6.4xlarge ceiling is two hours / `$2.6464` under
 reference `chat-2026-08-28-e15-semantic-hard-negative-auto-under-20`.
+
+## 2026-08-28 — E15 semantic prompts help slightly; sampled hard negatives fail
+
+The frozen rule selected semantic prompt ensembling with the original verified-set objective.
+Strict adherence@10 was `0.20859`, useful component fraction was `0.11797`, and signed strict
+utility was `-0.58281`. The paired improvement over E14 was `0.03438`, interval
+`[-0.01250, 0.08598]`, so the gain is not distinguishable from zero. Held-atom atomic utility
+decreased to `-0.03750`. Four- and sixteen-negative sampled binary adaptation were substantially
+worse, with signed utilities `-0.83125` and `-0.82656`; this hard-negative formulation is rejected.
+No test row was read.
+
+Accepted version `2026-08-28T12.12.29.240Z` passed persisted-output validation from clean commit
+`da4ce42c402da4dce0c8d9df16b6b0efa75a90e2`. Report SHA-256 is
+`a70972fa1b4ffcef6a01bf77591ed75f27aa9d7dad9cf02c4f99b92d5e2983c3`; checkpoint SHA-256 is
+`160b479fcb77f4d7f3ea7cb54e1b5098fa50dbc9997b3d52f8761b2769312237`. W&B run `nqk90df1`
+finished. Stage time/cost was 365.64 seconds / `$0.13439`; wrapper time/cost was approximately 411
+seconds / `$0.15107`. The result favors improving positive semantic supervision or the model class,
+not mining more presumed-negative plasmids from incomplete annotations.
