@@ -1237,3 +1237,81 @@ semantic_hard_negative_tuning_experiment:
     hard_negative_4_signed_strict_utility_at_10: -0.83125
     hard_negative_16_signed_strict_utility_at_10: -0.8265625
     wandb_run_id: nqk90df1
+
+broad_vocabulary_distillation_experiment:
+  protocol_version: e16-broad-vocabulary-distillation-v0.1
+  inputs:
+    queries_sha256: b93a73db58b9a149a8458e5cd36bcd03f70997aee12e013c7d27908274275770
+    atomic_queries: 64
+    pair_queries: 128
+    e15_version: 2026-08-28T12.12.29.240Z
+    e15_variant: semantic_verified_set
+    e15_compositional_metrics_sha256: 67bb87b900b7e57fb5820b382fd0d17d45b7d08f0a6c414198aef87a913067aa
+  device: cuda
+  text_feature_precision: bfloat16
+  whitening_epsilon: 0.000001
+  vocabulary:
+    student_training_concepts: 320
+    minimum_train_rows: 200
+    maximum_train_rows: 25000
+    minimum_train_components: 10
+    minimum_validation_rows: 10
+    minimum_validation_components: 3
+    maximum_target_jaccard: 0.80
+    expected_audit:
+      eligible_concepts: 463
+      excluded_exact_targets: 64
+      excluded_near_target_concepts: 17
+      student_training_concepts: 320
+      held_target_concepts: 64
+      vocabulary_sha256: 758f47c0e95f2eb488224a2902106c4c895f8e1d377bba0c441e02002f3e3f68
+      training_labels_sha256: 2f523e3e0c056bb528afd3932a35001a8314a0ac5e0bfc1130407c62edd320a9
+  semantic_prompts:
+    prompts_per_concept: 4
+    recipe: canonical_plus_retrieval_template_plus_definition_plus_normalized_name
+  teacher:
+    objective: class_balanced_full_weak_binary_cross_entropy
+    updates: 400
+    learning_rate: 0.01
+    weight_decay: 0.0001
+    weak_negatives: all_unreported_annotations
+  students:
+    nearest_teacher:
+      kind: nearest_teacher
+    ridge_alpha_1:
+      kind: ridge
+      alpha: 1.0
+    mlp_hidden_64:
+      kind: mlp
+      seed: 20260818
+      hidden_dimension: 64
+      updates: 2000
+      learning_rate: 0.001
+      weight_decay: 0.01
+    mlp_hidden_256:
+      kind: mlp
+      seed: 20260818
+      hidden_dimension: 256
+      updates: 2000
+      learning_rate: 0.001
+      weight_decay: 0.01
+  score_representation: calibrated_log_probability_sum
+  gallery_component_column: leakage_component_v2
+  cutoffs: [1, 5, 10, 50]
+  primary_k: 10
+  bootstrap_draws: 2000
+  bootstrap_seed: 20260818
+  selection:
+    rule: maximize_strict_adherence_then_component_coverage_within_tolerance
+    strict_adherence_tolerance: 0.01
+  tracking:
+    project: vec2vec
+    entity: null
+    group: e16-broad-vocabulary-distillation-v0.1
+    tags: [broad-vocabulary, classifier-distillation, held-concept, compositional-search, e16]
+  compute_authorization:
+    approval_reference: chat-2026-08-30-e16-broad-vocabulary-auto-under-20
+    region: us-east-1
+    instance_type: g6.4xlarge
+    instance_hour_limit: 3.0
+    observed_instance_price_usd_per_hour: 1.3232

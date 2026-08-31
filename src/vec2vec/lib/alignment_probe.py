@@ -660,6 +660,104 @@ def atomic_logistic_scores(
     return raw.astype(np.float32), calibrated.astype(np.float32)
 
 
+def train_text_conditioned_head_generator(
+    text_features: np.ndarray,
+    classifier_targets: np.ndarray,
+    *,
+    seed: int,
+    hidden_dimension: int,
+    updates: int,
+    learning_rate: float,
+    weight_decay: float,
+    device: str,
+    deadline_monotonic: float | None = None,
+) -> tuple[dict[str, Any], pd.DataFrame]:
+    """Fit a deterministic MLP from frozen text features to standardized classifier heads."""
+    import torch
+
+    text = _finite_matrix(text_features, name="head-generator text features", minimum_rows=2)
+    targets = _finite_matrix(
+        classifier_targets, name="head-generator classifier targets", minimum_rows=2
+    )
+    if len(text) != len(targets):
+        raise ValueError("head-generator text features and targets must align")
+    if hidden_dimension < 1 or updates < 1 or learning_rate <= 0.0 or weight_decay < 0.0:
+        raise ValueError("head-generator optimizer settings are invalid")
+    target_mean = targets.mean(axis=0, dtype=np.float64).astype(np.float32)
+    target_scale = targets.std(axis=0, dtype=np.float64).astype(np.float32)
+    target_scale = np.maximum(target_scale, np.float32(1e-6))
+    standardized = (targets - target_mean) / target_scale
+
+    _ensure_before_deadline(deadline_monotonic, operation="text-conditioned head setup")
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    target = torch.device(device)
+    text_tensor = torch.as_tensor(text, device=target)
+    target_tensor = torch.as_tensor(standardized, device=target)
+    model = torch.nn.Sequential(
+        torch.nn.Linear(text.shape[1], hidden_dimension),
+        torch.nn.GELU(approximate="tanh"),
+        torch.nn.Linear(hidden_dimension, targets.shape[1]),
+    ).to(target)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    history = []
+    for update in range(1, updates + 1):
+        _ensure_before_deadline(
+            deadline_monotonic, operation=f"text-conditioned head update {update}"
+        )
+        prediction = model(text_tensor)
+        loss = torch.nn.functional.mse_loss(prediction, target_tensor)
+        if not bool(torch.isfinite(loss)):
+            raise FloatingPointError(f"head-generator loss became non-finite at update {update}")
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        history.append({"update": update, "loss": float(loss.detach().cpu())})
+    first, second = model[0], model[2]
+    state = {
+        "seed": seed,
+        "hidden_dimension": hidden_dimension,
+        "input_weight": first.weight.detach().cpu().numpy().astype(np.float32),
+        "input_bias": first.bias.detach().cpu().numpy().astype(np.float32),
+        "output_weight": second.weight.detach().cpu().numpy().astype(np.float32),
+        "output_bias": second.bias.detach().cpu().numpy().astype(np.float32),
+        "target_mean": target_mean,
+        "target_scale": target_scale,
+        "updates": updates,
+    }
+    return state, pd.DataFrame(history)
+
+
+def predict_text_conditioned_heads(
+    text_features: np.ndarray, state: Mapping[str, Any]
+) -> np.ndarray:
+    """Generate classifier parameters from frozen text features and an MLP state."""
+    text = _finite_matrix(text_features, name="head-generator prediction features")
+    input_weight = _finite_matrix(state["input_weight"], name="head-generator input weight")
+    input_bias = np.asarray(state["input_bias"], dtype=np.float32)
+    output_weight = _finite_matrix(state["output_weight"], name="head-generator output weight")
+    output_bias = np.asarray(state["output_bias"], dtype=np.float32)
+    target_mean = np.asarray(state["target_mean"], dtype=np.float32)
+    target_scale = np.asarray(state["target_scale"], dtype=np.float32)
+    if input_weight.shape[1] != text.shape[1] or input_bias.shape != (len(input_weight),):
+        raise ValueError("head-generator input parameters do not align")
+    if output_weight.shape[1] != len(input_weight) or output_bias.shape != (len(output_weight),):
+        raise ValueError("head-generator output parameters do not align")
+    if target_mean.shape != output_bias.shape or target_scale.shape != output_bias.shape:
+        raise ValueError("head-generator target standardization does not align")
+    hidden = text @ input_weight.T + input_bias
+    hidden = 0.5 * hidden * (1.0 + np.tanh(np.sqrt(2.0 / np.pi) * (hidden + 0.044715 * hidden**3)))
+    standardized = hidden @ output_weight.T + output_bias
+    result = standardized * target_scale + target_mean
+    if not np.isfinite(result).all():
+        raise ValueError("head-generator prediction produced non-finite values")
+    return result.astype(np.float32)
+
+
 def symmetric_many_positive_loss(logits: Any, positive_mask: Any) -> Any:
     """Return symmetric log-sum-exp contrastive loss for explicit positive sets."""
     import torch

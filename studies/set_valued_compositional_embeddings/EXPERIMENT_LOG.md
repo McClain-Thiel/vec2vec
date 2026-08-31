@@ -3008,3 +3008,47 @@ Accepted version `2026-08-28T12.12.29.240Z` passed persisted-output validation f
 finished. Stage time/cost was 365.64 seconds / `$0.13439`; wrapper time/cost was approximately 411
 seconds / `$0.15107`. The result favors improving positive semantic supervision or the model class,
 not mining more presumed-negative plasmids from incomplete annotations.
+
+## 2026-08-30 — E16 broad-vocabulary classifier distillation preregistered
+
+E16 tests whether E13 failed because 64 concept heads were insufficient. From the annotated
+training population, select 320 additional concepts with 200–25,000 positive rows, at least 10
+training components, and validation support. The existing 64 E10 atoms are fixed held targets.
+Exclude any student-training concept whose training positive set has Jaccard at least 0.80 with a
+target, preventing direct label-near-duplicate leakage. Fit one joint class-balanced linear DNA
+teacher for all 384 concepts; annotations are training supervision, while validation candidates
+are scored from DNA features alone.
+
+Map four-prompt frozen Qwen representations to teacher classifier weights, biases, and prevalence
+corrections using nearest-concept routing, ridge regression, and MLPs with hidden dimensions 64 and
+256. Student fitting never sees the 64 target heads or labels. Evaluate the generated heads on the
+unchanged 64 atoms and 128 conjunctions, with the direct held teacher as a nonselectable ceiling.
+Selection uses E15's adherence-then-coverage rule and reports a paired difference from E15. This is
+validation tuning; no test row is read. W&B group is `e16-broad-vocabulary-distillation-v0.1`.
+The g6.4xlarge ceiling is three hours / `$3.9696` under reference
+`chat-2026-08-30-e16-broad-vocabulary-auto-under-20`.
+
+The CPU audit found 463 eligible concepts. Exact-target removal excluded 64 and the 0.80 Jaccard
+guard excluded 17 additional near-target concepts, leaving the frozen top 320. Vocabulary SHA-256
+is `758f47c0e95f2eb488224a2902106c4c895f8e1d377bba0c441e02002f3e3f68`; the complete training
+label matrix SHA-256 is `2f523e3e0c056bb528afd3932a35001a8314a0ac5e0bfc1130407c62edd320a9`.
+
+## 2026-08-30 — E16 broad vocabulary does not transfer classifier geometry
+
+The frozen rule selected nearest-teacher routing. Held-atom utility@10 was `-0.58750`; conjunction
+strict adherence@10 was `0.09375`, useful component fraction was `0.03594`, and signed strict
+utility was `-0.81250`. This was `-0.22969` below E15 with a paired query-bootstrap interval of
+`[-0.35781, -0.10781]`. The 256-unit MLP reduced teacher-head training loss to `0.01108` but reached
+only `-0.58438` held-atom utility and `-0.88594` conjunction utility. In contrast, the nonselectable
+direct teacher reached `0.93125` atomic utility and `0.82187` conjunction utility. The annotated DNA
+classifier therefore has a high validation ceiling, but the frozen text representation does not
+generalize to unseen classifier geometry. No test row was read; this approach is rejected.
+
+Accepted version `2026-08-30T12.05.58.775Z` passed persisted-output validation. Report SHA-256 is
+`f5027587e324509c987dea46ae1f06501248a3d1508c351b613c58cdf823d4b9`; checkpoint SHA-256 is
+`f98feaab10cce5fade5b315463f6b0e2979a39a9ede3b1d619726c9825eafd6f`. W&B run `q9nf3762`
+finished. Stage time/cost was 352.91 seconds / `$0.12971`. The run used base commit
+`3be687256f3b1c47baeca4d0fa0c09fc905c80b1` plus dirty-diff SHA-256
+`c85696da1ce88c65152b365aacca6b8da29562a15069091f435350ccb52dad4e`; exact source hashes are in
+the report. Unreported annotations remain weak negatives, and the result is validation tuning rather
+than a confirmatory test.

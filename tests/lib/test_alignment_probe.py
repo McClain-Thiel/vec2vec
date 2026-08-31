@@ -406,3 +406,43 @@ def test_atomic_logistic_probe_learns_each_weak_binary_label() -> None:
     assert raw[verified[0], 0].min() > raw[~verified[0], 0].max()
     assert raw[verified[1], 1].min() > raw[~verified[1], 1].max()
     assert state["weak_negative_pairs"] == 9
+
+
+def test_text_conditioned_head_generator_fits_and_predicts() -> None:
+    text = np.asarray(
+        [[float(left), float(right)] for left in range(3) for right in range(3)],
+        dtype=np.float32,
+    )
+    targets = np.column_stack(
+        [text[:, 0] + text[:, 1], text[:, 0] - text[:, 1], 2.0 * text[:, 1]]
+    ).astype(np.float32)
+
+    state, history = alignment_probe.train_text_conditioned_head_generator(
+        text,
+        targets,
+        seed=42,
+        hidden_dimension=8,
+        updates=200,
+        learning_rate=0.03,
+        weight_decay=0.0,
+        device="cpu",
+    )
+    predicted = alignment_probe.predict_text_conditioned_heads(text, state)
+
+    assert history.iloc[-1]["loss"] < history.iloc[0]["loss"]
+    assert predicted.shape == targets.shape
+    np.testing.assert_allclose(predicted, targets, atol=0.15)
+
+
+def test_text_conditioned_head_generator_rejects_misaligned_targets() -> None:
+    with pytest.raises(ValueError, match="must align"):
+        alignment_probe.train_text_conditioned_head_generator(
+            np.eye(3, dtype=np.float32),
+            np.eye(2, dtype=np.float32),
+            seed=1,
+            hidden_dimension=2,
+            updates=1,
+            learning_rate=0.01,
+            weight_decay=0.0,
+            device="cpu",
+        )

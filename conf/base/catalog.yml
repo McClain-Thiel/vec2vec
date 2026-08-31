@@ -629,3 +629,28 @@ e15_semantic_hard_negative_report:
   <<: *report
   filepath: ${globals:lake}/08_reporting/e15/report.json
   versioned: true
+
+e16_broad_vocabulary:
+  <<: *parquet
+  filepath: ${globals:lake}/05_model_input/e16/broad_vocabulary.parquet
+  versioned: true
+
+e16_broad_vocabulary_checkpoint:
+  <<: *parquet
+  filepath: ${globals:lake}/06_models/e16/broad_vocabulary_checkpoint.parquet
+  versioned: true
+
+e16_broad_vocabulary_atomic_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e16/atomic_metrics.parquet
+  versioned: true
+
+e16_broad_vocabulary_compositional_metrics:
+  <<: *parquet
+  filepath: ${globals:lake}/08_reporting/e16/compositional_metrics.parquet
+  versioned: true
+
+e16_broad_vocabulary_report:
+  <<: *report
+  filepath: ${globals:lake}/08_reporting/e16/report.json
+  versioned: true
